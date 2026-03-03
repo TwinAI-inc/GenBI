@@ -82,7 +82,7 @@ class TestPlansAPI:
         plans = resp.get_json()['plans']
         free = next(p for p in plans if p['code'] == 'free')
         assert free['price_cents'] == 0
-        assert free['entitlements']['ai_queries']['limit_value'] == 10
+        assert free['entitlements']['ai_queries']['limit_value'] == 100
         assert free['entitlements']['document_uploads']['limit_value'] == 3
         assert free['entitlements']['premium_themes']['is_enabled'] is False
 
@@ -129,7 +129,7 @@ class TestCheckoutAndCancel:
         )
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data.get('mock') is True
+        assert data.get('action') == 'mock_upgrade'
         assert data['subscription']['plan']['code'] == 'pro'
 
     def test_subscription_now_pro(self, client, test_user):
@@ -145,7 +145,7 @@ class TestCheckoutAndCancel:
         })
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data['subscription']['cancel_at_period_end'] is True
+        assert data['subscription']['subscription']['cancel_at_period_end'] is True
 
     def test_resume(self, client, test_user):
         resp = client.post('/api/billing/resume', headers={
