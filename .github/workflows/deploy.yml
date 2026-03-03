@@ -86,32 +86,49 @@ jobs:
           TARGET=".python_packages/lib/site-packages"
           # 1. Install all dependencies normally
           pip install -r requirements.txt --target="$TARGET"
-          # 2. Replace bcrypt with manylinux_2_28 wheel (Azure runs Debian Bullseye / GLIBC 2.31).
-          #    The default pip install grabs manylinux_2_34 wheels whose .so requires GLIBC 2.34,
-          #    causing ImportError at runtime on Azure.
-          rm -rf "$TARGET/bcrypt" "$TARGET"/bcrypt-*.dist-info
+          # 2. Replace native-code packages with manylinux_2_28 wheels.
+          #    Azure App Service runs Debian Bullseye (GLIBC 2.31).
+          #    The default pip install on ubuntu-latest grabs manylinux_2_34 wheels
+          #    whose .so files require GLIBC 2.34, causing ImportError at runtime.
+          #    Affected packages: bcrypt (Rust), cryptography (Rust), cffi (C).
+          for pkg in bcrypt cryptography cffi; do
+            rm -rf "$TARGET/$pkg" "$TARGET"/${pkg}-*.dist-info "$TARGET"/${pkg}.libs
+          done
           pip install --no-deps --target="$TARGET" \
             --platform manylinux_2_28_x86_64 \
             --implementation cp \
             --python-version 3.11 \
             --only-binary=:all: \
-            "bcrypt>=4.0,<5.0"
+            "bcrypt>=4.0,<5.0" \
+            "cryptography>=42.0,<47.0" \
+            "cffi>=1.15,<2.0"
 
-      - name: Verify packaged bcrypt is Azure-compatible
+      - name: Verify native packages are Azure-compatible
         run: |
-          BCRYPT_SO=$(find .python_packages -name '_bcrypt*.so' | head -1)
-          if [ -z "$BCRYPT_SO" ]; then
-            echo "FATAL: bcrypt .so not found in .python_packages" && exit 1
+          echo "=== Checking GLIBC requirements for native .so files ==="
+          FAIL=0
+          for SO_FILE in $(find .python_packages -name '*.so' \
+            -path '*/bcrypt/*' -o \
+            -path '*/cryptography/*' -o \
+            -path '*/_cffi_backend*' -o \
+            -path '*/cryptography.libs/*'); do
+            MAX_GLIBC=$(strings "$SO_FILE" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -V | tail -1)
+            if [ -z "$MAX_GLIBC" ]; then
+              echo "  $SO_FILE — no GLIBC symbols (static/pure), OK"
+              continue
+            fi
+            MAX_VER=$(echo "$MAX_GLIBC" | grep -oE '[0-9]+\.[0-9]+')
+            if [ "$(printf '%s\n' "2.31" "$MAX_VER" | sort -V | tail -1)" != "2.31" ]; then
+              echo "  FAIL: $SO_FILE requires $MAX_GLIBC (Azure has 2.31)"
+              FAIL=1
+            else
+              echo "  OK: $SO_FILE requires $MAX_GLIBC"
+            fi
+          done
+          if [ "$FAIL" = "1" ]; then
+            echo "FATAL: One or more .so files require GLIBC > 2.31" && exit 1
           fi
-          echo "bcrypt binary: $BCRYPT_SO"
-          # Confirm .so does not require GLIBC > 2.31 (Azure App Service limit)
-          MAX_GLIBC=$(strings "$BCRYPT_SO" | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -V | tail -1)
-          echo "Highest GLIBC required: $MAX_GLIBC"
-          MAX_VER=$(echo "$MAX_GLIBC" | grep -oE '[0-9]+\.[0-9]+')
-          if [ "$(printf '%s\n' "2.31" "$MAX_VER" | sort -V | tail -1)" != "2.31" ]; then
-            echo "FATAL: bcrypt requires $MAX_GLIBC but Azure only has GLIBC 2.31" && exit 1
-          fi
-          echo "bcrypt GLIBC check passed — compatible with Azure"
+          echo "All native packages are Azure-compatible"
 
       - name: Clean build artifacts
         run: |
