@@ -86,21 +86,31 @@ jobs:
           TARGET=".python_packages/lib/site-packages"
           # 1. Install all dependencies normally
           pip install -r requirements.txt --target="$TARGET"
-          # 2. Replace native-code packages with manylinux_2_28 wheels.
+          # 2. Replace native-code packages with Azure-compatible wheels.
           #    Azure App Service runs Debian Bullseye (GLIBC 2.31).
-          #    The default pip install on ubuntu-latest grabs manylinux_2_34 wheels
+          #    The default pip on ubuntu-latest grabs manylinux_2_34 wheels
           #    whose .so files require GLIBC 2.34, causing ImportError at runtime.
-          #    Affected packages: bcrypt (Rust), cryptography (Rust), cffi (C).
+          #
+          #    bcrypt + cryptography publish manylinux_2_28 wheels (GLIBC ≤ 2.28).
+          #    cffi only publishes manylinux_2_17 wheels (GLIBC ≤ 2.17).
+          #    Both are well within Azure's GLIBC 2.31.
           for pkg in bcrypt cryptography cffi; do
             rm -rf "$TARGET/$pkg" "$TARGET"/${pkg}-*.dist-info "$TARGET"/${pkg}.libs
           done
+          # 2a. bcrypt + cryptography → manylinux_2_28
           pip install --no-deps --target="$TARGET" \
             --platform manylinux_2_28_x86_64 \
             --implementation cp \
             --python-version 3.11 \
             --only-binary=:all: \
             "bcrypt>=4.0,<5.0" \
-            "cryptography>=42.0,<47.0" \
+            "cryptography>=42.0,<47.0"
+          # 2b. cffi → manylinux_2_17 (cffi has no manylinux_2_28 wheel)
+          pip install --no-deps --target="$TARGET" \
+            --platform manylinux_2_17_x86_64 \
+            --implementation cp \
+            --python-version 3.11 \
+            --only-binary=:all: \
             "cffi>=1.15,<2.0"
 
       - name: Verify native packages are Azure-compatible
