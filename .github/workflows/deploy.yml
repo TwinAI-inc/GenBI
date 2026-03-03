@@ -41,10 +41,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
 
       - name: Install dependencies
-        run: pip install --no-cache-dir -r requirements.txt
+        run: pip install -r requirements.txt
 
       - name: Validate critical imports
         run: |
@@ -81,10 +80,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
 
       - name: Install dependencies to .python_packages
-        run: pip install --no-cache-dir -r requirements.txt --target=".python_packages/lib/site-packages"
+        run: pip install -r requirements.txt --target=".python_packages/lib/site-packages"
 
       - name: Validate critical imports from .python_packages
         run: |
