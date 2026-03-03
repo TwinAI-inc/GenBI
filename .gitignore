@@ -1,0 +1,61 @@
+# ── Secrets & environment ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+.venv/
+env/
+.python_packages/
+
+# ── Testing / linting caches ─────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage/
+
+# ── Build artifacts ───────────────────────────────────────────────────
+dist/
+build/
+*.zip
+*.tar.gz
+
+# ── Node (if any frontend tooling added later) ───────────────────────
+node_modules/
+
+# ── Local databases ──────────────────────────────────────────────────
+*.sqlite
+*.sqlite3
+*.db
+
+# ── Logs ─────────────────────────────────────────────────────────────
+*.log
+
+# ── Keys & certificates ─────────────────────────────────────────────
+*.pem
+*.key
+*.pfx
+*.p12
+*.publishsettings
+
+# ── Azure ────────────────────────────────────────────────────────────
+.azure/
+
+# ── OS junk ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Misc cache ───────────────────────────────────────────────────────
+.cache/

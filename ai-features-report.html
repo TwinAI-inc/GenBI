@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenBI — AI Features Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,sans-serif;background:#0a0a0f;color:#f5f5f5;min-height:100vh;padding:48px 32px;}
+.container{max-width:1100px;margin:0 auto;}
+.header{text-align:center;margin-bottom:48px;}
+.header h1{font-size:32px;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,#00e5ff,#b388ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.header p{font-size:14px;color:#666;margin-bottom:16px;}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:999px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);font-size:11px;color:#888;letter-spacing:0.03em;}
+.badge span{color:#00e5ff;font-weight:600;}
+.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px;}
+.stat{text-align:center;padding:24px;border-radius:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);}
+.stat-num{font-size:36px;font-weight:800;background:linear-gradient(135deg,#00e5ff,#b388ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-label{font-size:12px;color:#666;margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:40px;}
+.card{padding:24px;border-radius:14px;background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);transition:all .2s;}
+.card:hover{border-color:rgba(255,255,255,0.12);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+.card-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:12px;}
+.card-icon{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
+.card-title{font-size:15px;font-weight:600;margin-bottom:2px;}
+.card-endpoint{font-size:11px;font-family:'SF Mono',Monaco,monospace;color:#555;background:rgba(255,255,255,0.03);padding:2px 8px;border-radius:4px;display:inline-block;}
+.card-desc{font-size:13px;color:#888;line-height:1.6;}
+.card-trigger{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#555;margin-top:10px;padding:4px 10px;border-radius:6px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);}
+.card-trigger::before{content:"⚡";font-size:10px;}
+.section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;color:#444;margin-bottom:16px;padding-left:4px;}
+.footer{text-align:center;padding:32px 0;font-size:12px;color:#333;border-top:1px solid rgba(255,255,255,0.04);margin-top:16px;}
+.c-cyan{background:rgba(0,229,255,0.08);color:#00e5ff;}
+.c-violet{background:rgba(179,136,255,0.08);color:#b388ff;}
+.c-emerald{background:rgba(105,240,174,0.08);color:#69f0ae;}
+.c-amber{background:rgba(255,215,64,0.08);color:#ffd740;}
+.c-rose{background:rgba(255,107,157,0.08);color:#ff6b9d;}
+.c-blue{background:rgba(96,165,250,0.08);color:#60a5fa;}
+@media(max-width:768px){.grid{grid-template-columns:1fr;}.stats-row{grid-template-columns:1fr;}}
+@media print{body{background:#fff;color:#222;padding:24px;}.card{border-color:#e0e0e0;background:#fafafa;}.card-desc{color:#555;}.header h1{-webkit-text-fill-color:#222;background:none;}.stat-num{-webkit-text-fill-color:#0891b2;background:none;}}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>GenBI — AI-Powered Features</h1>
+    <p>Complete inventory of AI capabilities in the GenBI dashboard</p>
+    <div class="badge">Powered by <span>Google Gemini 2.0 Flash</span></div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat"><div class="stat-num">12</div><div class="stat-label">AI Features</div></div>
+    <div class="stat"><div class="stat-num">12</div><div class="stat-label">API Endpoints</div></div>
+    <div class="stat"><div class="stat-num">4</div><div class="stat-label">Pages Covered</div></div>
+  </div>
+
+  <div class="section-label">Data Analysis & Insights</div>
+  <div class="grid">
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-cyan">💬</div>
+        <div><div class="card-title">Chart Assistant</div><div class="card-endpoint">/api/chart-assist</div></div>
+      </div>
+      <div class="card-desc">Conversational chart builder — describe what you want in plain English (e.g. "Show sales by region as a bar chart") and the AI generates the chart configuration with type, axes, aggregation, and colors.</div>
+      <div class="card-trigger">Chart Assistant button in Analytics header</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-violet">🔍</div>
+        <div><div class="card-title">Ask Data</div><div class="card-endpoint">/api/ask-data</div></div>
+      </div>
+      <div class="card-desc">Free-form natural language Q&A over your dataset. Ask questions like "What's the average revenue?" or "Which region has the highest margin?" and get specific numerical answers with explanations.</div>
+      <div class="card-trigger">"Ask anything about your data..." input on Analytics</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-emerald">💡</div>
+        <div><div class="card-title">Auto Insights</div><div class="card-endpoint">/api/auto-insights</div></div>
+      </div>
+      <div class="card-desc">Automatically analyzes the uploaded dataset and surfaces notable patterns, trends, and observations. Displayed as an AI Insights briefing card on the Analytics page.</div>
+      <div class="card-trigger">Loads automatically when data is present</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-amber">⚠️</div>
+        <div><div class="card-title">Anomaly Detection</div><div class="card-endpoint">/api/anomaly-detect</div></div>
+      </div>
+      <div class="card-desc">Identifies unusual patterns, outliers, and data quality issues. Displays severity-coded badges (high / medium / low) directly on affected charts.</div>
+      <div class="card-trigger">Runs automatically after chart render</div>
+    </div>
+  </div>
+
+  <div class="section-label">Chart Intelligence</div>
+  <div class="grid">
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-cyan">📝</div>
+        <div><div class="card-title">Chart Narratives</div><div class="card-endpoint">/api/chart-narrative</div></div>
+      </div>
+      <div class="card-desc">Generates a plain-English one-sentence caption for each chart, explaining what it shows and the key business insight — displayed below chart titles for instant context.</div>
+      <div class="card-trigger">Runs automatically after chart render</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-violet">📈</div>
+        <div><div class="card-title">Forecast</div><div class="card-endpoint">/api/forecast</div></div>
+      </div>
+      <div class="card-desc">Predicts future values for time-series line charts. Extends the chart with AI-generated forecast data for the next 3 periods using the last 20 data points.</div>
+      <div class="card-trigger">"Forecast" button on line charts</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-emerald">🧭</div>
+        <div><div class="card-title">Suggested Actions</div><div class="card-endpoint">/api/suggest-actions</div></div>
+      </div>
+      <div class="card-desc">Context-aware recommendations for what to do next — adapts based on current app state (no data → suggests upload; data loaded → suggests specific analyses).</div>
+      <div class="card-trigger">Loads automatically on Analytics page</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-rose">🎯</div>
+        <div><div class="card-title">Recommendations</div><div class="card-endpoint">/api/recommendations</div></div>
+      </div>
+      <div class="card-desc">Generates actionable business recommendations based on identified key influencers. Suggests specific actions to improve the target metric, with impact assessments.</div>
+      <div class="card-trigger">"Recommendations" button on Key Influencers</div>
+    </div>
+  </div>
+
+  <div class="section-label">Data Quality & Understanding</div>
+  <div class="grid">
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-amber">🛡️</div>
+        <div><div class="card-title">Data Quality Analysis</div><div class="card-endpoint">/api/data-quality</div></div>
+      </div>
+      <div class="card-desc">Comprehensive dataset assessment including missing values, data type consistency, outlier detection, and quality metrics. Returns findings with severity levels and improvement recommendations.</div>
+      <div class="card-trigger">"Analyze Quality" button on Documents page</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-blue">📋</div>
+        <div><div class="card-title">Column Descriptions</div><div class="card-endpoint">/api/describe-columns</div></div>
+      </div>
+      <div class="card-desc">Auto-generates a data dictionary by analyzing column names, data types, and sample values — produces meaningful descriptions for every field in the dataset.</div>
+      <div class="card-trigger">"Generate" button on Documents page</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-rose">🔑</div>
+        <div><div class="card-title">Key Influencers</div><div class="card-endpoint">/api/key-influencers</div></div>
+      </div>
+      <div class="card-desc">Statistical analysis identifying which categorical factors most strongly influence a selected metric. Calculates influence multipliers and ranks both positive and negative drivers.</div>
+      <div class="card-trigger">"Analyze" button on Key Influencers page</div>
+    </div>
+    <div class="card">
+      <div class="card-top">
+        <div class="card-icon c-cyan">❓</div>
+        <div><div class="card-title">Explain Influencer</div><div class="card-endpoint">/api/explain-influencer</div></div>
+      </div>
+      <div class="card-desc">Provides a data-driven explanation for why a specific factor was identified as a key influencer — shows the causal relationship between the factor value and metric behavior.</div>
+      <div class="card-trigger">"Why?" button next to selected influencer</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    GenBI Dashboard — AI Features Report · Generated March 2026 · All features require a Google Gemini API key (configured in Settings)
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,139 @@
+name: CI / Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+
+jobs:
+  # ── Lint + Test ────────────────────────────────────────────────────────────
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: genbi_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/genbi_test
+      JWT_SECRET_KEY: ci-test-secret-that-is-at-least-32-chars-long
+      FLASK_SECRET_KEY: ci-test-flask-secret-16
+      FLASK_ENV: development
+      EMAIL_PROVIDER: console
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install --no-cache-dir -r requirements.txt
+
+      - name: Validate critical imports
+        run: |
+          python -c "import flask; print(f'flask {flask.__version__}')"
+          python -c "import flask_cors; print('flask_cors OK')"
+          python -c "import flask_wtf; print('flask_wtf OK')"
+          python -c "import flask_limiter; print('flask_limiter OK')"
+          python -c "import bcrypt; print('bcrypt OK')"
+          python -c "import jwt; print('PyJWT OK')"
+          python -c "import sqlalchemy; print(f'sqlalchemy {sqlalchemy.__version__}')"
+
+      - name: Validate Flask app loads
+        run: |
+          python -c "from server import app; print('App factory OK')"
+
+      - name: Run migrations
+        run: flask db upgrade
+        env:
+          FLASK_APP: server:app
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
+
+  # ── Deploy to Azure App Service ───────────────────────────────────────────
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install dependencies to .python_packages
+        run: pip install --no-cache-dir -r requirements.txt --target=".python_packages/lib/site-packages"
+
+      - name: Validate critical imports from .python_packages
+        run: |
+          export PYTHONPATH=".python_packages/lib/site-packages:$PYTHONPATH"
+          python -c "import flask_cors; print('flask_cors OK')"
+          python -c "import flask_wtf; print('flask_wtf OK')"
+          python -c "import bcrypt; print('bcrypt OK')"
+
+      - name: Clean build artifacts
+        run: |
+          find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+          find . -name '*.pyc' -delete 2>/dev/null || true
+
+      - name: Create deployment package
+        run: |
+          zip -r deploy.zip . \
+            -x ".git/*" \
+            -x ".github/*" \
+            -x "tests/*" \
+            -x "__pycache__/*" \
+            -x "*/__pycache__/*" \
+            -x ".env" \
+            -x "*.pyc" \
+            -x ".venv/*" \
+            -x "get_gmail_token.py"
+
+      - name: Verify deployment package
+        run: |
+          echo "=== Zip contents check ==="
+          unzip -l deploy.zip | grep -c '\.py$' | xargs -I{} echo "Python files: {}"
+          unzip -l deploy.zip | grep 'flask_cors' || (echo "FATAL: flask_cors missing from zip" && exit 1)
+          unzip -l deploy.zip | grep 'startup_wrapper.py' || (echo "FATAL: startup_wrapper.py missing from zip" && exit 1)
+          unzip -l deploy.zip | grep 'server.py' || (echo "FATAL: server.py missing from zip" && exit 1)
+          echo "Zip verification passed"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: deploy.zip
+
+      - name: Post-deploy health check
+        run: |
+          sleep 30
+          APP_URL="https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net"
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$APP_URL/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "Health check passed"
+          else
+            echo "WARNING: Health check returned $STATUS (app may still be starting)"
+          fi

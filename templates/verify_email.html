@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verify email — GenBI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/auth.css">
+</head>
+<body>
+
+<div class="auth-card">
+  <div class="auth-brand">
+    <div class="auth-brand-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+    </div>
+    <span class="auth-brand-name">GenBI</span>
+  </div>
+
+  <h1 class="auth-title">Check your email</h1>
+  <p class="auth-subtitle">We sent a 6-digit code to <strong id="maskedEmail"></strong>. Enter it below to verify your account.</p>
+
+  <div class="auth-alert" id="alert"></div>
+
+  <form id="otpForm" autocomplete="off">
+    <div class="form-field">
+      <label for="otp">Verification code</label>
+      <input type="text" id="otp" name="otp" class="otp-input" placeholder="000000" maxlength="6" inputmode="numeric" pattern="\d{6}" autocomplete="one-time-code" required>
+    </div>
+
+    <button type="submit" class="auth-submit" id="submitBtn">
+      <span class="btn-text">Verify</span>
+      <div class="spinner"></div>
+    </button>
+  </form>
+
+  <p class="auth-footer">
+    Didn't get a code? <a href="#" id="resendLink">Resend code</a>
+  </p>
+</div>
+
+<script src="/static/auth.js"></script>
+<script>
+  // Must be logged in to access this page
+  if (!isLoggedIn()) window.location.href = '/login';
+
+  // Show masked email
+  const user = getUser();
+  const emailEl = document.getElementById('maskedEmail');
+  if (user && user.email) {
+    const [local, domain] = user.email.split('@');
+    emailEl.textContent = local.length <= 2
+      ? local[0] + '***@' + domain
+      : local[0] + '***' + local[local.length - 1] + '@' + domain;
+  }
+
+  // Verify OTP
+  document.getElementById('otpForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideAlert('alert');
+    const btn = document.getElementById('submitBtn');
+    setLoading(btn, true);
+
+    const token = getToken();
+    const res = await fetch('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+      body: JSON.stringify({ otp: document.getElementById('otp').value.trim() }),
+    });
+    const data = await res.json();
+
+    if (res.ok && data.verified) {
+      saveAuth(token, data.user);
+      window.location.href = '/dashboard';
+    } else {
+      showAlert('alert', data.error || 'Verification failed.', 'error');
+      setLoading(btn, false);
+    }
+  });
+
+  // Resend OTP
+  document.getElementById('resendLink').addEventListener('click', async (e) => {
+    e.preventDefault();
+    hideAlert('alert');
+
+    const token = getToken();
+    const res = await fetch('/api/auth/send-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + token,
+      },
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      showAlert('alert', 'A new code has been sent to your email.', 'success');
+    } else {
+      showAlert('alert', data.error || 'Could not resend code.', 'error');
+    }
+  });
+</script>
+</body>
+</html>
