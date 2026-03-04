@@ -788,6 +788,57 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/chart-explain', methods=['POST'])
+    def chart_explain():
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        data = request.get_json()
+        api_key = data.get('apiKey', '').strip()
+        if not api_key:
+            return jsonify({'error': 'No API key provided.'}), 400
+        question = data.get('question', '').strip()
+        if not question:
+            return jsonify({'error': 'No question provided.'}), 400
+        if len(question) > 2000:
+            return jsonify({'error': 'Question too long (max 2000 chars).'}), 400
+        chart_type = data.get('chartType', '')
+        title = data.get('title', '')
+        labels = data.get('labels', [])[:20]
+        chart_data = data.get('data', [])[:20]
+        series_names = data.get('seriesNames', [])
+        x_col = data.get('xCol', '')
+        y_col = data.get('yCol', '')
+        agg_fn = data.get('aggFn', '')
+        columns = data.get('columns', [])
+        prompt = f"""You are a data analyst explaining chart insights. A user is looking at a chart and asking a question about it.
+
+Chart: {chart_type} chart titled "{title}"
+X-axis ({x_col}): {json.dumps(labels, default=str)}
+Y-axis ({y_col}): {json.dumps(chart_data, default=str)}
+{('Series: ' + json.dumps(series_names)) if series_names else ''}
+{('Aggregation: ' + agg_fn) if agg_fn else ''}
+{('Dataset columns: ' + json.dumps(columns[:30])) if columns else ''}
+
+User question: {question}
+
+Respond with ONLY valid JSON (no markdown, no code fences):
+{{"explanation": "2-4 sentence answer to the user's question, referencing specific data points and numbers from the chart.", "highlights": ["key point 1", "key point 2"]}}
+
+Rules:
+- Answer specifically about THIS chart's data
+- Reference actual numbers and labels from the data provided
+- highlights should be 2-4 short bullet points with the most important takeaways
+- If the question cannot be answered from the chart data, say so and explain what data would be needed"""
+        try:
+            parsed = _call_gemini(api_key, prompt)
+            _record_ai_usage()
+            return jsonify(parsed)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
     return app
 
 
