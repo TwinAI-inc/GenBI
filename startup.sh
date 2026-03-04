@@ -1,7 +1,16 @@
 #!/bin/bash
 # Azure App Service startup script.
-# Runs migrations then starts gunicorn.
+# Sets up the vendored package path, runs migrations, then starts gunicorn.
 set -e
+
+# Add vendored packages to Python path (Azure zip-deploy layout)
+SITE_PACKAGES="/home/site/wwwroot/.python_packages/lib/site-packages"
+if [ -d "$SITE_PACKAGES" ]; then
+    export PYTHONPATH="${SITE_PACKAGES}:${PYTHONPATH:-}"
+    echo "[startup] PYTHONPATH includes $SITE_PACKAGES"
+fi
+
+export FLASK_APP=server:app
 
 echo "[startup] Running database migrations..."
 flask db upgrade
