@@ -839,6 +839,202 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    # ── KI Feature Endpoints ─────────────────────────────────────────────
+
+    @app.route('/api/ki-ask', methods=['POST'])
+    def ki_ask():
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        data = request.get_json()
+        api_key = data.get('apiKey', '').strip()
+        if not api_key:
+            return jsonify({'error': 'No API key provided.'}), 400
+        question = data.get('question', '').strip()
+        if not question:
+            return jsonify({'error': 'No question provided.'}), 400
+        if len(question) > 2000:
+            return jsonify({'error': 'Question too long (max 2000 chars).'}), 400
+        metric = data.get('metric', '')
+        direction = data.get('direction', 'increase')
+        influencers = data.get('influencers', [])
+        columns = data.get('columns', [])
+        col_meta = data.get('colMeta', {})
+        prompt = f"""You are a data analyst. Given these Key Influencers results for "{metric}" ({direction}), answer the user's question.
+
+Key Influencers found:
+{json.dumps(influencers[:10], default=str)}
+
+Dataset columns: {json.dumps(columns[:30])}
+Column metadata: {json.dumps({k: {kk: vv for kk, vv in v.items() if kk != 'vals'} for k, v in list(col_meta.items())[:20]}, default=str)}
+
+User question: {question}
+
+Respond with ONLY valid JSON:
+{{"answer": "Your detailed answer here.", "highlights": ["key point 1", "key point 2"]}}
+
+Rules:
+- Answer based on the influencer analysis data provided
+- Be specific with numbers when possible
+- highlights should be 2-4 short bullet points with key takeaways"""
+        try:
+            parsed = _call_gemini(api_key, prompt)
+            _record_ai_usage()
+            return jsonify(parsed)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/ki-interactions', methods=['POST'])
+    def ki_interactions():
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        data = request.get_json()
+        api_key = data.get('apiKey', '').strip()
+        if not api_key:
+            return jsonify({'error': 'No API key provided.'}), 400
+        metric = data.get('metric', '')
+        cross_tab = data.get('crossTabData', [])
+        overall_avg = data.get('overallAvg', 0)
+        single_factors = data.get('singleFactorInfluencers', [])
+        prompt = f"""You are a data analyst. Analyze interaction effects between factor pairs for the metric "{metric}".
+
+Overall average: {overall_avg}
+Single factor influencers: {json.dumps(single_factors[:10], default=str)}
+Cross-tabulated averages (combined factor pairs): {json.dumps(cross_tab[:20], default=str)}
+
+Identify combinations where the joint effect is notably different from individual effects (synergy or suppression).
+
+Respond with ONLY valid JSON:
+{{"interactions": [{{"factor1": "col1", "value1": "val1", "factor2": "col2", "value2": "val2", "combinedAvg": number, "combinedMultiplier": number, "explanation": "description of the interaction", "synergy": "amplifying|suppressing|additive"}}]}}
+
+Rules:
+- Return at most 8 interaction pairs, sorted by significance
+- synergy: "amplifying" if combined effect > sum of individual, "suppressing" if less, "additive" if roughly equal
+- combinedMultiplier = combinedAvg / overallAvg
+- Only include interactions with meaningful combined effects"""
+        try:
+            parsed = _call_gemini(api_key, prompt)
+            _record_ai_usage()
+            return jsonify(parsed)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/ki-segment-compare', methods=['POST'])
+    def ki_segment_compare():
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        data = request.get_json()
+        api_key = data.get('apiKey', '').strip()
+        if not api_key:
+            return jsonify({'error': 'No API key provided.'}), 400
+        metric = data.get('metric', '')
+        segment_col = data.get('segmentColumn', '')
+        segment_data = data.get('segmentData', {})
+        overall_avg = data.get('overallAvg', 0)
+        prompt = f"""You are a data analyst. Compare what drives "{metric}" across segments of "{segment_col}".
+
+Overall average: {overall_avg}
+Segment data (grouped averages per segment value):
+{json.dumps(segment_data, default=str)}
+
+Identify which factors are shared across all segments vs. unique to specific segments.
+
+Respond with ONLY valid JSON:
+{{"segments": [{{"segment": "segment_value", "topDrivers": [{{"factor": "col", "value": "val", "multiplier": number, "direction": "increase|decrease"}}]}}], "shared": [{{"factor": "col", "value": "val"}}], "unique": [{{"segment": "seg_val", "factor": "col", "value": "val"}}]}}
+
+Rules:
+- Include top 5 drivers per segment
+- shared: factors that appear as top drivers in 2+ segments
+- unique: factors that only appear in one segment
+- multiplier = segment_avg / overall_avg"""
+        try:
+            parsed = _call_gemini(api_key, prompt)
+            _record_ai_usage()
+            return jsonify(parsed)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/ki-temporal', methods=['POST'])
+    def ki_temporal():
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        data = request.get_json()
+        api_key = data.get('apiKey', '').strip()
+        if not api_key:
+            return jsonify({'error': 'No API key provided.'}), 400
+        metric = data.get('metric', '')
+        date_col = data.get('dateColumn', '')
+        periods_data = data.get('periodsData', {})
+        prompt = f"""You are a data analyst. Analyze how key influencers for "{metric}" have changed over time (column: "{date_col}").
+
+Period-by-period influencer analysis:
+{json.dumps(periods_data, default=str)}
+
+Identify factors that are strengthening, weakening, or stable over time.
+
+Respond with ONLY valid JSON:
+{{"periods": [{{"period": "Q1 2024", "topDrivers": [{{"factor": "col", "value": "val", "multiplier": number, "direction": "increase|decrease"}}]}}], "trends": [{{"factor": "col", "value": "val", "trend": "strengthening|weakening|stable", "explanation": "brief description"}}]}}
+
+Rules:
+- Include top 5 drivers per period
+- trends: summarize how each major factor changed across periods
+- strengthening = multiplier increasing over time, weakening = decreasing, stable = roughly constant"""
+        try:
+            parsed = _call_gemini(api_key, prompt)
+            _record_ai_usage()
+            return jsonify(parsed)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/ki-root-cause', methods=['POST'])
+    def ki_root_cause():
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        data = request.get_json()
+        api_key = data.get('apiKey', '').strip()
+        if not api_key:
+            return jsonify({'error': 'No API key provided.'}), 400
+        factor = data.get('factor', '')
+        value = data.get('value', '')
+        metric = data.get('metric', '')
+        columns = data.get('columns', [])
+        col_meta = data.get('colMeta', {})
+        summary = data.get('summary', {})
+        mult = data.get('multiplier', '?')
+        avg_when = data.get('avgWhenTrue', '?')
+        overall = data.get('overallAvg', '?')
+        count = data.get('count', '?')
+        prompt = f"""You are a data analyst. Why does "{factor}"="{value}" affect "{metric}"?
+
+Data: multiplier={mult}, avgWhenTrue={avg_when}, overallAvg={overall}, count={count}
+Columns: {json.dumps(columns[:20])}
+
+Give a 3-level root cause analysis. RESPOND WITH ONLY THIS EXACT JSON STRUCTURE:
+
+{{"chain": [{{"level": 1, "cause": "direct effect in under 15 words"}}, {{"level": 2, "cause": "underlying mechanism in under 15 words"}}, {{"level": 3, "cause": "root cause in under 15 words"}}], "rootAction": "one actionable recommendation sentence"}}
+
+IMPORTANT: Return ONLY the JSON object above. No markdown. No code fences. Each "cause" must be under 15 words."""
+        try:
+            parsed = _call_gemini(api_key, prompt)
+            _record_ai_usage()
+            return jsonify(parsed)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
     return app
 
 

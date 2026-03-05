@@ -138,6 +138,69 @@ body.theme-aurora .nav-item.active::before{background:#20c997;box-shadow:none;}
 .ki-bar-track { height: 6px; border-radius: 3px; background: hsl(0 0% 12%); overflow: hidden; }
 .ki-bar-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
 
+/* ══════ KI FEATURE ADDITIONS ══════ */
+.ki-search{width:100%;padding:8px 12px;font-size:13px;font-family:'Inter',system-ui,sans-serif;border:1px solid var(--glass-border);border-radius:8px;background:hsl(0 0% 5%);color:var(--text-primary);outline:none;transition:border-color .2s;margin-bottom:12px;}
+.ki-search:focus{border-color:var(--accent-cyan);}
+.ki-search::placeholder{color:var(--text-tertiary);}
+.ki-pin-btn{background:none;border:none;cursor:pointer;font-size:14px;color:var(--text-tertiary);padding:2px 4px;transition:all .2s;line-height:1;flex-shrink:0;}
+.ki-pin-btn:hover{color:var(--accent-amber);transform:scale(1.2);}
+.ki-pin-btn.pinned{color:var(--accent-amber);}
+.ki-confidence{display:inline-block;font-size:10px;font-weight:600;padding:1px 6px;border-radius:4px;margin-left:6px;letter-spacing:0.03em;text-transform:uppercase;}
+.ki-confidence.high{color:#107C10;background:rgba(16,124,16,0.1);}
+.ki-confidence.medium{color:#d97706;background:rgba(217,119,6,0.1);}
+.ki-confidence.low{color:var(--text-tertiary);background:rgba(150,150,150,0.08);}
+.ki-chart-tabs{display:flex;gap:4px;margin-bottom:10px;}
+.ki-chart-tab{padding:5px 14px;font-size:12px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-secondary);border:1px solid var(--glass-border);border-radius:6px;font-family:'Inter',system-ui,sans-serif;transition:all .2s;}
+.ki-chart-tab:hover{background:hsl(0 0% 8%);color:var(--text-primary);}
+.ki-chart-tab.active{background:hsl(0 0% 96%);color:hsl(0 0% 2%);border-color:transparent;}
+.ki-detail-tabs{display:flex;gap:4px;margin-bottom:12px;}
+.ki-detail-tab{padding:4px 12px;font-size:11px;font-weight:500;cursor:pointer;background:transparent;color:var(--text-secondary);border:1px solid var(--glass-border);border-radius:6px;font-family:'Inter',system-ui,sans-serif;transition:all .2s;}
+.ki-detail-tab:hover{background:hsl(0 0% 8%);color:var(--text-primary);}
+.ki-detail-tab.active{background:hsl(0 0% 14%);color:var(--text-primary);border-color:hsl(0 0% 22%);}
+.ki-sensitivity{padding:14px;border-radius:var(--radius-md);background:hsl(0 0% 5%);border:1px solid var(--glass-border);margin-top:16px;}
+.ki-sensitivity label{font-size:12px;color:var(--text-secondary);display:block;margin-bottom:8px;}
+.ki-sensitivity input[type=range]{width:100%;accent-color:var(--accent-cyan);margin-bottom:8px;}
+.ki-sensitivity #kiSenseResult{font-size:13px;font-weight:600;color:var(--text-primary);}
+.ki-copy-btn{font-size:11px !important;padding:4px 10px !important;}
+.ki-interaction-card{padding:14px;border-radius:var(--radius-md);background:hsl(0 0% 5%);border:1px solid var(--glass-border);margin-bottom:8px;transition:all .2s;}
+.ki-interaction-card:hover{border-color:hsl(0 0% 22%);}
+.ki-interaction-card .ki-int-factors{font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:6px;}
+.ki-interaction-card .ki-int-effect{font-size:12px;color:var(--text-secondary);}
+.ki-interaction-card .ki-int-synergy{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-top:6px;}
+.ki-interaction-card .ki-int-synergy.amplifying{color:#107C10;background:rgba(16,124,16,0.1);}
+.ki-interaction-card .ki-int-synergy.suppressing{color:#D13438;background:rgba(209,52,56,0.1);}
+.ki-interaction-card .ki-int-synergy.additive{color:var(--text-secondary);background:rgba(150,150,150,0.08);}
+.ki-segment-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;}
+.ki-segment-col{padding:16px;border-radius:var(--radius-md);background:hsl(0 0% 5%);border:1px solid var(--glass-border);}
+.ki-segment-col h4{font-size:13px;font-weight:600;color:var(--text-primary);margin:0 0 10px 0;}
+.ki-segment-shared{display:inline-block;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;background:rgba(0,229,255,0.1);color:var(--accent-cyan);margin-left:6px;text-transform:uppercase;}
+.ki-temporal-timeline{display:flex;flex-direction:column;gap:12px;}
+.ki-temporal-item{padding:14px;border-radius:var(--radius-md);background:hsl(0 0% 5%);border:1px solid var(--glass-border);}
+.ki-temporal-item h4{font-size:13px;font-weight:600;color:var(--text-primary);margin:0 0 8px 0;}
+.ki-temporal-trend{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;}
+.ki-temporal-trend.strengthening{color:#107C10;background:rgba(16,124,16,0.1);}
+.ki-temporal-trend.weakening{color:#D13438;background:rgba(209,52,56,0.1);}
+.ki-temporal-trend.stable{color:var(--text-secondary);background:rgba(150,150,150,0.08);}
+.ki-root-chain{display:flex;flex-direction:column;gap:0;margin-top:12px;}
+.ki-root-step{padding:12px 14px;border-left:3px solid var(--glass-border);margin-left:12px;position:relative;}
+.ki-root-step::before{content:'';position:absolute;left:-7px;top:14px;width:10px;height:10px;border-radius:50%;background:var(--accent-cyan);border:2px solid hsl(0 0% 5%);}
+.ki-root-step:last-child{border-left-color:transparent;}
+.ki-root-step .ki-root-level{font-size:10px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-tertiary);margin-bottom:4px;}
+.ki-root-step .ki-root-cause{font-size:13px;color:var(--text-primary);margin-bottom:2px;}
+.ki-root-step .ki-root-evidence{font-size:11px;color:var(--text-secondary);}
+.ki-narrative-box{padding:16px;border-radius:var(--radius-md);background:hsl(0 0% 5%);border:1px solid var(--glass-border);margin-top:12px;font-size:13px;line-height:1.7;color:var(--text-secondary);}
+.ki-narrative-box .ki-narr-title{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;}
+.ki-ask-popup{position:fixed;z-index:1000;width:400px;max-height:500px;overflow-y:auto;background:hsl(0 0% 7%);border:1px solid var(--glass-border);border-radius:var(--radius-md);box-shadow:0 12px 48px rgba(0,0,0,0.4);padding:16px;display:none;}
+.ki-ask-popup.open{display:block;animation:kiFadeIn .2s ease both;}
+.ki-ask-popup .ki-ask-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+.ki-ask-popup .ki-ask-chip{font-size:11px;padding:5px 10px;border-radius:6px;background:hsl(0 0% 10%);border:1px solid var(--glass-border);color:var(--text-secondary);cursor:pointer;font-family:'Inter',system-ui,sans-serif;transition:all .2s;}
+.ki-ask-popup .ki-ask-chip:hover{background:hsl(0 0% 14%);color:var(--text-primary);border-color:hsl(0 0% 22%);}
+.ki-ask-popup .ki-ask-input-row{display:flex;gap:8px;margin-bottom:12px;}
+.ki-ask-popup .ki-ask-input-row input{flex:1;padding:8px 12px;font-size:12px;border:1px solid var(--glass-border);border-radius:6px;background:hsl(0 0% 5%);color:var(--text-primary);font-family:'Inter',system-ui,sans-serif;outline:none;}
+.ki-ask-popup .ki-ask-input-row input:focus{border-color:var(--accent-cyan);}
+.ki-ask-popup .ki-ask-input-row button{padding:8px 14px;font-size:12px;font-weight:500;border:none;border-radius:6px;background:var(--accent-cyan);color:#000;cursor:pointer;font-family:'Inter',system-ui,sans-serif;}
+.ki-ask-popup .ki-ask-response{font-size:12px;line-height:1.6;color:var(--text-secondary);}
+
 /* ══════ KI ANALYZE LOADING ══════ */
 @keyframes kiGearSpin{to{transform:rotate(360deg);}}
 @keyframes kiGearSpinR{to{transform:rotate(-360deg);}}
@@ -295,6 +358,25 @@ body.theme-light .ki-item.selected{border-color:#0891b2;background:rgba(8,145,17
 body.theme-light .ki-detail-stat{background:rgba(0,0,0,0.02);border-color:rgba(0,0,0,0.06);}
 body.theme-light .ki-insight-panel{background:rgba(255,255,255,0.9) !important;border-color:rgba(0,0,0,0.07) !important;}
 body.theme-light .ki-insight-panel div[style*="rgba(255,255,255,0.03)"]{background:rgba(0,0,0,0.02) !important;border-color:rgba(0,0,0,0.06) !important;}
+body.theme-light .ki-search{background:rgba(255,255,255,0.9);border-color:rgba(0,0,0,0.08);color:#1a1a2e;}
+body.theme-light .ki-search:focus{border-color:#0891b2;}
+body.theme-light .ki-chart-tab{background:rgba(0,0,0,0.02);border-color:rgba(0,0,0,0.08);color:#555770;}
+body.theme-light .ki-chart-tab.active{background:#1a1a2e;color:#fff;border-color:transparent;}
+body.theme-light .ki-chart-tab:hover:not(.active){background:rgba(0,0,0,0.05);}
+body.theme-light .ki-detail-tab{background:rgba(0,0,0,0.02);border-color:rgba(0,0,0,0.08);color:#555770;}
+body.theme-light .ki-detail-tab.active{background:rgba(0,0,0,0.06);color:#1a1a2e;border-color:rgba(0,0,0,0.12);}
+body.theme-light .ki-sensitivity{background:rgba(0,0,0,0.02);border-color:rgba(0,0,0,0.06);}
+body.theme-light .ki-interaction-card{background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.06);}
+body.theme-light .ki-interaction-card:hover{border-color:rgba(0,0,0,0.12);}
+body.theme-light .ki-segment-col{background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.06);}
+body.theme-light .ki-temporal-item{background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.06);}
+body.theme-light .ki-root-step{border-left-color:rgba(0,0,0,0.1);}
+body.theme-light .ki-root-step::before{border-color:#fff;}
+body.theme-light .ki-narrative-box{background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.06);}
+body.theme-light .ki-ask-popup{background:rgba(255,255,255,0.98);border-color:rgba(0,0,0,0.08);box-shadow:0 12px 48px rgba(0,0,0,0.12);}
+body.theme-light .ki-ask-popup .ki-ask-chip{background:rgba(0,0,0,0.03);border-color:rgba(0,0,0,0.08);color:#555770;}
+body.theme-light .ki-ask-popup .ki-ask-chip:hover{background:rgba(0,0,0,0.06);color:#1a1a2e;}
+body.theme-light .ki-ask-popup .ki-ask-input-row input{background:rgba(255,255,255,0.9);border-color:rgba(0,0,0,0.08);color:#1a1a2e;}
 body.theme-light .toast{background:rgba(255,255,255,0.95);border-color:rgba(0,0,0,0.08);color:#1a1a2e;}
 body.theme-light .slide-panel{background:rgba(255,255,255,0.95);border-left-color:rgba(0,0,0,0.06);}
 body.theme-light .slide-panel-title{color:#1a1a2e;}
@@ -1080,7 +1162,7 @@ body.theme-light .hp-footer p{color:#9496a1;}
 @keyframes spin{to{transform:rotate(360deg);}}
 
 /* ══════ RESPONSIVE ══════ */
-@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.content-grid,.bottom-grid,.ki-container{grid-template-columns:1fr;}}
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.content-grid,.bottom-grid,.ki-container{grid-template-columns:1fr;}.ki-segment-cols{grid-template-columns:1fr;}}
 @media(max-width:768px){.sidebar{display:none;}.sidebar-toggle{display:none;}.main-content{margin-left:0;width:100%;padding:16px;}.stats-grid{grid-template-columns:1fr;}.slide-panel{width:100%;right:-100%;}.ki-controls{flex-direction:column;align-items:flex-start;}}
 
 /* ══════ LANDING PAGE ══════ */
@@ -2550,7 +2632,7 @@ function renderExcelPreview() {
 // ══════════════════════════════════════════════
 // KEY INFLUENCERS
 // ══════════════════════════════════════════════
-App.kiState = { metric: null, direction: 'increase', influencers: [], selectedIdx: -1, loading: false };
+App.kiState = { metric: null, direction: 'increase', influencers: [], selectedIdx: -1, loading: false, pins: JSON.parse(localStorage.getItem('genbi_ki_pins') || '[]'), searchQuery: '', activeTab: 'overview', detailTab: 'comparison', interactions: [], segments: null, temporal: null };
 
 function renderInfluencersEmptyState() {
   return renderOnboardingUpload({
@@ -2588,11 +2670,13 @@ function renderInfluencers() {
     <select class="form-select" id="kiMetricSelect" onchange="changeKIMetric(this.value)" style="width:auto;padding:6px 32px 6px 12px;font-size:13px;border-radius:6px">${metrics.map(m => '<option value="'+m+'"'+(m===selected?' selected':'')+'>'+m.replace(/_/g,' ')+'</option>').join('')}</select>
     <span style="font-size:13px;color:var(--text-secondary)">to</span>
     <div class="ki-toggle">
-      <button class="ki-toggle-btn ${App.kiState.direction==='increase'?'active':''}" onclick="changeKIDirection('increase')">Increase</button>
-      <button class="ki-toggle-btn ${App.kiState.direction==='decrease'?'active':''}" onclick="changeKIDirection('decrease')">Decrease</button>
+      <button class="ki-toggle-btn ${App.kiState.direction==='increase'?'active':''}" onclick="changeKIDirection('increase')" title="Show factors that push the metric higher">Increase</button>
+      <button class="ki-toggle-btn ${App.kiState.direction==='decrease'?'active':''}" onclick="changeKIDirection('decrease')" title="Show factors that pull the metric lower">Decrease</button>
     </div>
     <button class="btn btn-primary" onclick="runKeyInfluencers()" style="padding:8px 18px;font-size:13px" id="kiRunBtn">${App.kiState.loading ? 'Analyzing...' : 'Analyze'}</button>
+    ${hasInfluencers ? '<button class="btn btn-ghost" onclick="exportKIToPNG()" style="font-size:11px;padding:6px 12px" title="Download the current chart as a PNG image">Export PNG</button><button class="btn btn-ghost ki-copy-btn" onclick="copyKIInsight()" title="Copy a text summary of all influencers to your clipboard">📋 Copy</button><button class="btn btn-ghost" onclick="generateKINarrative()" style="font-size:11px;padding:6px 12px" title="Generate a short AI-written summary of key findings">AI Summary</button><button class="ask-ai-btn" onclick="openKIAskAi(event)" style="font-size:11px;padding:6px 12px;background:var(--accent-violet);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Inter,system-ui,sans-serif" title="Ask a free-form question about these influencer results">Ask AI</button>' : ''}
   </div>
+  ${hasInfluencers ? '<div id="kiNarrativeBox" style="display:none" class="ki-narrative-box"></div>' : ''}
   ${hasInfluencers ? (function(){
     const dirItems = App.kiState.influencers.filter(inf => inf.direction === App.kiState.direction);
     const isIncDir = App.kiState.direction === 'increase';
@@ -2601,7 +2685,7 @@ function renderInfluencers() {
     const topInf = dirItems[0];
     const overallAvg = topInf ? topInf.overallAvg : 0;
     const topMult = topInf ? topInf.multiplier.toFixed(2) + 'x' : '';
-    const topFactor = topInf ? topInf.factor.replace(/_/g,' ') + ' = ' + topInf.value : '';
+    const topFactor = topInf ? kiLabel(topInf.factor, topInf.value) : '';
     const spread = dirItems.length > 1 ? Math.abs(dirItems[0].avgWhenTrue - dirItems[dirItems.length-1].avgWhenTrue).toLocaleString('en-US',{maximumFractionDigits:1}) : '0';
     const aboveAvg = dirItems.filter(inf => inf.avgWhenTrue > overallAvg).length;
     const belowAvg = dirItems.filter(inf => inf.avgWhenTrue < overallAvg).length;
@@ -2637,13 +2721,22 @@ function renderInfluencers() {
 
       '<div class="glass-panel" style="padding:20px">' +
         '<div class="panel-header" style="margin-bottom:10px"><h2 class="panel-title">Impact Overview — ' + metricLabel + '</h2><span style="font-size:12px;color:var(--text-tertiary)">' + App.kiState.direction + ' factors</span></div>' +
-        '<div style="height:' + Math.max(220, dirItems.length * 42 + 60) + 'px"><canvas id="kiOverviewChart"></canvas></div>' +
+        '<div class="ki-chart-tabs">' +
+          '<button class="ki-chart-tab' + (App.kiState.activeTab === 'overview' ? ' active' : '') + '" onclick="switchKIChart(\'overview\')" title="Horizontal bars ranked by impact on the metric">Impact Bars</button>' +
+          '<button class="ki-chart-tab' + (App.kiState.activeTab === 'waterfall' ? ' active' : '') + '" onclick="switchKIChart(\'waterfall\')" title="See how each factor adds or subtracts from the overall average">Waterfall</button>' +
+          '<button class="ki-chart-tab' + (App.kiState.activeTab === 'interactions' ? ' active' : '') + '" onclick="switchKIChart(\'interactions\')" title="Discover factor pairs that amplify or suppress each other">Interactions</button>' +
+          '<button class="ki-chart-tab' + (App.kiState.activeTab === 'segments' ? ' active' : '') + '" onclick="switchKIChart(\'segments\')" title="Compare which drivers matter in different groups">Segments</button>' +
+          (hasDateCol() ? '<button class="ki-chart-tab' + (App.kiState.activeTab === 'temporal' ? ' active' : '') + '" onclick="switchKIChart(\'temporal\')" title="See how influencer strength changes over time">Temporal</button>' : '') +
+        '</div>' +
+        '<div id="kiChartArea" style="height:' + Math.max(220, dirItems.length * 42 + 60) + 'px"><canvas id="kiOverviewChart"></canvas></div>' +
+        '<div id="kiTabContent"></div>' +
       '</div>' +
     '</div>';
   })() : ''}
   <div class="ki-container">
     <div class="glass-panel" id="kiListPanel">
       <h3 style="font-size:14px;font-weight:600;margin-bottom:16px;color:var(--text-primary)">Top Influencers</h3>
+      ${hasInfluencers ? '<input class="ki-search" id="kiSearch" placeholder="Filter influencers..." oninput="filterKIList(this.value)" value="' + (App.kiState.searchQuery || '') + '">' : ''}
       <div class="ki-list" id="kiList">${hasInfluencers ? renderKIList() : '<div style="text-align:center;padding:40px 0;color:var(--text-tertiary);font-size:13px">Click "Analyze" to discover key influencers</div>'}</div>
     </div>
     <div class="glass-panel" id="kiDetailPanel">
@@ -2653,10 +2746,21 @@ function renderInfluencers() {
 }
 
 function renderKIList() {
-  const items = App.kiState.influencers.filter(inf => inf.direction === App.kiState.direction);
+  let items = App.kiState.influencers.filter(inf => inf.direction === App.kiState.direction);
   if (items.length === 0) return '<div style="text-align:center;padding:40px 0;color:var(--text-tertiary);font-size:13px">Click "Analyze" to discover key influencers</div>';
   const isIncDir = App.kiState.direction === 'increase';
-  items.sort((a, b) => isIncDir ? b.avgWhenTrue - a.avgWhenTrue : a.avgWhenTrue - b.avgWhenTrue);
+  // Filter by search query
+  const q = (App.kiState.searchQuery || '').toLowerCase();
+  if (q) {
+    items = items.filter(inf => inf.factor.toLowerCase().includes(q) || String(inf.value).toLowerCase().includes(q) || (inf.explanation || '').toLowerCase().includes(q));
+  }
+  // Sort: pinned first, then by impact
+  items.sort((a, b) => {
+    const aPinned = isKIPinned(a.factor, a.value) ? 1 : 0;
+    const bPinned = isKIPinned(b.factor, b.value) ? 1 : 0;
+    if (aPinned !== bPinned) return bPinned - aPinned;
+    return isIncDir ? b.avgWhenTrue - a.avgWhenTrue : a.avgWhenTrue - b.avgWhenTrue;
+  });
   const maxMult = Math.max(...items.map(inf => Math.abs(inf.multiplier - 1)));
   return items.map((inf, i) => {
     const allIdx = App.kiState.influencers.indexOf(inf);
@@ -2664,12 +2768,52 @@ function renderKIList() {
     const isInc = inf.direction === 'increase';
     const barGrad = isInc ? 'linear-gradient(90deg,#00b482,#20c997,#69f0ae)' : 'linear-gradient(90deg,#b42850,#D13438,#ff6b9d)';
     const multLabel = isInc ? inf.multiplier.toFixed(2) + 'x higher' : inf.multiplier.toFixed(2) + 'x lower';
+    const conf = computeKIConfidence(inf);
+    const pinned = isKIPinned(inf.factor, inf.value);
     return '<div class="ki-item' + (allIdx === App.kiState.selectedIdx ? ' selected' : '') + '" onclick="selectKIItem('+allIdx+')">' +
-      '<div class="ki-item-header"><span class="ki-item-factor">' + inf.factor.replace(/_/g,' ') + ' = ' + inf.value + '</span>' +
-      '<span class="ki-item-mult ' + inf.direction + '">' + multLabel + '</span></div>' +
+      '<div class="ki-item-header"><span class="ki-item-factor">' + kiLabel(inf.factor, inf.value) + '</span>' +
+      '<span style="display:flex;align-items:center;gap:4px">' +
+        '<span class="ki-item-mult ' + inf.direction + '">' + multLabel + '</span>' +
+        '<span class="ki-confidence ' + conf + '">' + conf + '</span>' +
+        '<button class="ki-pin-btn' + (pinned ? ' pinned' : '') + '" onclick="event.stopPropagation();toggleKIPin(\'' + inf.factor.replace(/'/g,"\\'") + '\',\'' + String(inf.value).replace(/'/g,"\\'") + '\')">★</button>' +
+      '</span></div>' +
       '<div class="ki-item-desc">' + (inf.explanation || 'When ' + inf.factor.replace(/_/g,' ') + ' is ' + inf.value + ', ' + App.kiState.metric.replace(/_/g,' ') + ' is ' + multLabel) + '</div>' +
       '<div class="ki-bar-track"><div class="ki-bar-fill" style="width:' + barPct + '%;background:' + barGrad + '"></div></div></div>';
   }).join('');
+}
+
+function kiLabel(factor, value) {
+  const f = factor.replace(/_/g, ' ');
+  const v = String(value);
+  if (f === v || f.toLowerCase() === v.toLowerCase()) return f;
+  return f + ' = ' + v;
+}
+
+function filterKIList(query) {
+  App.kiState.searchQuery = query;
+  const listEl = document.getElementById('kiList');
+  if (listEl) listEl.innerHTML = renderKIList();
+}
+
+function computeKIConfidence(inf) {
+  const count = inf.count || 0;
+  const effect = Math.abs(inf.multiplier - 1);
+  if (count >= 30 && effect > 0.25) return 'high';
+  if (count >= 10 && effect > 0.15) return 'medium';
+  return 'low';
+}
+
+function isKIPinned(factor, value) {
+  return App.kiState.pins.some(p => p.factor === factor && p.value === value);
+}
+
+function toggleKIPin(factor, value) {
+  const idx = App.kiState.pins.findIndex(p => p.factor === factor && p.value === value);
+  if (idx >= 0) App.kiState.pins.splice(idx, 1);
+  else App.kiState.pins.push({ factor, value });
+  localStorage.setItem('genbi_ki_pins', JSON.stringify(App.kiState.pins));
+  const listEl = document.getElementById('kiList');
+  if (listEl) listEl.innerHTML = renderKIList();
 }
 
 function renderKIDetail() {
@@ -2679,7 +2823,10 @@ function renderKIDetail() {
   const color = isInc ? '#107C10' : '#D13438';
   const pctDiff = inf.overallAvg > 0 ? Math.round(((inf.avgWhenTrue - inf.overallAvg) / inf.overallAvg) * 100) : 0;
   const pctLabel = (pctDiff >= 0 ? '+' : '') + pctDiff + '%';
-  return '<div class="ki-detail-title">When ' + inf.factor.replace(/_/g,' ') + ' is "' + inf.value + '"</div>' +
+  const conf = computeKIConfidence(inf);
+  const dt = App.kiState.detailTab || 'comparison';
+  const detailTitle = inf.factor.replace(/_/g,' ') === String(inf.value) ? 'When "' + inf.value + '"' : 'When ' + inf.factor.replace(/_/g,' ') + ' is "' + inf.value + '"';
+  return '<div class="ki-detail-title">' + detailTitle + '</div>' +
     '<div class="ki-detail-stats">' +
     '<div class="ki-detail-stat"><div class="ki-detail-stat-label">Avg ' + App.kiState.metric.replace(/_/g,' ') + ' (this group)</div><div class="ki-detail-stat-value" style="color:' + color + '">' + (typeof inf.avgWhenTrue === 'number' ? inf.avgWhenTrue.toLocaleString('en-US',{maximumFractionDigits:1}) : inf.avgWhenTrue) + '</div></div>' +
     '<div class="ki-detail-stat"><div class="ki-detail-stat-label">Overall Avg</div><div class="ki-detail-stat-value">' + (typeof inf.overallAvg === 'number' ? inf.overallAvg.toLocaleString('en-US',{maximumFractionDigits:1}) : inf.overallAvg) + '</div></div>' +
@@ -2687,25 +2834,41 @@ function renderKIDetail() {
     '<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-secondary);margin-bottom:16px">' +
       (inf.count ? '<span>' + inf.count + ' data points</span><span style="color:var(--text-tertiary)">·</span>' : '') +
       '<span style="font-weight:600;color:' + color + '">' + pctLabel + ' vs overall</span>' +
+      '<span class="ki-confidence ' + conf + '">' + conf + ' confidence</span>' +
     '</div>' +
-    '<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px">Group vs Overall Comparison</div><div style="height:160px"><canvas id="kiDetailChart"></canvas></div></div>' +
-    '<div><div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px">Avg ' + App.kiState.metric.replace(/_/g,' ') + ' by All ' + inf.factor.replace(/_/g,' ') + ' Values</div><div style="height:200px"><canvas id="kiFactorChart"></canvas></div></div>' +
-    '<div style="display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--glass-border)">' +
-      '<button class="btn btn-ghost" style="font-size:11px;padding:6px 14px" onclick="handleExplainInfluencer(' + App.kiState.selectedIdx + ')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Why?</button>' +
-      '<button class="btn btn-ghost" style="font-size:11px;padding:6px 14px" onclick="handleGetRecommendations()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Recommendations</button>' +
+    '<div class="ki-detail-tabs">' +
+      '<button class="ki-detail-tab' + (dt === 'comparison' ? ' active' : '') + '" onclick="switchKIDetailTab(\'comparison\')" title="Compare this group\'s average against the overall average">Comparison</button>' +
+      '<button class="ki-detail-tab' + (dt === 'distribution' ? ' active' : '') + '" onclick="switchKIDetailTab(\'distribution\')" title="See the metric average for every value of this factor">Distribution</button>' +
+      '<button class="ki-detail-tab' + (dt === 'scatter' ? ' active' : '') + '" onclick="switchKIDetailTab(\'scatter\')" title="Plot individual data points — highlighted dots belong to this group">Scatter</button>' +
+    '</div>' +
+    '<div id="kiDetailChartArea">' +
+      (dt === 'comparison' ? '<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px">Group vs Overall Comparison</div><div style="height:160px"><canvas id="kiDetailChart"></canvas></div></div>' : '') +
+      (dt === 'distribution' ? '<div><div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px">Avg ' + App.kiState.metric.replace(/_/g,' ') + ' by All ' + inf.factor.replace(/_/g,' ') + ' Values</div><div style="height:200px"><canvas id="kiFactorChart"></canvas></div></div>' : '') +
+      (dt === 'scatter' ? '<div><div style="font-size:12px;font-weight:500;color:var(--text-secondary);margin-bottom:8px">Scatter: ' + inf.factor.replace(/_/g,' ') + ' vs ' + App.kiState.metric.replace(/_/g,' ') + '</div><div style="height:280px"><canvas id="kiScatterChart"></canvas></div></div>' : '') +
+    '</div>' +
+    '<div class="ki-sensitivity">' +
+      '<label>What if we shifted <span id="kiSensePct">10</span>% of data to this group?</label>' +
+      '<input type="range" min="5" max="50" value="10" oninput="updateKISensitivity(this.value)">' +
+      '<div id="kiSenseResult"></div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--glass-border);flex-wrap:wrap">' +
+      '<button class="btn btn-ghost" style="font-size:11px;padding:6px 14px" onclick="handleExplainInfluencer(' + App.kiState.selectedIdx + ')" title="Ask AI to explain why this factor influences the metric"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Why?</button>' +
+      '<button class="btn btn-ghost" style="font-size:11px;padding:6px 14px" onclick="handleGetRecommendations()" title="Get actionable suggestions to improve this metric"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Recommendations</button>' +
     '</div>' +
     '<div class="ki-explain-box" id="kiExplainBox" style="display:none"></div>' +
-    '<div id="kiRecsBox" style="display:none"></div>';
+    '<div id="kiRecsBox" style="display:none"></div>' +
+    '';
 }
 
 function selectKIItem(idx) {
   App.kiState.selectedIdx = idx;
+  App.kiState.detailTab = 'comparison';
   const listEl = document.getElementById('kiList');
   if (listEl) listEl.innerHTML = renderKIList();
   const detailEl = document.getElementById('kiDetail');
   if (detailEl) {
     detailEl.innerHTML = renderKIDetail();
-    setTimeout(() => { drawKIDetailChart(); drawKIFactorChart(); }, 50);
+    setTimeout(() => { drawKIDetailChart(); updateKISensitivity(10); }, 50);
   }
 }
 
@@ -2721,13 +2884,36 @@ function drawKIDetailChart() {
   animateBarChart(canvas, labels, data, colorName, { suffix: '', xLabel: '', yLabel: App.kiState.metric.replace(/_/g,' ') });
 }
 
+// Resolve the actual column name for a factor — handles cases where AI
+// returns a value as the factor name (e.g. factor="Vaccines" when the
+// real column is "Therapeutic_Area" which contains value "Vaccines").
+function resolveKIFactorCol(factor, value) {
+  if (!App.excelData) return factor;
+  const headers = App.excelData.headers;
+  // 1. Exact match — factor is already a valid column name
+  if (headers.includes(factor)) return factor;
+  // 2. Try with underscores replaced by spaces and vice-versa
+  const alt = factor.includes('_') ? factor.replace(/_/g, ' ') : factor.replace(/ /g, '_');
+  if (headers.includes(alt)) return alt;
+  // 3. Factor is actually a value — find the column that contains it
+  const rows = App.excelData.rows;
+  const ec = App.excelChartConfig;
+  const cats = ec ? (ec.categoricals || []) : headers;
+  for (const col of cats) {
+    for (let i = 0; i < Math.min(rows.length, 200); i++) {
+      if (String(rows[i][col] || '').trim() === String(value || factor).trim()) return col;
+    }
+  }
+  return factor;
+}
+
 function drawKIFactorChart() {
   const canvas = document.getElementById('kiFactorChart');
   if (!canvas) return;
   const inf = App.kiState.influencers[App.kiState.selectedIdx];
   if (!inf || !App.excelData) return;
   const metric = App.kiState.metric;
-  const factor = inf.factor;
+  const factor = resolveKIFactorCol(inf.factor, inf.value);
   const rows = App.excelData.rows;
 
   // Compute avg metric for each value of this factor
@@ -2852,7 +3038,7 @@ function drawKIOverviewChart(canvas, animate) {
       // Label (left side) — always visible
       ctx.fillStyle = chartTextColor(isSelected ? 0.95 : 0.6);
       ctx.font = (isSelected ? '500 ' : '') + '11px Inter'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-      const lbl = (inf.factor.replace(/_/g,' ') + ' = ' + inf.value);
+      const lbl = kiLabel(inf.factor, inf.value);
       const truncLbl = lbl.length > 24 ? lbl.substring(0, 23) + '..' : lbl;
       ctx.fillText(truncLbl, padL - 8, y + barH / 2);
 
@@ -2917,6 +3103,7 @@ function changeKIMetric(metric) {
 function changeKIDirection(dir) {
   App.kiState.direction = dir;
   App.kiState.selectedIdx = -1;
+  App.kiState.activeTab = 'overview';
   const listEl = document.getElementById('kiList');
   if (listEl) listEl.innerHTML = renderKIList();
   const detailEl = document.getElementById('kiDetail');
@@ -2925,9 +3112,13 @@ function changeKIDirection(dir) {
   document.querySelectorAll('.ki-toggle-btn').forEach(btn => {
     btn.classList.toggle('active', btn.textContent.toLowerCase() === dir);
   });
-  // Redraw overview chart
-  const overviewCanvas = document.getElementById('kiOverviewChart');
-  if (overviewCanvas) { overviewCanvas._hasKIEvents = false; drawKIOverviewChart(overviewCanvas, true); }
+  // Restore chart area and redraw
+  const chartArea = document.getElementById('kiChartArea');
+  if (chartArea) { chartArea.style.display = ''; chartArea.innerHTML = '<canvas id="kiOverviewChart"></canvas>'; }
+  const tabContent = document.getElementById('kiTabContent');
+  if (tabContent) tabContent.innerHTML = '';
+  document.querySelectorAll('.ki-chart-tab').forEach(btn => btn.classList.toggle('active', btn.textContent.includes('Impact')));
+  setTimeout(() => { const overviewCanvas = document.getElementById('kiOverviewChart'); if (overviewCanvas) { overviewCanvas._hasKIEvents = false; drawKIOverviewChart(overviewCanvas, true); } }, 50);
 }
 
 function showKILoading() {
@@ -3074,6 +3265,838 @@ function computeLocalInfluencers(metric, overallAvg, groupedAvgs) {
 }
 
 // ══════════════════════════════════════════════
+// KI FEATURE ADDITIONS
+// ══════════════════════════════════════════════
+
+// ── A4: Waterfall Chart ──
+function switchKIChart(type) {
+  App.kiState.activeTab = type;
+  document.querySelectorAll('.ki-chart-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(type === 'overview' ? 'impact' : type));
+  });
+  const chartArea = document.getElementById('kiChartArea');
+  const tabContent = document.getElementById('kiTabContent');
+  if (!chartArea || !tabContent) return;
+  if (type === 'overview') {
+    chartArea.style.display = '';
+    tabContent.innerHTML = '';
+    // Restore the overview canvas if it was replaced by waterfall
+    if (!document.getElementById('kiOverviewChart')) {
+      chartArea.innerHTML = '<canvas id="kiOverviewChart"></canvas>';
+    }
+    setTimeout(() => { const c = document.getElementById('kiOverviewChart'); if (c) { c._hasKIEvents = false; drawKIOverviewChart(c, true); } }, 50);
+  } else if (type === 'waterfall') {
+    chartArea.innerHTML = '<canvas id="kiWaterfallChart"></canvas>';
+    chartArea.style.display = '';
+    tabContent.innerHTML = '';
+    setTimeout(() => drawKIWaterfallChart(), 50);
+  } else if (type === 'interactions') {
+    chartArea.style.display = 'none';
+    tabContent.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-tertiary);font-size:12px">Loading interactions...</div>';
+    runKIInteractions();
+  } else if (type === 'segments') {
+    chartArea.style.display = 'none';
+    renderKISegmentSelector(tabContent);
+  } else if (type === 'temporal') {
+    chartArea.style.display = 'none';
+    tabContent.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-tertiary);font-size:12px">Loading temporal analysis...</div>';
+    runKITemporal();
+  }
+}
+
+function drawKIWaterfallChart() {
+  const canvas = document.getElementById('kiWaterfallChart');
+  if (!canvas) return;
+  const items = App.kiState.influencers.filter(inf => inf.direction === App.kiState.direction);
+  if (items.length === 0) return;
+  const isInc = App.kiState.direction === 'increase';
+  items.sort((a, b) => isInc ? b.avgWhenTrue - a.avgWhenTrue : a.avgWhenTrue - b.avgWhenTrue);
+  const overallAvg = items[0]?.overallAvg || 0;
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px'; canvas.style.height = rect.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = rect.width, h = rect.height;
+  const padL = 30, padR = 20, padT = 30, padB = 80;
+  const cw = w - padL - padR, ch = h - padT - padB;
+
+  // Build waterfall data: start with overall avg, each factor adds its delta
+  const wfData = [{ label: 'Overall Avg', value: overallAvg, isTotal: true }];
+  let running = overallAvg;
+  items.slice(0, 8).forEach(inf => {
+    const delta = inf.avgWhenTrue - overallAvg;
+    wfData.push({ label: kiLabel(inf.factor, inf.value), value: delta, start: running, isTotal: false });
+    running += delta;
+  });
+  wfData.push({ label: 'Combined', value: running, isTotal: true });
+
+  const allVals = [];
+  let run2 = overallAvg;
+  wfData.forEach(d => {
+    if (d.isTotal) { allVals.push(d.value); }
+    else { allVals.push(run2); allVals.push(run2 + d.value); run2 += d.value; }
+  });
+  const minVal = Math.min(0, ...allVals) * 0.9;
+  const maxVal = Math.max(...allVals) * 1.15 || 100;
+  const range = maxVal - minVal;
+
+  const barW = Math.min(40, (cw - (wfData.length - 1) * 4) / wfData.length);
+  const gap = 4;
+  const totalW = wfData.length * barW + (wfData.length - 1) * gap;
+  const startX = padL + (cw - totalW) / 2;
+
+  ctx.clearRect(0, 0, w, h);
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    const val = maxVal - (range / 4) * i;
+    ctx.fillStyle = chartTextColor(0.25); ctx.font = '10px Inter'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(val).toLocaleString(), padL - 4, y + 3);
+  }
+
+  let runStart = overallAvg;
+  wfData.forEach((d, i) => {
+    const x = startX + i * (barW + gap);
+    let barTop, barBot;
+    if (d.isTotal) {
+      barTop = padT + ((maxVal - d.value) / range) * ch;
+      barBot = padT + ((maxVal - 0) / range) * ch;
+      ctx.fillStyle = 'rgba(150,150,150,0.5)';
+    } else {
+      const top = Math.max(d.start, d.start + d.value);
+      const bot = Math.min(d.start, d.start + d.value);
+      barTop = padT + ((maxVal - top) / range) * ch;
+      barBot = padT + ((maxVal - bot) / range) * ch;
+      ctx.fillStyle = d.value >= 0 ? 'rgba(16,124,16,0.7)' : 'rgba(209,52,56,0.7)';
+      runStart += d.value;
+    }
+    const bh = Math.max(2, barBot - barTop);
+    const r2 = Math.min(3, bh / 2);
+    ctx.beginPath(); ctx.moveTo(x + r2, barTop); ctx.lineTo(x + barW - r2, barTop); ctx.quadraticCurveTo(x + barW, barTop, x + barW, barTop + r2); ctx.lineTo(x + barW, barTop + bh - r2); ctx.quadraticCurveTo(x + barW, barTop + bh, x + barW - r2, barTop + bh); ctx.lineTo(x + r2, barTop + bh); ctx.quadraticCurveTo(x, barTop + bh, x, barTop + bh - r2); ctx.lineTo(x, barTop + r2); ctx.quadraticCurveTo(x, barTop, x + r2, barTop); ctx.closePath();
+    ctx.fill();
+
+    // Value label
+    ctx.fillStyle = chartTextColor(0.6); ctx.font = '500 10px Inter'; ctx.textAlign = 'center';
+    const valStr = d.isTotal ? Math.round(d.value).toLocaleString() : (d.value >= 0 ? '+' : '') + Math.round(d.value).toLocaleString();
+    ctx.fillText(valStr, x + barW / 2, barTop - 4);
+
+    // X label (rotated)
+    ctx.save();
+    ctx.translate(x + barW / 2, h - padB + 8);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = chartTextColor(0.4); ctx.font = '10px Inter'; ctx.textAlign = 'right';
+    const lbl = d.label.length > 18 ? d.label.slice(0, 16) + '..' : d.label;
+    ctx.fillText(lbl, 0, 0);
+    ctx.restore();
+  });
+}
+
+// ── A5: Scatter Plot ──
+function switchKIDetailTab(tab) {
+  App.kiState.detailTab = tab;
+  const detailEl = document.getElementById('kiDetail');
+  if (detailEl) {
+    detailEl.innerHTML = renderKIDetail();
+    setTimeout(() => {
+      if (tab === 'comparison') drawKIDetailChart();
+      else if (tab === 'distribution') drawKIFactorChart();
+      else if (tab === 'scatter') drawKIScatterChart();
+      updateKISensitivity(10);
+    }, 50);
+  }
+}
+
+function drawKIScatterChart() {
+  const canvas = document.getElementById('kiScatterChart');
+  if (!canvas || !App.excelData) return;
+  const inf = App.kiState.influencers[App.kiState.selectedIdx];
+  if (!inf) return;
+  const metric = App.kiState.metric;
+  const factor = resolveKIFactorCol(inf.factor, inf.value);
+  const rows = App.excelData.rows;
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px'; canvas.style.height = rect.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = rect.width, h = rect.height;
+  const padL = 50, padR = 30, padT = 20, padB = 80;
+  const cw = w - padL - padR, ch = h - padT - padB;
+
+  // Collect unique factor values and metric values
+  const factorVals = [];
+  const points = [];
+  rows.forEach(r => {
+    const fv = String(r[factor] || '').trim();
+    const mv = parseFloat(r[metric]);
+    if (!fv || isNaN(mv)) return;
+    if (!factorVals.includes(fv)) factorVals.push(fv);
+    points.push({ fv, mv, fvIdx: factorVals.indexOf(fv) });
+  });
+  // Update indices after all values collected
+  points.forEach(p => p.fvIdx = factorVals.indexOf(p.fv));
+
+  // Limit to 10 categories max; keep the highlighted value always visible
+  let displayVals = factorVals.slice(0, 10);
+  if (!displayVals.includes(inf.value) && factorVals.includes(inf.value)) {
+    displayVals[displayVals.length - 1] = inf.value;
+  }
+  const displayPoints = points.filter(p => displayVals.includes(p.fv));
+  displayPoints.forEach(p => p.fvIdx = displayVals.indexOf(p.fv));
+
+  if (displayPoints.length === 0) return;
+  const minY = Math.min(...displayPoints.map(p => p.mv));
+  const maxY = Math.max(...displayPoints.map(p => p.mv)) || 1;
+  const rangeY = maxY - minY || 1;
+
+  ctx.clearRect(0, 0, w, h);
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    const val = maxY - (rangeY / 4) * i;
+    ctx.fillStyle = chartTextColor(0.25); ctx.font = '10px Inter'; ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(0), padL - 6, y + 3);
+  }
+
+  // Overall avg reference line
+  const clampedAvg = Math.max(minY, Math.min(maxY, inf.overallAvg));
+  const avgY = padT + ((maxY - clampedAvg) / rangeY) * ch;
+  ctx.beginPath(); ctx.strokeStyle = chartTextColor(0.3); ctx.lineWidth = 1;
+  ctx.setLineDash([4, 3]); ctx.moveTo(padL, avgY); ctx.lineTo(w - padR, avgY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = chartTextColor(0.4); ctx.font = '10px Inter'; ctx.textAlign = 'left';
+  ctx.fillText('Avg: ' + inf.overallAvg.toFixed(0), w - padR + 2, avgY + 3);
+
+  // Column dividers + dots
+  const colW = cw / Math.max(displayVals.length, 1);
+  // Light vertical separators
+  displayVals.forEach((fv, i) => {
+    const x = padL + i * colW;
+    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.moveTo(x, padT); ctx.lineTo(x, padT + ch); ctx.stroke();
+  });
+
+  // Draw dots with jitter (seeded per-point for stable rendering)
+  displayPoints.forEach((p, pi) => {
+    const jitter = ((pi * 2654435761 >>> 0) % 1000) / 1000 - 0.5; // deterministic jitter
+    const x = padL + p.fvIdx * colW + colW / 2 + jitter * colW * 0.5;
+    const y = padT + ((maxY - p.mv) / rangeY) * ch;
+    const isHighlight = p.fv === inf.value;
+    ctx.beginPath(); ctx.arc(x, y, isHighlight ? 4.5 : 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = isHighlight ? 'rgba(0,229,255,0.85)' : 'rgba(150,150,150,0.25)';
+    ctx.fill();
+    if (isHighlight) { ctx.strokeStyle = 'rgba(0,229,255,0.4)'; ctx.lineWidth = 1; ctx.stroke(); }
+  });
+
+  // X-axis labels — rotated -45°
+  displayVals.forEach((fv, i) => {
+    const x = padL + i * colW + colW / 2;
+    const y = padT + ch + 10;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(-Math.PI / 4);
+    ctx.fillStyle = fv === inf.value ? 'rgba(0,229,255,0.9)' : chartTextColor(0.45);
+    ctx.font = (fv === inf.value ? '600 ' : '') + '10px Inter';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    const lbl = fv.length > 14 ? fv.slice(0, 12) + '..' : fv;
+    ctx.fillText(lbl, 0, 0);
+    ctx.restore();
+  });
+}
+
+// ── A6: Sensitivity Slider ──
+function updateKISensitivity(pct) {
+  const el = document.getElementById('kiSensePct');
+  const res = document.getElementById('kiSenseResult');
+  if (el) el.textContent = pct;
+  const inf = App.kiState.influencers[App.kiState.selectedIdx];
+  if (!inf || !res) return;
+  const newAvg = inf.overallAvg + (pct / 100) * (inf.avgWhenTrue - inf.overallAvg);
+  const changePct = inf.overallAvg > 0 ? ((newAvg - inf.overallAvg) / inf.overallAvg * 100).toFixed(1) : 0;
+  res.innerHTML = 'Projected avg: <strong>' + newAvg.toLocaleString('en-US', {maximumFractionDigits:1}) + '</strong> <span style="color:' + (changePct >= 0 ? '#107C10' : '#D13438') + '">(' + (changePct >= 0 ? '+' : '') + changePct + '%)</span>';
+}
+
+// ── A7: Export to PNG ──
+function exportKIToPNG() {
+  const canvas = document.getElementById('kiOverviewChart') || document.getElementById('kiWaterfallChart');
+  if (!canvas) { toast('No chart to export', 'error'); return; }
+  canvas.toBlob(function(blob) {
+    if (!blob) { toast('Export failed', 'error'); return; }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'key-influencers-' + (App.kiState.metric || 'chart') + '.png';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('Chart exported as PNG', 'success');
+  });
+}
+
+// ── A8: Copy Insight as Text ──
+function copyKIInsight() {
+  const dirItems = App.kiState.influencers.filter(inf => inf.direction === App.kiState.direction);
+  if (dirItems.length === 0) { toast('No influencers to copy', 'error'); return; }
+  const isInc = App.kiState.direction === 'increase';
+  dirItems.sort((a, b) => isInc ? b.avgWhenTrue - a.avgWhenTrue : a.avgWhenTrue - b.avgWhenTrue);
+  const top = dirItems[0];
+  let text = 'Key Influencers Analysis for ' + (App.kiState.metric || '').replace(/_/g, ' ') + ' (' + App.kiState.direction + ')\n\n';
+  text += 'Strongest factor: ' + top.factor + '=' + top.value + ' (' + top.multiplier.toFixed(2) + 'x ' + (isInc ? 'higher' : 'lower') + ')\n\n';
+  dirItems.forEach((inf, i) => {
+    text += (i + 1) + '. ' + inf.factor + '=' + inf.value + ' → ' + inf.multiplier.toFixed(2) + 'x ' + (inf.direction === 'increase' ? 'higher' : 'lower') + ' (avg: ' + (typeof inf.avgWhenTrue === 'number' ? inf.avgWhenTrue.toFixed(1) : inf.avgWhenTrue) + ')\n';
+  });
+  text += '\nOverall avg: ' + (top.overallAvg || 0).toFixed(1);
+  navigator.clipboard.writeText(text).then(() => toast('Copied to clipboard', 'success')).catch(() => toast('Copy failed', 'error'));
+}
+
+// ── Helper: hasDateCol ──
+function hasDateCol() {
+  if (!App.excelChartConfig || !App.excelChartConfig.colMeta) return false;
+  return Object.values(App.excelChartConfig.colMeta).some(m => m.isDate);
+}
+
+// ── B1: Ask AI about Influencers ──
+function openKIAskAi(event) {
+  let popup = document.getElementById('kiAskPopup');
+  if (popup) { popup.classList.toggle('open'); return; }
+  popup = document.createElement('div');
+  popup.id = 'kiAskPopup';
+  popup.className = 'ki-ask-popup';
+  popup.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-size:13px;font-weight:600;color:var(--text-primary)">Ask AI about Influencers</span><button onclick="document.getElementById(\'kiAskPopup\').classList.remove(\'open\')" style="background:none;border:none;color:var(--text-tertiary);cursor:pointer;font-size:16px">&times;</button></div>' +
+    '<div class="ki-ask-chips">' +
+      '<span class="ki-ask-chip" onclick="submitKIAskAi(this.textContent)">What interactions exist?</span>' +
+      '<span class="ki-ask-chip" onclick="submitKIAskAi(this.textContent)">Any hidden patterns?</span>' +
+      '<span class="ki-ask-chip" onclick="submitKIAskAi(this.textContent)">Compare segments</span>' +
+      '<span class="ki-ask-chip" onclick="submitKIAskAi(this.textContent)">Summarize findings</span>' +
+    '</div>' +
+    '<div class="ki-ask-input-row"><input id="kiAskInput" placeholder="Ask a question about these influencers..." onkeydown="if(event.key===\'Enter\')submitKIAskAi()"><button onclick="submitKIAskAi()">Ask</button></div>' +
+    '<div class="ki-ask-response" id="kiAskResp"></div>';
+  document.body.appendChild(popup);
+  // Position near click
+  if (event) {
+    const r = (event.currentTarget || event.target).getBoundingClientRect();
+    popup.style.top = Math.min(r.bottom + 8, window.innerHeight - 400) + 'px';
+    popup.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 420)) + 'px';
+  }
+  popup.classList.add('open');
+  setTimeout(() => { const inp = document.getElementById('kiAskInput'); if (inp) inp.focus(); }, 50);
+}
+
+async function submitKIAskAi(questionOverride) {
+  const inputEl = document.getElementById('kiAskInput');
+  const respEl = document.getElementById('kiAskResp');
+  if (!respEl) return;
+  const question = questionOverride || (inputEl ? inputEl.value.trim() : '');
+  if (!question) return;
+  if (inputEl) inputEl.value = question;
+  if (!getApiKey()) { respEl.innerHTML = aiNoKeyHTML(); return; }
+  respEl.innerHTML = aiLoadingHTML('kiAskLoader');
+  try {
+    const ec = App.excelChartConfig;
+    const payload = {
+      question,
+      metric: App.kiState.metric,
+      direction: App.kiState.direction,
+      influencers: App.kiState.influencers.slice(0, 10).map(inf => ({ factor: inf.factor, value: inf.value, direction: inf.direction, multiplier: inf.multiplier, avgWhenTrue: inf.avgWhenTrue, count: inf.count })),
+      columns: App.excelData ? App.excelData.headers : [],
+      colMeta: ec ? Object.fromEntries(Object.entries(ec.colMeta || {}).map(([k, v]) => [k, { ...v, vals: undefined, uniqueVals: (v.uniqueVals || []).slice(0, 10) }])) : {}
+    };
+    const data = await fetchAI('/api/ki-ask', payload);
+    let html = '<div style="font-size:12px;line-height:1.6;color:var(--text-secondary)">' + simpleMarkdown(data.answer || '') + '</div>';
+    if (data.highlights && data.highlights.length) {
+      html += '<ul style="margin:8px 0 0;padding-left:16px">' + data.highlights.map(h => '<li style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">' + simpleMarkdown(h) + '</li>').join('') + '</ul>';
+    }
+    respEl.innerHTML = html;
+  } catch(e) {
+    if (e.message === 'NO_KEY') respEl.innerHTML = aiNoKeyHTML();
+    else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+  }
+}
+
+// ── B2: Interaction Effects ──
+async function runKIInteractions() {
+  const tabContent = document.getElementById('kiTabContent');
+  if (!tabContent || !App.excelData) return;
+  const metric = App.kiState.metric;
+  const rows = App.excelData.rows;
+  const topInfs = App.kiState.influencers.slice(0, 5);
+  if (topInfs.length < 2) { tabContent.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">Need at least 2 influencers for interaction analysis.</div>'; return; }
+
+  // Compute cross-tab averages locally
+  const overallVals = rows.map(r => parseFloat(r[metric]) || 0);
+  const overallAvg = overallVals.reduce((a,b) => a+b, 0) / overallVals.length;
+  const crossTab = [];
+  for (let i = 0; i < topInfs.length; i++) {
+    for (let j = i + 1; j < topInfs.length; j++) {
+      const inf1 = topInfs[i], inf2 = topInfs[j];
+      const matchRows = rows.filter(r => String(r[inf1.factor] || '').trim() === inf1.value && String(r[inf2.factor] || '').trim() === inf2.value);
+      if (matchRows.length < 2) continue;
+      const vals = matchRows.map(r => parseFloat(r[metric]) || 0);
+      const combinedAvg = vals.reduce((a,b) => a+b, 0) / vals.length;
+      crossTab.push({ factor1: inf1.factor, value1: inf1.value, factor2: inf2.factor, value2: inf2.value, combinedAvg, count: matchRows.length });
+    }
+  }
+
+  if (!getApiKey()) {
+    // Local fallback: render cross-tab results directly
+    renderKIInteractionsLocal(tabContent, crossTab, overallAvg);
+    return;
+  }
+
+  try {
+    const data = await fetchAI('/api/ki-interactions', {
+      metric,
+      crossTabData: crossTab,
+      overallAvg,
+      singleFactorInfluencers: topInfs.map(inf => ({ factor: inf.factor, value: inf.value, multiplier: inf.multiplier, avgWhenTrue: inf.avgWhenTrue }))
+    });
+    App.kiState.interactions = data.interactions || [];
+    renderKIInteractionsAI(tabContent);
+  } catch(e) {
+    renderKIInteractionsLocal(tabContent, crossTab, overallAvg);
+  }
+}
+
+function renderKIInteractionsLocal(container, crossTab, overallAvg) {
+  if (crossTab.length === 0) { container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No significant interaction pairs found.</div>'; return; }
+  crossTab.sort((a, b) => Math.abs(b.combinedAvg - overallAvg) - Math.abs(a.combinedAvg - overallAvg));
+  container.innerHTML = crossTab.slice(0, 8).map(ct => {
+    const mult = overallAvg > 0 ? (ct.combinedAvg / overallAvg).toFixed(2) : '?';
+    const dir = ct.combinedAvg >= overallAvg ? 'higher' : 'lower';
+    return '<div class="ki-interaction-card"><div class="ki-int-factors">' + ct.factor1.replace(/_/g,' ') + '=' + ct.value1 + ' AND ' + ct.factor2.replace(/_/g,' ') + '=' + ct.value2 + '</div>' +
+      '<div class="ki-int-effect">' + App.kiState.metric.replace(/_/g,' ') + ' is <strong>' + mult + 'x ' + dir + '</strong> (' + ct.count + ' data points, avg: ' + ct.combinedAvg.toFixed(1) + ')</div></div>';
+  }).join('');
+}
+
+function renderKIInteractionsAI(container) {
+  const ints = App.kiState.interactions;
+  if (!ints || ints.length === 0) { container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No significant interactions found.</div>'; return; }
+  container.innerHTML = ints.map(int => {
+    const synergy = int.synergy || 'additive';
+    return '<div class="ki-interaction-card"><div class="ki-int-factors">' + (int.factor1 || '').replace(/_/g,' ') + '=' + (int.value1 || '') + ' AND ' + (int.factor2 || '').replace(/_/g,' ') + '=' + (int.value2 || '') + '</div>' +
+      '<div class="ki-int-effect">' + (int.explanation || 'Combined multiplier: ' + (int.combinedMultiplier || '?') + 'x') + '</div>' +
+      '<span class="ki-int-synergy ' + synergy + '">' + synergy + '</span></div>';
+  }).join('');
+}
+
+// ── B3: Segment Comparison ──
+function renderKISegmentSelector(container) {
+  const ec = App.excelChartConfig;
+  const cats = ec ? (ec.categoricals || []) : [];
+  container.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">' +
+    '<select id="kiSegmentSelect" class="form-select" style="width:auto;padding:6px 32px 6px 12px;font-size:12px;border-radius:6px"><option value="">Compare segments by...</option>' +
+    cats.map(c => '<option value="' + c + '">' + c.replace(/_/g, ' ') + '</option>').join('') + '</select>' +
+    '<button class="btn btn-primary" onclick="runKISegmentCompare()" style="font-size:12px;padding:6px 14px">Compare</button></div>' +
+    '<div id="kiSegmentResults"></div>';
+}
+
+async function runKISegmentCompare() {
+  const sel = document.getElementById('kiSegmentSelect');
+  const results = document.getElementById('kiSegmentResults');
+  if (!sel || !results || !sel.value) { toast('Select a segment column first', 'info'); return; }
+  const segCol = sel.value;
+  results.innerHTML = aiLoadingHTML('segLoader');
+
+  const ec = App.excelChartConfig;
+  const metric = App.kiState.metric;
+  const rows = App.excelData.rows;
+  const overallVals = rows.map(r => parseFloat(r[metric]) || 0);
+  const overallAvg = overallVals.reduce((a,b) => a+b, 0) / overallVals.length;
+
+  // Group by segment, then compute per-segment influencer analysis
+  const segGroups = {};
+  rows.forEach(r => {
+    const sv = String(r[segCol] || '').trim();
+    if (!sv) return;
+    if (!segGroups[sv]) segGroups[sv] = [];
+    segGroups[sv].push(r);
+  });
+
+  const segmentData = {};
+  Object.entries(segGroups).slice(0, 6).forEach(([segVal, segRows]) => {
+    const cats = ec.categoricals.filter(c => c !== segCol);
+    const groupedAvgs = {};
+    cats.forEach(cat => {
+      const groups = {};
+      segRows.forEach(r => {
+        const v = String(r[cat] || '').trim();
+        if (!v) return;
+        if (!groups[v]) groups[v] = [];
+        groups[v].push(parseFloat(r[metric]) || 0);
+      });
+      groupedAvgs[cat] = {};
+      Object.entries(groups).forEach(([val, vals]) => {
+        groupedAvgs[cat][val] = { avg: vals.reduce((a,b)=>a+b,0)/vals.length, count: vals.length };
+      });
+    });
+    segmentData[segVal] = groupedAvgs;
+  });
+
+  if (!getApiKey()) {
+    renderKISegmentsLocal(results, segmentData, overallAvg, segCol);
+    return;
+  }
+
+  try {
+    const data = await fetchAI('/api/ki-segment-compare', { metric, segmentColumn: segCol, segmentData, overallAvg });
+    App.kiState.segments = data;
+    renderKISegmentsAI(results);
+  } catch(e) {
+    renderKISegmentsLocal(results, segmentData, overallAvg, segCol);
+  }
+}
+
+function renderKISegmentsLocal(container, segmentData, overallAvg, segCol) {
+  let html = '<div class="ki-segment-cols">';
+  Object.entries(segmentData).forEach(([segVal, groupedAvgs]) => {
+    html += '<div class="ki-segment-col"><h4>' + segCol.replace(/_/g,' ') + ' = ' + segVal + '</h4>';
+    // Find top drivers per segment
+    const drivers = [];
+    Object.entries(groupedAvgs).forEach(([col, groups]) => {
+      Object.entries(groups).forEach(([val, stats]) => {
+        if (stats.count < 2) return;
+        const mult = overallAvg > 0 ? stats.avg / overallAvg : 1;
+        if (Math.abs(mult - 1) < 0.10) return;
+        drivers.push({ factor: col, value: val, multiplier: mult, avg: stats.avg, count: stats.count });
+      });
+    });
+    drivers.sort((a, b) => Math.abs(b.multiplier - 1) - Math.abs(a.multiplier - 1));
+    drivers.slice(0, 5).forEach(d => {
+      const dir = d.multiplier >= 1 ? 'increase' : 'decrease';
+      html += '<div style="padding:6px 0;border-bottom:1px solid var(--glass-border);font-size:12px"><span style="color:var(--text-primary)">' + d.factor.replace(/_/g,' ') + '=' + d.value + '</span> <span class="ki-item-mult ' + dir + '" style="font-size:11px">' + d.multiplier.toFixed(2) + 'x</span></div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function renderKISegmentsAI(container) {
+  const data = App.kiState.segments;
+  if (!data || !data.segments) { container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No segment data.</div>'; return; }
+  let html = '<div class="ki-segment-cols">';
+  data.segments.forEach(seg => {
+    html += '<div class="ki-segment-col"><h4>' + (seg.segment || '') + '</h4>';
+    (seg.topDrivers || []).slice(0, 5).forEach(d => {
+      const isShared = (data.shared || []).some(s => s.factor === d.factor && s.value === d.value);
+      html += '<div style="padding:6px 0;border-bottom:1px solid var(--glass-border);font-size:12px"><span style="color:var(--text-primary)">' + (d.factor || '').replace(/_/g,' ') + '=' + (d.value || '') + '</span> <span class="ki-item-mult ' + (d.direction || 'increase') + '" style="font-size:11px">' + (d.multiplier || 0).toFixed(2) + 'x</span>' + (isShared ? '<span class="ki-segment-shared">shared</span>' : '') + '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  if (data.shared && data.shared.length) {
+    html += '<div style="margin-top:12px;font-size:12px;color:var(--text-secondary)"><strong>Shared drivers:</strong> ' + data.shared.map(s => s.factor + '=' + s.value).join(', ') + '</div>';
+  }
+  container.innerHTML = html;
+}
+
+// ── B4: Time-Based Influencers ──
+async function runKITemporal() {
+  const tabContent = document.getElementById('kiTabContent');
+  if (!tabContent || !App.excelData) return;
+  const ec = App.excelChartConfig;
+  const dateCol = Object.entries(ec.colMeta || {}).find(([k, v]) => v.isDate);
+  if (!dateCol) { tabContent.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No date column detected.</div>'; return; }
+
+  const metric = App.kiState.metric;
+  const rows = App.excelData.rows;
+  const dcName = dateCol[0];
+
+  // Split rows into periods (quarters)
+  const periodRows = {};
+  rows.forEach(r => {
+    const d = new Date(r[dcName]);
+    if (isNaN(d.getTime())) return;
+    const q = 'Q' + (Math.floor(d.getMonth() / 3) + 1) + ' ' + d.getFullYear();
+    if (!periodRows[q]) periodRows[q] = [];
+    periodRows[q].push(r);
+  });
+
+  const periodsData = {};
+  const cats = ec.categoricals || [];
+  Object.entries(periodRows).forEach(([period, pRows]) => {
+    const overallVals = pRows.map(r => parseFloat(r[metric]) || 0);
+    const overallAvg = overallVals.reduce((a,b) => a+b, 0) / overallVals.length;
+    const drivers = [];
+    cats.forEach(cat => {
+      const groups = {};
+      pRows.forEach(r => {
+        const v = String(r[cat] || '').trim();
+        if (!v) return;
+        if (!groups[v]) groups[v] = [];
+        groups[v].push(parseFloat(r[metric]) || 0);
+      });
+      Object.entries(groups).forEach(([val, vals]) => {
+        if (vals.length < 2) return;
+        const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
+        const mult = overallAvg > 0 ? avg / overallAvg : 1;
+        if (Math.abs(mult - 1) >= 0.10) drivers.push({ factor: cat, value: val, multiplier: mult, avg, count: vals.length });
+      });
+    });
+    drivers.sort((a, b) => Math.abs(b.multiplier - 1) - Math.abs(a.multiplier - 1));
+    periodsData[period] = { overallAvg, topDrivers: drivers.slice(0, 5) };
+  });
+
+  if (!getApiKey()) {
+    renderKITemporalLocal(tabContent, periodsData);
+    return;
+  }
+
+  try {
+    const data = await fetchAI('/api/ki-temporal', { metric, dateColumn: dcName, periodsData });
+    App.kiState.temporal = data;
+    renderKITemporalAI(tabContent);
+  } catch(e) {
+    renderKITemporalLocal(tabContent, periodsData);
+  }
+}
+
+function renderKITemporalLocal(container, periodsData) {
+  const periods = Object.entries(periodsData).sort((a, b) => a[0].localeCompare(b[0]));
+  if (periods.length === 0) { container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No time periods found.</div>'; return; }
+  container.innerHTML = '<div class="ki-temporal-timeline">' + periods.map(([period, pd]) => {
+    return '<div class="ki-temporal-item"><h4>' + period + ' <span style="font-size:11px;font-weight:400;color:var(--text-tertiary)">(avg: ' + pd.overallAvg.toFixed(1) + ')</span></h4>' +
+      pd.topDrivers.map(d => '<div style="font-size:12px;padding:3px 0;color:var(--text-secondary)">' + d.factor.replace(/_/g,' ') + '=' + d.value + ' <span class="ki-item-mult ' + (d.multiplier >= 1 ? 'increase' : 'decrease') + '" style="font-size:11px">' + d.multiplier.toFixed(2) + 'x</span></div>').join('') +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function renderKITemporalAI(container) {
+  const data = App.kiState.temporal;
+  if (!data) return;
+  let html = '';
+  if (data.trends && data.trends.length) {
+    html += '<div style="margin-bottom:16px"><div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:8px">Trends</div>';
+    data.trends.forEach(t => {
+      html += '<div style="padding:6px 0;font-size:12px;color:var(--text-secondary)">' + (t.factor || '').replace(/_/g,' ') + '=' + (t.value || '') + ' <span class="ki-temporal-trend ' + (t.trend || 'stable') + '">' + (t.trend || 'stable') + '</span>' + (t.explanation ? ' — ' + t.explanation : '') + '</div>';
+    });
+    html += '</div>';
+  }
+  if (data.periods && data.periods.length) {
+    html += '<div class="ki-temporal-timeline">';
+    data.periods.forEach(p => {
+      html += '<div class="ki-temporal-item"><h4>' + (p.period || '') + '</h4>';
+      (p.topDrivers || []).slice(0, 5).forEach(d => {
+        html += '<div style="font-size:12px;padding:3px 0;color:var(--text-secondary)">' + (d.factor || '').replace(/_/g,' ') + '=' + (d.value || '') + ' <span class="ki-item-mult ' + (d.direction || (d.multiplier >= 1 ? 'increase' : 'decrease')) + '" style="font-size:11px">' + (d.multiplier || 0).toFixed(2) + 'x</span></div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  container.innerHTML = html || '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No temporal data.</div>';
+}
+
+// ── B5: Root Cause Chains ──
+async function handleRootCauseChain(idx) {
+  const container = document.getElementById('kiRootCauseBox');
+  if (!container) return;
+  if (!getApiKey()) { container.innerHTML = aiNoKeyHTML(); container.style.display = 'block'; return; }
+  container.innerHTML = aiLoadingHTML('rootCauseLoader');
+  container.style.display = 'block';
+  try {
+    const inf = App.kiState.influencers[idx];
+    if (!inf) { container.style.display = 'none'; return; }
+    const ec = App.excelChartConfig;
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 8000));
+    const data = await Promise.race([
+      fetchAI('/api/ki-root-cause', {
+        factor: inf.factor, value: inf.value, metric: App.kiState.metric,
+        multiplier: inf.multiplier, avgWhenTrue: inf.avgWhenTrue, overallAvg: inf.overallAvg, count: inf.count,
+        columns: App.excelData ? App.excelData.headers.slice(0, 15) : []
+      }),
+      timeoutPromise
+    ]);
+    if (!data || !data.chain || data.chain.length === 0) { container.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary)">No root cause analysis available.</div>'; return; }
+    // Render as a visual flow diagram on canvas + compact action card
+    const chain = data.chain;
+    container.innerHTML = '<div style="height:' + (chain.length * 90 + 30) + 'px;position:relative"><canvas id="kiRootCanvas" style="width:100%;height:100%"></canvas></div>' +
+      (data.rootAction ? '<div style="margin-top:10px;padding:10px 14px;border-radius:10px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.15);display:flex;align-items:flex-start;gap:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:12px;color:var(--text-primary);line-height:1.5">' + data.rootAction + '</span></div>' : '');
+    setTimeout(() => drawRootCauseCanvas(chain, inf), 30);
+  } catch(e) {
+    if (e.message === 'NO_KEY') { container.innerHTML = aiNoKeyHTML(); return; }
+    // Fallback: build a local root cause chain from the data we have
+    const pctDiff = inf.overallAvg > 0 ? Math.round(((inf.avgWhenTrue - inf.overallAvg) / inf.overallAvg) * 100) : 0;
+    const dir = pctDiff >= 0 ? 'higher' : 'lower';
+    const chain = [
+      { level: 1, cause: kiLabel(inf.factor, inf.value) + ' shifts ' + App.kiState.metric.replace(/_/g,' ') + ' ' + Math.abs(pctDiff) + '% ' + dir },
+      { level: 2, cause: inf.count + ' data points with avg ' + (typeof inf.avgWhenTrue === 'number' ? inf.avgWhenTrue.toFixed(1) : inf.avgWhenTrue) + ' vs overall ' + (typeof inf.overallAvg === 'number' ? inf.overallAvg.toFixed(1) : inf.overallAvg) },
+      { level: 3, cause: 'Multiplier of ' + inf.multiplier.toFixed(2) + 'x suggests strong ' + (pctDiff >= 0 ? 'positive' : 'negative') + ' association' }
+    ];
+    container.innerHTML = '<div style="height:' + (chain.length * 90 + 30) + 'px;position:relative"><canvas id="kiRootCanvas" style="width:100%;height:100%"></canvas></div>';
+    setTimeout(() => drawRootCauseCanvas(chain, inf), 30);
+  }
+}
+
+// ── Root Cause visual flow canvas ──
+function drawRootCauseCanvas(chain, inf) {
+  const canvas = document.getElementById('kiRootCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width + 'px'; canvas.style.height = rect.height + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = rect.width, h = rect.height;
+  const isLight = isLightBg();
+
+  const nodeH = 56, gap = 30, padX = 24;
+  const nodeW = w - padX * 2;
+  const totalH = chain.length * nodeH + (chain.length - 1) * gap;
+  const startY = (h - totalH) / 2;
+
+  const colors = ['#00e5ff', '#b388ff', '#ff6b9d'];
+  const bgColors = ['rgba(0,229,255,0.08)', 'rgba(179,136,255,0.08)', 'rgba(255,107,157,0.08)'];
+  const borderColors = ['rgba(0,229,255,0.25)', 'rgba(179,136,255,0.25)', 'rgba(255,107,157,0.25)'];
+  const icons = ['Effect', 'Mechanism', 'Root Cause'];
+
+  // Animate in
+  const dur = 600;
+  const startTime = performance.now();
+  function frame(now) {
+    const elapsed = now - startTime;
+    ctx.clearRect(0, 0, w, h);
+
+    chain.forEach((step, i) => {
+      const t = Math.max(0, Math.min(1, (elapsed - i * 150) / dur));
+      const ease = 1 - Math.pow(1 - t, 3);
+      const y = startY + i * (nodeH + gap);
+      const alpha = ease;
+      const slideX = (1 - ease) * 30;
+
+      // Connector arrow from previous node
+      if (i > 0 && alpha > 0) {
+        const prevY = startY + (i - 1) * (nodeH + gap) + nodeH;
+        const midX = w / 2;
+        ctx.globalAlpha = alpha;
+        ctx.beginPath();
+        ctx.strokeStyle = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.moveTo(midX, prevY + 2); ctx.lineTo(midX, y - 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Arrow head
+        ctx.fillStyle = colors[i] || colors[0];
+        ctx.beginPath();
+        ctx.moveTo(midX - 5, y - 6); ctx.lineTo(midX + 5, y - 6); ctx.lineTo(midX, y - 1); ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      // Node card
+      ctx.globalAlpha = alpha;
+      const nx = padX + slideX, nw = nodeW - slideX;
+      const r = 10;
+
+      // Background
+      ctx.fillStyle = bgColors[i] || bgColors[0];
+      ctx.beginPath();
+      ctx.moveTo(nx + r, y); ctx.lineTo(nx + nw - r, y); ctx.quadraticCurveTo(nx + nw, y, nx + nw, y + r);
+      ctx.lineTo(nx + nw, y + nodeH - r); ctx.quadraticCurveTo(nx + nw, y + nodeH, nx + nw - r, y + nodeH);
+      ctx.lineTo(nx + r, y + nodeH); ctx.quadraticCurveTo(nx, y + nodeH, nx, y + nodeH - r);
+      ctx.lineTo(nx, y + r); ctx.quadraticCurveTo(nx, y, nx + r, y); ctx.closePath();
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = borderColors[i] || borderColors[0];
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Left accent bar
+      ctx.fillStyle = colors[i] || colors[0];
+      ctx.beginPath();
+      ctx.moveTo(nx, y + r); ctx.lineTo(nx, y + nodeH - r);
+      ctx.quadraticCurveTo(nx, y + nodeH, nx + r, y + nodeH);
+      ctx.lineTo(nx + r, y); ctx.quadraticCurveTo(nx, y, nx, y + r);
+      ctx.closePath();
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.fill();
+      ctx.globalAlpha = alpha;
+
+      // Level badge
+      const badge = icons[i] || ('Level ' + (i + 1));
+      ctx.fillStyle = colors[i] || colors[0];
+      ctx.font = '600 9px Inter';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(badge.toUpperCase(), nx + 18, y + 10);
+
+      // Cause text — truncated to fit
+      const causeText = step.cause || '';
+      ctx.fillStyle = isLight ? '#1a1a2e' : '#f0f0f0';
+      ctx.font = '500 12px Inter';
+      ctx.textBaseline = 'top';
+      // Word-wrap into max 2 lines
+      const maxTextW = nw - 30;
+      const words = causeText.split(' ');
+      let line = '', lineY = y + 26, lineNum = 0;
+      for (let wi = 0; wi < words.length && lineNum < 2; wi++) {
+        const test = line + (line ? ' ' : '') + words[wi];
+        if (ctx.measureText(test).width > maxTextW && line) {
+          ctx.fillText(lineNum === 1 && wi < words.length - 1 ? line + '...' : line, nx + 18, lineY);
+          lineY += 15; lineNum++; line = words[wi];
+        } else { line = test; }
+      }
+      if (lineNum < 2 && line) ctx.fillText(line, nx + 18, lineY);
+
+      ctx.globalAlpha = 1;
+    });
+
+    if (elapsed < dur + chain.length * 150) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
+// ── Simple markdown → HTML for AI responses ──
+function simpleMarkdown(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*\s/g, '&bull; ')
+    .replace(/\n/g, '<br>');
+}
+
+// ── B6: AI Narrative Summary ──
+async function generateKINarrative() {
+  const box = document.getElementById('kiNarrativeBox');
+  if (!box) return;
+  if (!getApiKey()) { box.innerHTML = aiNoKeyHTML(); box.style.display = 'block'; return; }
+  box.innerHTML = aiLoadingHTML('narrLoader');
+  box.style.display = 'block';
+  try {
+    const data = await submitKIAskAiInternal('Summarize this Key Influencers analysis in 3-5 bullet points. Each bullet should be one short sentence. No headers, no sub-bullets, no markdown. Keep it concise and data-driven.');
+    box.innerHTML = '<div class="ki-narr-title">Executive Summary</div><div id="kiNarrText" style="line-height:1.7">' + simpleMarkdown(data.answer || '') + '</div>' +
+      '<button class="btn btn-ghost ki-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById(\'kiNarrText\').innerText).then(()=>toast(\'Copied\',\'success\'))" style="margin-top:8px">📋 Copy</button>';
+  } catch(e) {
+    if (e.message === 'NO_KEY') box.innerHTML = aiNoKeyHTML();
+    else box.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+  }
+}
+
+async function submitKIAskAiInternal(question) {
+  const ec = App.excelChartConfig;
+  const payload = {
+    question,
+    metric: App.kiState.metric,
+    direction: App.kiState.direction,
+    influencers: App.kiState.influencers.slice(0, 10).map(inf => ({ factor: inf.factor, value: inf.value, direction: inf.direction, multiplier: inf.multiplier, avgWhenTrue: inf.avgWhenTrue, count: inf.count })),
+    columns: App.excelData ? App.excelData.headers : [],
+    colMeta: ec ? Object.fromEntries(Object.entries(ec.colMeta || {}).map(([k, v]) => [k, { ...v, vals: undefined, uniqueVals: (v.uniqueVals || []).slice(0, 10) }])) : {}
+  };
+  return await fetchAI('/api/ki-ask', payload);
+}
+
+// ══════════════════════════════════════════════
 // ROUTER
 // ══════════════════════════════════════════════
 const pages = { dashboard: renderDashboard, analytics: renderAnalytics, documents: renderDocuments, subscription: renderSubscription, settings: renderSettings, influencers: renderInfluencers, pricing: renderPricing };
@@ -3121,7 +4144,7 @@ function navigate(page) {
     if (page === 'pricing') setTimeout(loadPricingData, 0);
     if (page === 'subscription') setTimeout(loadSubscriptionPage, 0);
     if (page === 'settings') { setTimeout(loadBillingSection, 0); setTimeout(loadAIUsage, 100); }
-    if (page === 'influencers') { if (App.hasExcelData && App.excelChartConfig.metrics.length > 0) { setTimeout(() => { const shouldAnimate = App.kiState._animateNext; App.kiState._animateNext = false; const c = document.getElementById('kiOverviewChart'); if (c) drawKIOverviewChart(c, shouldAnimate); if (App.kiState.selectedIdx >= 0) { drawKIDetailChart(); drawKIFactorChart(); } }, 100); } else { setTimeout(initDropZone, 50); } }
+    if (page === 'influencers') { if (App.hasExcelData && App.excelChartConfig.metrics.length > 0) { setTimeout(() => { const shouldAnimate = App.kiState._animateNext; App.kiState._animateNext = false; const at = App.kiState.activeTab; if (at === 'overview' || !at) { const c = document.getElementById('kiOverviewChart'); if (c) drawKIOverviewChart(c, shouldAnimate); } else { switchKIChart(at); } if (App.kiState.selectedIdx >= 0) { const dt = App.kiState.detailTab || 'comparison'; if (dt === 'comparison') drawKIDetailChart(); else if (dt === 'distribution') drawKIFactorChart(); else if (dt === 'scatter') drawKIScatterChart(); updateKISensitivity(10); } }, 100); } else { setTimeout(initDropZone, 50); } }
     initCounters();
   } catch(err) {
     console.error('Navigation error:', err);
