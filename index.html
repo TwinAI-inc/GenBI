@@ -3277,9 +3277,10 @@ function switchKIChart(type) {
   const chartArea = document.getElementById('kiChartArea');
   const tabContent = document.getElementById('kiTabContent');
   if (!chartArea || !tabContent) return;
+  var tabDesc = '<div style="font-size:11px;color:var(--text-tertiary);margin-bottom:10px;line-height:1.4">';
   if (type === 'overview') {
     chartArea.style.display = '';
-    tabContent.innerHTML = '';
+    tabContent.innerHTML = tabDesc + 'Each bar shows how much a factor pushes the metric above or below average. e.g. "Product ID = DRUG015 &rarr; 1.42x higher than avg"</div>';
     // Restore the overview canvas if it was replaced by waterfall
     if (!document.getElementById('kiOverviewChart')) {
       chartArea.innerHTML = '<canvas id="kiOverviewChart"></canvas>';
@@ -3288,18 +3289,19 @@ function switchKIChart(type) {
   } else if (type === 'waterfall') {
     chartArea.innerHTML = '<canvas id="kiWaterfallChart"></canvas>';
     chartArea.style.display = '';
-    tabContent.innerHTML = '';
+    tabContent.innerHTML = tabDesc + 'Starts at the overall average, then each bar adds or subtracts its impact. e.g. Overall Avg (31) + DRUG015 (+13) + Market Stage (-5) &rarr; Combined (39)</div>';
     setTimeout(() => drawKIWaterfallChart(), 50);
   } else if (type === 'interactions') {
     chartArea.style.display = 'none';
-    tabContent.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-tertiary);font-size:12px">Loading interactions...</div>';
+    tabContent.innerHTML = tabDesc + 'Finds pairs of factors that amplify or cancel each other. e.g. "When Risk Category = Medium AND Development Stage = Phase II &rarr; 1.8x higher together"</div><div id="kiTabResults"><div style="text-align:center;padding:30px;color:var(--text-tertiary);font-size:12px">Loading interactions...</div></div>';
     runKIInteractions();
   } else if (type === 'segments') {
     chartArea.style.display = 'none';
-    renderKISegmentSelector(tabContent);
+    tabContent.innerHTML = tabDesc + 'Pick a column to group by, then see which drivers matter most in each group. "SHARED" means a factor appears across multiple segments. e.g. Compare by Product Name → see top drivers per product</div>';
+    renderKISegmentSelector(tabContent, true);
   } else if (type === 'temporal') {
     chartArea.style.display = 'none';
-    tabContent.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-tertiary);font-size:12px">Loading temporal analysis...</div>';
+    tabContent.innerHTML = tabDesc + 'Shows how each factor\'s influence changes over time. e.g. "Risk Category = High was 1.1x in Q1 but grew to 1.5x by Q4 &rarr; strengthening trend"</div><div id="kiTabResults"><div style="text-align:center;padding:30px;color:var(--text-tertiary);font-size:12px">Loading temporal analysis...</div></div>';
     runKITemporal();
   }
 }
@@ -3629,7 +3631,7 @@ async function runKIInteractions() {
   const metric = App.kiState.metric;
   const rows = App.excelData.rows;
   const topInfs = App.kiState.influencers.slice(0, 5);
-  if (topInfs.length < 2) { tabContent.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">Need at least 2 influencers for interaction analysis.</div>'; return; }
+  if (topInfs.length < 2) { var rc = document.getElementById('kiTabResults') || tabContent; rc.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">Need at least 2 influencers for interaction analysis.</div>'; return; }
 
   // Compute cross-tab averages locally
   const overallVals = rows.map(r => parseFloat(r[metric]) || 0);
@@ -3646,9 +3648,9 @@ async function runKIInteractions() {
     }
   }
 
+  var resContainer = document.getElementById('kiTabResults') || tabContent;
   if (!getApiKey()) {
-    // Local fallback: render cross-tab results directly
-    renderKIInteractionsLocal(tabContent, crossTab, overallAvg);
+    renderKIInteractionsLocal(resContainer, crossTab, overallAvg);
     return;
   }
 
@@ -3660,9 +3662,9 @@ async function runKIInteractions() {
       singleFactorInfluencers: topInfs.map(inf => ({ factor: inf.factor, value: inf.value, multiplier: inf.multiplier, avgWhenTrue: inf.avgWhenTrue }))
     });
     App.kiState.interactions = data.interactions || [];
-    renderKIInteractionsAI(tabContent);
+    renderKIInteractionsAI(resContainer);
   } catch(e) {
-    renderKIInteractionsLocal(tabContent, crossTab, overallAvg);
+    renderKIInteractionsLocal(resContainer, crossTab, overallAvg);
   }
 }
 
@@ -3689,14 +3691,15 @@ function renderKIInteractionsAI(container) {
 }
 
 // ── B3: Segment Comparison ──
-function renderKISegmentSelector(container) {
+function renderKISegmentSelector(container, append) {
   const ec = App.excelChartConfig;
   const cats = ec ? (ec.categoricals || []) : [];
-  container.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">' +
+  var selectorHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">' +
     '<select id="kiSegmentSelect" class="form-select" style="width:auto;padding:6px 32px 6px 12px;font-size:12px;border-radius:6px"><option value="">Compare segments by...</option>' +
     cats.map(c => '<option value="' + c + '">' + c.replace(/_/g, ' ') + '</option>').join('') + '</select>' +
     '<button class="btn btn-primary" onclick="runKISegmentCompare()" style="font-size:12px;padding:6px 14px">Compare</button></div>' +
     '<div id="kiSegmentResults"></div>';
+  if (append) { container.innerHTML += selectorHTML; } else { container.innerHTML = selectorHTML; }
 }
 
 async function runKISegmentCompare() {
@@ -3805,7 +3808,7 @@ async function runKITemporal() {
   if (!tabContent || !App.excelData) return;
   const ec = App.excelChartConfig;
   const dateCol = Object.entries(ec.colMeta || {}).find(([k, v]) => v.isDate);
-  if (!dateCol) { tabContent.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No date column detected.</div>'; return; }
+  if (!dateCol) { var rc = document.getElementById('kiTabResults') || tabContent; rc.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-tertiary);font-size:12px">No date column detected.</div>'; return; }
 
   const metric = App.kiState.metric;
   const rows = App.excelData.rows;
@@ -3846,17 +3849,18 @@ async function runKITemporal() {
     periodsData[period] = { overallAvg, topDrivers: drivers.slice(0, 5) };
   });
 
+  var resContainer = document.getElementById('kiTabResults') || tabContent;
   if (!getApiKey()) {
-    renderKITemporalLocal(tabContent, periodsData);
+    renderKITemporalLocal(resContainer, periodsData);
     return;
   }
 
   try {
     const data = await fetchAI('/api/ki-temporal', { metric, dateColumn: dcName, periodsData });
     App.kiState.temporal = data;
-    renderKITemporalAI(tabContent);
+    renderKITemporalAI(resContainer);
   } catch(e) {
-    renderKITemporalLocal(tabContent, periodsData);
+    renderKITemporalLocal(resContainer, periodsData);
   }
 }
 
