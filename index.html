@@ -162,6 +162,13 @@ body.theme-aurora .nav-item.active::before{background:#20c997;box-shadow:none;}
 .ki-sensitivity input[type=range]{width:100%;accent-color:var(--accent-cyan);margin-bottom:8px;}
 .ki-sensitivity #kiSenseResult{font-size:13px;font-weight:600;color:var(--text-primary);}
 .ki-copy-btn{font-size:11px !important;padding:4px 10px !important;}
+.ki-more-wrap{position:relative;display:inline-block;}
+.ki-more-btn{font-size:16px;padding:4px 10px;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:6px;color:var(--text-secondary);cursor:pointer;font-family:Inter,system-ui,sans-serif;line-height:1;}
+.ki-more-btn:hover{border-color:var(--text-tertiary);color:var(--text-primary);}
+.ki-more-menu{display:none;position:absolute;top:calc(100% + 4px);right:0;background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:8px;padding:4px 0;min-width:160px;z-index:100;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 8px 24px rgba(0,0,0,.3);}
+.ki-more-menu.open{display:block;}
+.ki-more-menu button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 14px;background:none;border:none;color:var(--text-secondary);font-size:12px;font-family:Inter,system-ui,sans-serif;cursor:pointer;text-align:left;}
+.ki-more-menu button:hover{background:hsl(0 0% 15%);color:var(--text-primary);}
 .ki-interaction-card{padding:14px;border-radius:var(--radius-md);background:hsl(0 0% 5%);border:1px solid var(--glass-border);margin-bottom:8px;transition:all .2s;}
 .ki-interaction-card:hover{border-color:hsl(0 0% 22%);}
 .ki-interaction-card .ki-int-factors{font-size:13px;font-weight:500;color:var(--text-primary);margin-bottom:6px;}
@@ -377,6 +384,11 @@ body.theme-light .ki-ask-popup{background:rgba(255,255,255,0.98);border-color:rg
 body.theme-light .ki-ask-popup .ki-ask-chip{background:rgba(0,0,0,0.03);border-color:rgba(0,0,0,0.08);color:#555770;}
 body.theme-light .ki-ask-popup .ki-ask-chip:hover{background:rgba(0,0,0,0.06);color:#1a1a2e;}
 body.theme-light .ki-ask-popup .ki-ask-input-row input{background:rgba(255,255,255,0.9);border-color:rgba(0,0,0,0.08);color:#1a1a2e;}
+body.theme-light .ki-more-btn{background:rgba(255,255,255,0.8);border-color:rgba(0,0,0,0.08);color:#555770;}
+body.theme-light .ki-more-btn:hover{border-color:rgba(0,0,0,0.15);color:#1a1a2e;}
+body.theme-light .ki-more-menu{background:rgba(255,255,255,0.98);border-color:rgba(0,0,0,0.08);box-shadow:0 8px 24px rgba(0,0,0,0.1);}
+body.theme-light .ki-more-menu button{color:#555770;}
+body.theme-light .ki-more-menu button:hover{background:rgba(0,0,0,0.04);color:#1a1a2e;}
 body.theme-light .toast{background:rgba(255,255,255,0.95);border-color:rgba(0,0,0,0.08);color:#1a1a2e;}
 body.theme-light .slide-panel{background:rgba(255,255,255,0.95);border-left-color:rgba(0,0,0,0.06);}
 body.theme-light .slide-panel-title{color:#1a1a2e;}
@@ -2674,7 +2686,7 @@ function renderInfluencers() {
       <button class="ki-toggle-btn ${App.kiState.direction==='decrease'?'active':''}" onclick="changeKIDirection('decrease')" title="Show factors that pull the metric lower">Decrease</button>
     </div>
     <button class="btn btn-primary" onclick="runKeyInfluencers()" style="padding:8px 18px;font-size:13px" id="kiRunBtn">${App.kiState.loading ? 'Analyzing...' : 'Analyze'}</button>
-    ${hasInfluencers ? '<button class="btn btn-ghost" onclick="exportKIToPNG()" style="font-size:11px;padding:6px 12px" title="Download the current chart as a PNG image">Export PNG</button><button class="btn btn-ghost ki-copy-btn" onclick="copyKIInsight()" title="Copy a text summary of all influencers to your clipboard">📋 Copy</button><button class="btn btn-ghost" onclick="generateKINarrative()" style="font-size:11px;padding:6px 12px" title="Generate a short AI-written summary of key findings">AI Summary</button><button class="ask-ai-btn" onclick="openKIAskAi(event)" style="font-size:11px;padding:6px 12px;background:var(--accent-violet);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Inter,system-ui,sans-serif" title="Ask a free-form question about these influencer results">Ask AI</button>' : ''}
+    ${hasInfluencers ? '<button class="btn btn-ghost" onclick="generateKINarrative()" style="font-size:11px;padding:6px 12px" title="Generate a short AI-written summary of key findings">AI Summary</button><button class="ask-ai-btn" onclick="openKIAskAi(event)" style="font-size:11px;padding:6px 12px;background:var(--accent-violet);color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:Inter,system-ui,sans-serif" title="Ask a free-form question about these influencer results">Ask AI</button><div class="ki-more-wrap"><button class="ki-more-btn" onclick="toggleKIMoreMenu(event)" title="More actions">&#8943;</button><div class="ki-more-menu" id="kiMoreMenu"><button onclick="exportKIToPNG();closeKIMoreMenu()" title="Download the current chart as a PNG image">📷 Export as PNG</button><button onclick="copyKIInsight();closeKIMoreMenu()" title="Copy a text summary of all influencers to your clipboard">📋 Copy insight text</button></div></div>' : ''}
   </div>
   ${hasInfluencers ? '<div id="kiNarrativeBox" style="display:none" class="ki-narrative-box"></div>' : ''}
   ${hasInfluencers ? (function(){
@@ -3529,6 +3541,20 @@ function updateKISensitivity(pct) {
 }
 
 // ── A7: Export to PNG ──
+function toggleKIMoreMenu(e) {
+  e.stopPropagation();
+  var menu = document.getElementById('kiMoreMenu');
+  if (!menu) return;
+  var isOpen = menu.classList.toggle('open');
+  if (isOpen) {
+    setTimeout(function(){ document.addEventListener('click', closeKIMoreMenu, { once: true }); }, 0);
+  }
+}
+function closeKIMoreMenu() {
+  var menu = document.getElementById('kiMoreMenu');
+  if (menu) menu.classList.remove('open');
+}
+
 function exportKIToPNG() {
   const canvas = document.getElementById('kiOverviewChart') || document.getElementById('kiWaterfallChart');
   if (!canvas) { toast('No chart to export', 'error'); return; }
