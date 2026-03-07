@@ -22,6 +22,12 @@ depends_on = None
 
 
 def upgrade():
+    # ── Fix missing server_default on usage_events.occurred_at ────────────
+    # The 0001 migration created the column WITHOUT a SQL-level DEFAULT,
+    # so the PL/pgSQL record_usage() function fails on INSERT.
+    op.alter_column('usage_events', 'occurred_at',
+                    server_default=sa.text('NOW()'))
+
     # ── Update plan display fields ────────────────────────────────────────
     op.execute("""
 UPDATE plans SET
@@ -182,6 +188,9 @@ ON CONFLICT (plan_id, feature_key) DO UPDATE SET limit_value = NULL, is_enabled 
 
 
 def downgrade():
+    # Revert occurred_at default
+    op.alter_column('usage_events', 'occurred_at', server_default=None)
+
     # Revert plan prices
     op.execute("UPDATE plans SET price_cents = 0 WHERE code = 'free';")
     op.execute("UPDATE plans SET price_cents = 1200 WHERE code = 'pro';")

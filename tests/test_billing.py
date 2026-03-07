@@ -82,16 +82,25 @@ class TestPlansAPI:
         plans = resp.get_json()['plans']
         free = next(p for p in plans if p['code'] == 'free')
         assert free['price_cents'] == 0
-        assert free['entitlements']['ai_queries']['limit_value'] == 100
-        assert free['entitlements']['document_uploads']['limit_value'] == 3
-        assert free['entitlements']['premium_themes']['is_enabled'] is False
+        assert free['entitlements']['ai_queries']['limit_value'] == 25
+        assert free['entitlements']['document_uploads']['limit_value'] == 5
+        assert free['entitlements']['export']['is_enabled'] is False
 
-    def test_business_plan_unlimited(self, client):
+    def test_pro_plan_pricing(self, client):
+        resp = client.get('/api/billing/plans')
+        plans = resp.get_json()['plans']
+        pro = next(p for p in plans if p['code'] == 'pro')
+        assert pro['price_cents'] == 1900
+        assert pro['entitlements']['ai_queries']['limit_value'] == 400
+        assert pro['entitlements']['custom_charts']['limit_value'] is None  # unlimited
+
+    def test_business_plan_limits(self, client):
         resp = client.get('/api/billing/plans')
         plans = resp.get_json()['plans']
         biz = next(p for p in plans if p['code'] == 'business')
-        assert biz['entitlements']['ai_queries']['limit_value'] is None  # unlimited
-        assert biz['entitlements']['premium_themes']['is_enabled'] is True
+        assert biz['price_cents'] == 5900
+        assert biz['entitlements']['ai_queries']['limit_value'] == 1500
+        assert biz['entitlements']['priority_support']['is_enabled'] is True
 
 
 class TestSubscriptionAPI:
@@ -178,8 +187,8 @@ class TestEntitlementChecks:
             ).fetchone()
             assert row is not None
             assert row[0] is True  # is_enabled
-            # Business plan = unlimited (NULL)
-            assert row[1] is None
+            # Business plan = 1500/mo
+            assert row[1] == 1500
 
     def test_can_consume(self, app, test_user):
         """Test PL/pgSQL can_consume function."""
