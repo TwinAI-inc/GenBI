@@ -34,6 +34,9 @@ jobs:
       FLASK_SECRET_KEY: ci-test-flask-secret-16
       FLASK_ENV: development
       EMAIL_PROVIDER: console
+      AZURE_OPENAI_ENDPOINT: https://test.openai.azure.com/
+      AZURE_OPENAI_DEPLOYMENT: gpt-4o
+      AZURE_OPENAI_API_VERSION: 2024-12-01-preview
 
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +57,8 @@ jobs:
           python -c "import bcrypt; print('bcrypt OK')"
           python -c "import jwt; print('PyJWT OK')"
           python -c "import sqlalchemy; print(f'sqlalchemy {sqlalchemy.__version__}')"
+          python -c "import azure.identity; print('azure-identity OK')"
+          python -c "import openai; print(f'openai {openai.__version__}')"
 
       - name: Validate Flask app loads
         run: |

@@ -12,7 +12,9 @@ python-dotenv>=1.0,<2.0
 itsdangerous>=2.0,<3.0
 requests>=2.28,<3.0
 gunicorn>=22.0,<23.0
-google-generativeai>=0.3,<1.0
+# Azure OpenAI (Managed Identity auth)
+azure-identity>=1.17,<2.0
+openai>=1.40,<2.0
 # Optional: Gmail API email sending
 google-api-python-client>=2.0,<3.0
 google-auth>=2.0,<3.0

@@ -1,6 +1,6 @@
 """
 GenBI Dashboard Server
-Flask backend with Google Gemini AI integration for the Chart Assistant.
+Flask backend with Azure OpenAI integration for the Chart Assistant.
 Production-hardened with OWASP-aligned security controls.
 """
 
@@ -146,57 +146,88 @@ def create_app():
             )
         return response
 
-    # ── Quota enforcement helper ─────────────────────────────────────────
+    # ── AI auth + billing middleware ──────────────────────────────────────
+    @app.before_request
+    def _inject_billing_user():
+        """Resolve JWT → user on every request; AI endpoints enforce separately."""
+        request._billing_user = None
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            from auth.services.token_service import decode_access_token
+            from auth.models import User
+            payload = decode_access_token(auth_header[7:])
+            if payload:
+                user = db.session.get(User, payload.get('sub'))
+                if user:
+                    request._billing_user = user
+
+    def _require_ai_auth():
+        """Return an error response if user is not authenticated, else None."""
+        if not request._billing_user:
+            return jsonify({'error': 'Authentication required. Please sign in.'}), 401
+        return None
+
     def _check_ai_quota():
-        # TESTING MODE: quota enforcement disabled — re-enable when done
+        """Check quota for ai_queries. Returns error response or None."""
+        user = request._billing_user
+        if not user:
+            return jsonify({'error': 'Authentication required.'}), 401
+        from billing.services.entitlement_service import can_consume, get_user_plan
+        check = can_consume(user.id, 'ai_queries', 1)
+        if not check['allowed']:
+            plan = get_user_plan(user.id)
+            return jsonify({
+                'error': check['reason'],
+                'current_usage': check['current_usage'],
+                'limit_value': check['limit_value'],
+                'current_plan': plan['plan_code'],
+                'upgrade_required': True,
+            }), 402
         return None
 
     def _record_ai_usage():
-        user = getattr(request, '_billing_user', None)
+        user = request._billing_user
         if user:
             from billing.services.entitlement_service import record_usage
             record_usage(user.id, 'ai_queries', 1)
 
-    def _call_gemini(api_key, prompt):
-        """Shared helper: configure Gemini, call, strip markdown fences, parse JSON."""
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        response = model.generate_content(prompt)
-        reply_text = response.text.strip()
-        if reply_text.startswith('```'):
-            reply_text = reply_text.split('\n', 1)[-1]
-            if reply_text.endswith('```'):
-                reply_text = reply_text[:-3].strip()
-            elif '```' in reply_text:
-                reply_text = reply_text[:reply_text.rfind('```')].strip()
-        return json.loads(reply_text)
+    def _call_ai(prompt, system=None):
+        """Call Azure OpenAI and return parsed JSON. Drop-in for old _call_gemini."""
+        from services.azure_ai_client import chat_completion_json
+        return chat_completion_json(prompt, system=system)
 
     def _ai_error_response(e):
-        """Shared error handler for AI endpoints."""
+        """Shared error handler for AI endpoints. Never leaks prompt/response."""
+        import uuid as _uuid
+        cid = _uuid.uuid4().hex[:12]
         err_str = str(e).lower()
-        if 'api key' in err_str or 'invalid' in err_str or 'authenticate' in err_str:
-            return jsonify({'error': 'Invalid API key. Please check your Google API key in Settings.'}), 401
-        logger.exception('AI request failed')
-        return jsonify({'error': 'AI request failed. Please try again.'}), 500
+        if 'authentication' in err_str or 'credential' in err_str:
+            logger.error('AI auth error cid=%s category=auth', cid)
+            return jsonify({'error': 'AI service authentication error. Contact support.', 'correlation_id': cid}), 503
+        if 'timeout' in err_str or 'timed out' in err_str:
+            logger.error('AI timeout cid=%s category=timeout', cid)
+            return jsonify({'error': 'AI service timed out. Please try again.', 'correlation_id': cid}), 504
+        logger.error('AI request failed cid=%s category=unknown', cid)
+        return jsonify({'error': 'AI request failed. Please try again.', 'correlation_id': cid}), 500
 
     # ── AI endpoints ─────────────────────────────────────────────────────
 
     @app.route('/api/chart-assist', methods=['POST'])
+    @limiter.limit('10/minute')
     def chart_assist():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
 
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
         user_message = data.get('message', '').strip()
         columns = data.get('columns', [])
         sample_rows = data.get('sampleRows', [])
         col_meta = data.get('colMeta', {})
 
-        if not api_key:
-            return jsonify({'error': 'No API key provided. Add your Google API key in Settings.'}), 400
         if not user_message:
             return jsonify({'error': 'No message provided.'}), 400
         if len(user_message) > 2000:
@@ -269,21 +300,7 @@ Column names in xCol, yCol, and groupCol MUST exactly match the provided column 
 If the request is impossible with the available columns, respond with: {{"error": "your explanation"}}"""
 
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            response = model.generate_content(prompt)
-
-            reply_text = response.text.strip()
-
-            if reply_text.startswith('```'):
-                reply_text = reply_text.split('\n', 1)[-1]
-                if reply_text.endswith('```'):
-                    reply_text = reply_text[:-3].strip()
-                elif '```' in reply_text:
-                    reply_text = reply_text[:reply_text.rfind('```')].strip()
-
-            parsed = json.loads(reply_text)
+            parsed, _usage = _call_ai(prompt)
 
             if 'error' in parsed:
                 return jsonify({'error': parsed['error']}), 200
@@ -309,26 +326,23 @@ If the request is impossible with the available columns, respond with: {{"error"
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response. Please try rephrasing your request.'}), 200
         except Exception as e:
-            err_str = str(e).lower()
-            if 'api key' in err_str or 'invalid' in err_str or 'authenticate' in err_str:
-                return jsonify({'error': 'Invalid API key. Please check your Google API key in Settings.'}), 401
-            logger.exception('Chart-assist request failed')
-            return jsonify({'error': 'AI request failed. Please try again.'}), 500
+            return _ai_error_response(e)
 
     @app.route('/api/key-influencers', methods=['POST'])
+    @limiter.limit('10/minute')
     def key_influencers():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
         metric = data.get('metric', '').strip()
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
         summary = data.get('summary', {})
 
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         if not metric:
             return jsonify({'error': 'No metric selected.'}), 400
 
@@ -380,43 +394,27 @@ Rules:
 - The "factor" and "value" must exactly match the column names and values provided"""
 
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash')
-            response = model.generate_content(prompt)
-
-            reply_text = response.text.strip()
-            if reply_text.startswith('```'):
-                reply_text = reply_text.split('\n', 1)[-1]
-                if reply_text.endswith('```'):
-                    reply_text = reply_text[:-3].strip()
-                elif '```' in reply_text:
-                    reply_text = reply_text[:reply_text.rfind('```')].strip()
-
-            parsed = json.loads(reply_text)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
 
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response.'}), 200
         except Exception as e:
-            err_str = str(e).lower()
-            if 'api key' in err_str or 'invalid' in err_str or 'authenticate' in err_str:
-                return jsonify({'error': 'Invalid API key.'}), 401
-            logger.exception('Key-influencers request failed')
-            return jsonify({'error': 'AI request failed. Please try again.'}), 500
+            return _ai_error_response(e)
 
     # ── New AI endpoints ─────────────────────────────────────────────────
 
     @app.route('/api/auto-insights', methods=['POST'])
+    @limiter.limit('10/minute')
     def auto_insights():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
         summary = data.get('summary', {})
@@ -437,7 +435,7 @@ Rules:
 - Each insight should be 1-2 sentences
 - severity=high for critical findings, medium for notable, low for informational"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -446,14 +444,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/anomaly-detect', methods=['POST'])
+    @limiter.limit('10/minute')
     def anomaly_detect():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
         column_stats = data.get('columnStats', {})
@@ -471,7 +470,7 @@ Rules:
 - Return at most 5 anomalies, sorted by severity
 - column must exactly match provided column names"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -480,14 +479,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/chart-narrative', methods=['POST'])
+    @limiter.limit('10/minute')
     def chart_narrative():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         chart_type = data.get('chartType', '')
         title = data.get('title', '')
         labels = data.get('labels', [])[:20]
@@ -508,7 +508,7 @@ Rules:
 - Be specific with numbers
 - Keep it under 30 words"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -517,14 +517,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/ask-data', methods=['POST'])
+    @limiter.limit('10/minute')
     def ask_data():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         question = data.get('question', '').strip()
         if not question:
             return jsonify({'error': 'No question provided.'}), 400
@@ -562,7 +563,7 @@ Rules:
 - Use real numbers from the data. Limit labels to 10 items max (show top/bottom entries).
 - Only omit chart if the answer is purely textual with no quantifiable data."""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -571,14 +572,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/forecast', methods=['POST'])
+    @limiter.limit('10/minute')
     def forecast():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         labels = data.get('labels', [])
         values = data.get('values', [])
         periods = data.get('periods', 3)
@@ -598,7 +600,7 @@ Rules:
 - Use the trend and seasonality visible in the data
 - explanation should be 1 sentence describing the expected trend"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -607,14 +609,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/data-quality', methods=['POST'])
+    @limiter.limit('10/minute')
     def data_quality():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
         quality_metrics = data.get('qualityMetrics', {})
@@ -633,7 +636,7 @@ Rules:
 - Provide actionable suggestions for each issue
 - column must exactly match provided column names"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -642,14 +645,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/describe-columns', methods=['POST'])
+    @limiter.limit('10/minute')
     def describe_columns():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
         sample_rows = data.get('sampleRows', [])[:5]
@@ -667,7 +671,7 @@ Rules:
 - Each description should be 5-15 words
 - Infer meaning from column name, data type, and sample values"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -676,14 +680,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/explain-influencer', methods=['POST'])
+    @limiter.limit('10/minute')
     def explain_influencer():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         factor = data.get('factor', '')
         value = data.get('value', '')
         metric = data.get('metric', '')
@@ -705,7 +710,7 @@ Rules:
 - compounding_factors: list other columns that might interact with this factor (max 3)
 - Be specific and data-driven"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -714,14 +719,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/recommendations', methods=['POST'])
+    @limiter.limit('10/minute')
     def recommendations():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         influencers = data.get('influencers', [])
         metric = data.get('metric', '')
         direction = data.get('direction', 'increase')
@@ -739,7 +745,7 @@ Rules:
 - Impact should reference the metric and expected magnitude
 - Focus on the highest-impact influencers"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -748,14 +754,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/suggest-actions', methods=['POST'])
+    @limiter.limit('10/minute')
     def suggest_actions():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
         has_data = data.get('hasData', False)
@@ -780,7 +787,7 @@ Rules:
   - export: trigger export
 - Tailor suggestions to current state (e.g. if no data, suggest upload first)"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -789,14 +796,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/chart-explain', methods=['POST'])
+    @limiter.limit('10/minute')
     def chart_explain():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         question = data.get('question', '').strip()
         if not question:
             return jsonify({'error': 'No question provided.'}), 400
@@ -831,7 +839,7 @@ Rules:
 - highlights should be 2-4 short bullet points with the most important takeaways
 - If the question cannot be answered from the chart data, say so and explain what data would be needed"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -842,14 +850,15 @@ Rules:
     # ── KI Feature Endpoints ─────────────────────────────────────────────
 
     @app.route('/api/ki-ask', methods=['POST'])
+    @limiter.limit('10/minute')
     def ki_ask():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         question = data.get('question', '').strip()
         if not question:
             return jsonify({'error': 'No question provided.'}), 400
@@ -878,7 +887,7 @@ Rules:
 - Be specific with numbers when possible
 - highlights should be 2-4 short bullet points with key takeaways"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -887,14 +896,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/ki-interactions', methods=['POST'])
+    @limiter.limit('10/minute')
     def ki_interactions():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         metric = data.get('metric', '')
         cross_tab = data.get('crossTabData', [])
         overall_avg = data.get('overallAvg', 0)
@@ -916,7 +926,7 @@ Rules:
 - combinedMultiplier = combinedAvg / overallAvg
 - Only include interactions with meaningful combined effects"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -925,14 +935,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/ki-segment-compare', methods=['POST'])
+    @limiter.limit('10/minute')
     def ki_segment_compare():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         metric = data.get('metric', '')
         segment_col = data.get('segmentColumn', '')
         segment_data = data.get('segmentData', {})
@@ -954,7 +965,7 @@ Rules:
 - unique: factors that only appear in one segment
 - multiplier = segment_avg / overall_avg"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -963,14 +974,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/ki-temporal', methods=['POST'])
+    @limiter.limit('10/minute')
     def ki_temporal():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         metric = data.get('metric', '')
         date_col = data.get('dateColumn', '')
         periods_data = data.get('periodsData', {})
@@ -989,7 +1001,7 @@ Rules:
 - trends: summarize how each major factor changed across periods
 - strengthening = multiplier increasing over time, weakening = decreasing, stable = roughly constant"""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
@@ -998,14 +1010,15 @@ Rules:
             return _ai_error_response(e)
 
     @app.route('/api/ki-root-cause', methods=['POST'])
+    @limiter.limit('10/minute')
     def ki_root_cause():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         quota_error = _check_ai_quota()
         if quota_error:
             return quota_error
         data = request.get_json()
-        api_key = data.get('apiKey', '').strip()
-        if not api_key:
-            return jsonify({'error': 'No API key provided.'}), 400
         factor = data.get('factor', '')
         value = data.get('value', '')
         metric = data.get('metric', '')
@@ -1027,7 +1040,7 @@ Give a 3-level root cause analysis. RESPOND WITH ONLY THIS EXACT JSON STRUCTURE:
 
 IMPORTANT: Return ONLY the JSON object above. No markdown. No code fences. Each "cause" must be under 15 words."""
         try:
-            parsed = _call_gemini(api_key, prompt)
+            parsed, _usage = _call_ai(prompt)
             _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:

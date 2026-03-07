@@ -44,7 +44,11 @@ class ProductionConfig(_BaseConfig):
     SESSION_COOKIE_SECURE = True  # HTTPS only
 
     # Required env vars — fail fast if missing
-    _REQUIRED = ['FLASK_SECRET_KEY', 'JWT_SECRET_KEY', 'DATABASE_URL']
+    _REQUIRED = [
+        'FLASK_SECRET_KEY', 'JWT_SECRET_KEY', 'DATABASE_URL',
+        'AZURE_OPENAI_ENDPOINT', 'AZURE_OPENAI_DEPLOYMENT',
+        'AZURE_OPENAI_API_VERSION',
+    ]
 
     @staticmethod
     def init_app(app):
