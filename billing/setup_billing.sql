@@ -201,8 +201,8 @@ $$;
 INSERT INTO plans (code, name, description, price_cents, currency, interval, is_active, sort_order)
 VALUES
     ('free', 'Free', 'Get started with basic analytics', 0, 'USD', 'month', TRUE, 0),
-    ('pro', 'Pro', 'For power users who need more', 1200, 'USD', 'month', TRUE, 1),
-    ('business', 'Business', 'For teams and advanced workflows', 2900, 'USD', 'month', TRUE, 2)
+    ('pro', 'Pro', 'For power users who need more', 1900, 'USD', 'month', TRUE, 1),
+    ('business', 'Business', 'For teams and advanced workflows', 5900, 'USD', 'month', TRUE, 2)
 ON CONFLICT (code) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
@@ -215,12 +215,13 @@ INSERT INTO plan_entitlements (plan_id, feature_key, limit_value, is_enabled)
 SELECT p.id, e.feature_key, e.limit_value, e.is_enabled
 FROM plans p,
 (VALUES
-    ('document_uploads', 3::INTEGER, TRUE),
-    ('ai_queries', 100::INTEGER, TRUE),
-    ('custom_charts', 2::INTEGER, TRUE),
+    ('document_uploads', 5::INTEGER, TRUE),
+    ('ai_queries', 25::INTEGER, TRUE),
+    ('custom_charts', 5::INTEGER, TRUE),
     ('premium_themes', NULL::INTEGER, FALSE),
     ('export', NULL::INTEGER, FALSE),
-    ('priority_support', NULL::INTEGER, FALSE)
+    ('priority_support', NULL::INTEGER, FALSE),
+    ('saved_projects', 1::INTEGER, TRUE)
 ) AS e(feature_key, limit_value, is_enabled)
 WHERE p.code = 'free'
 ON CONFLICT (plan_id, feature_key) DO UPDATE SET
@@ -232,12 +233,13 @@ INSERT INTO plan_entitlements (plan_id, feature_key, limit_value, is_enabled)
 SELECT p.id, e.feature_key, e.limit_value, e.is_enabled
 FROM plans p,
 (VALUES
-    ('document_uploads', 25::INTEGER, TRUE),
-    ('ai_queries', 100::INTEGER, TRUE),
-    ('custom_charts', 20::INTEGER, TRUE),
+    ('document_uploads', 50::INTEGER, TRUE),
+    ('ai_queries', 400::INTEGER, TRUE),
+    ('custom_charts', NULL::INTEGER, TRUE),
     ('premium_themes', NULL::INTEGER, TRUE),
     ('export', NULL::INTEGER, TRUE),
-    ('priority_support', NULL::INTEGER, TRUE)
+    ('priority_support', NULL::INTEGER, FALSE),
+    ('saved_projects', NULL::INTEGER, TRUE)
 ) AS e(feature_key, limit_value, is_enabled)
 WHERE p.code = 'pro'
 ON CONFLICT (plan_id, feature_key) DO UPDATE SET
@@ -249,12 +251,13 @@ INSERT INTO plan_entitlements (plan_id, feature_key, limit_value, is_enabled)
 SELECT p.id, e.feature_key, e.limit_value, e.is_enabled
 FROM plans p,
 (VALUES
-    ('document_uploads', NULL::INTEGER, TRUE),
-    ('ai_queries', NULL::INTEGER, TRUE),
+    ('document_uploads', 500::INTEGER, TRUE),
+    ('ai_queries', 1500::INTEGER, TRUE),
     ('custom_charts', NULL::INTEGER, TRUE),
     ('premium_themes', NULL::INTEGER, TRUE),
     ('export', NULL::INTEGER, TRUE),
-    ('priority_support', NULL::INTEGER, TRUE)
+    ('priority_support', NULL::INTEGER, TRUE),
+    ('saved_projects', NULL::INTEGER, TRUE)
 ) AS e(feature_key, limit_value, is_enabled)
 WHERE p.code = 'business'
 ON CONFLICT (plan_id, feature_key) DO UPDATE SET

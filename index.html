@@ -2320,7 +2320,6 @@ async function loadSubscriptionPlans() {
 function renderSettings() {
   const themes = ['Dark Glass', 'Light', 'Midnight', 'Aurora'];
   const current = App.theme || 'Dark Glass';
-  const savedKey = (() => { try { return localStorage.getItem('genbi-api-key') || ''; } catch(e) { return ''; } })();
   return `<div class="page-header"><div><h1 class="page-title">Settings</h1><p class="page-subtitle">Configure your dashboard preferences.</p></div></div>
 
   <div class="glass-panel" style="max-width:640px"><h2 class="panel-title" style="margin-bottom:24px">Profile Settings</h2>
@@ -2330,13 +2329,11 @@ function renderSettings() {
     <div class="form-group"><label class="form-label">Theme</label><select class="form-select" id="themeSelect" onchange="applyTheme(this.value)">${themes.map(t => `<option${t===current?' selected':''}>${t}</option>`).join('')}</select></div>
     <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button></div>
   <div class="glass-panel" style="max-width:640px;margin-top:20px">
-    <h2 class="panel-title" style="margin-bottom:8px">AI Chart Assistant</h2>
-    <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:16px">Enter your Google Gemini API key to enable AI-powered chart generation. Your key is stored locally in your browser and never shared.</p>
-    <div class="form-group"><label class="form-label">Google Gemini API Key</label><input class="form-input" id="apiKeyInput" type="password" placeholder="AIza..." value="${savedKey}" style="font-family:monospace;letter-spacing:1px"></div>
-    <div style="display:flex;gap:10px;align-items:center">
-      <button class="btn btn-primary" onclick="saveApiKey()">Save Key</button>
-      <button class="btn btn-ghost" onclick="testApiKey()">Test Connection</button>
-      <span id="apiKeyStatus" style="font-size:12px"></span>
+    <h2 class="panel-title" style="margin-bottom:8px">AI Features</h2>
+    <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:16px">AI-powered chart generation, insights, and analysis are included with your plan. No API key needed.</p>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--accent-emerald);display:inline-block"></span>
+      <span style="font-size:12px;color:var(--text-secondary)">AI service active</span>
     </div>
   </div>
   <div class="ai-usage-card" id="aiUsageCard"><div style="font-size:12px;color:var(--text-tertiary)">Loading AI usage...</div></div>`;
@@ -2360,11 +2357,11 @@ const _checkSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" s
 const _xSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
 
 const _featureLabels = {
-  document_uploads: 'Document uploads',
-  ai_queries: 'AI queries / month',
+  ai_queries: 'AI chats / month',
+  document_uploads: 'Document uploads / month',
   custom_charts: 'Custom charts',
-  premium_themes: 'Premium themes',
-  export: 'Chart export',
+  export: 'Export (PNG / PDF / CSV)',
+  saved_projects: 'Saved projects',
   priority_support: 'Priority support',
 };
 
@@ -2375,7 +2372,7 @@ function _renderPricingCard(plan, currentPlanCode) {
     ? '<span class="pricing-price-free">$0</span>'
     : `<span class="pricing-price">$${(plan.price_cents / 100).toFixed(0)}<span>/mo</span></span>`;
 
-  const featureOrder = ['document_uploads', 'ai_queries', 'custom_charts', 'premium_themes', 'export', 'priority_support'];
+  const featureOrder = ['ai_queries', 'document_uploads', 'custom_charts', 'export', 'saved_projects', 'priority_support'];
   const features = featureOrder.map(fk => {
     const ent = plan.entitlements[fk];
     if (!ent) return '';
@@ -2579,6 +2576,13 @@ async function loadBillingSection() {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const data = await resp.json();
+    if (resp.status === 401) {
+      // Token expired — prompt re-login
+      badge.innerHTML = '<span class="billing-plan-badge free">Free</span>';
+      content.innerHTML = `<p style="font-size:13px;color:var(--text-tertiary);margin-bottom:16px">Your session has expired. Please sign in again to view your subscription.</p>
+        <button class="btn btn-primary" onclick="window.location.href='/login'">Sign in</button>`;
+      return;
+    }
     const planCode = data.plan ? data.plan.plan_code : 'free';
     const planName = data.plan ? data.plan.plan_name : 'Free';
     const sub = data.subscription;
@@ -2588,25 +2592,61 @@ async function loadBillingSection() {
 
     let html = '';
 
-    // Usage meters
-    const meters = [
-      { key: 'ai_queries', label: 'AI queries this month' },
-      { key: 'document_uploads', label: 'Documents uploaded' },
-      { key: 'custom_charts', label: 'Custom charts' },
+    // Usage rows with circular progress rings
+    const features = [
+      { key: 'ai_queries', label: 'AI Chats', desc: 'AI-powered insights, explanations & recommendations', color: '#818cf8' },
+      { key: 'document_uploads', label: 'Document Uploads', desc: 'Upload Excel files for analysis', color: '#60a5fa' },
+      { key: 'custom_charts', label: 'Custom Charts', desc: 'Create and save personalized chart configurations', color: '#34d399' },
+      { key: 'export', label: 'Exports', desc: 'Download charts as PNG, PDF, or CSV', color: '#fbbf24' },
+      { key: 'saved_projects', label: 'Saved Projects', desc: 'Organize your analyses into projects', color: '#f472b6' },
     ];
-    meters.forEach(m => {
-      const u = usage[m.key];
-      if (!u || !u.is_enabled) return;
-      const current = u.current_usage || 0;
-      const limit = u.limit_value;
-      const limitLabel = limit === null ? 'Unlimited' : limit;
-      const pct = limit === null ? 10 : Math.min(100, (current / limit) * 100);
-      const color = pct > 90 ? 'red' : pct > 70 ? 'yellow' : 'green';
-      html += `<div class="usage-meter">
-        <div class="usage-meter-label"><span>${m.label}</span><span>${current} / ${limitLabel}</span></div>
-        <div class="usage-meter-bar"><div class="usage-meter-fill ${color}" style="width:${pct}%"></div></div>
+    html += '<div style="display:flex;flex-direction:column;gap:0;margin-bottom:20px">';
+    features.forEach((f, i) => {
+      const u = usage[f.key];
+      const enabled = u && u.is_enabled;
+      const current = u ? (u.current_usage || 0) : 0;
+      const limit = (u && u.limit_value !== undefined) ? u.limit_value : null;
+      const unlimited = enabled && limit === null;
+      const disabled = !enabled;
+      const remaining = disabled ? 0 : (unlimited ? null : Math.max(0, (limit || 0) - current));
+      const pct = disabled ? 100 : (unlimited ? 0 : (limit > 0 ? Math.min(100, (current / limit) * 100) : 0));
+      const ringPct = disabled ? 0 : (unlimited ? 0 : pct);
+      const circumference = 2 * Math.PI * 18;
+      const dashOffset = circumference - (ringPct / 100) * circumference;
+      const ringColor = disabled ? '#4b5563' : f.color;
+      const trackColor = disabled ? 'rgba(75,85,99,0.15)' : (ringColor + '22');
+      let valueText, statusText, statusColor;
+      if (disabled) {
+        valueText = '—'; statusText = 'Pro plan'; statusColor = 'var(--text-tertiary)';
+      } else if (unlimited) {
+        valueText = '∞'; statusText = 'Unlimited'; statusColor = f.color;
+      } else {
+        valueText = remaining; statusText = current + ' of ' + limit + ' used'; statusColor = 'var(--text-tertiary)';
+      }
+      const border = i < features.length - 1 ? 'border-bottom:1px solid var(--glass-border);' : '';
+      html += `<div style="display:flex;align-items:center;gap:16px;padding:16px 0;${border}">
+        <div style="flex-shrink:0;position:relative;width:48px;height:48px">
+          <svg width="48" height="48" viewBox="0 0 48 48" style="transform:rotate(-90deg)">
+            <circle cx="24" cy="24" r="18" fill="none" stroke="${trackColor}" stroke-width="3.5"/>
+            <circle cx="24" cy="24" r="18" fill="none" stroke="${ringColor}" stroke-width="3.5"
+              stroke-dasharray="${circumference}" stroke-dashoffset="${dashOffset}"
+              stroke-linecap="round" style="transition:stroke-dashoffset .6s ease"/>
+          </svg>
+          <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:${disabled ? '14px' : (String(valueText).length > 2 ? '11px' : '14px')};font-weight:700;color:${disabled ? 'var(--text-tertiary)' : 'var(--text-primary)'}">${valueText}</span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:2px">${f.label}</div>
+          <div style="font-size:11px;color:var(--text-tertiary);line-height:1.3">${f.desc}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:right">
+          ${disabled
+            ? '<span style="font-size:11px;padding:3px 8px;border-radius:10px;background:rgba(139,92,246,0.1);color:#a78bfa">Upgrade</span>'
+            : '<span style="font-size:12px;color:' + statusColor + '">' + statusText + '</span>'
+          }
+        </div>
       </div>`;
     });
+    html += '</div>';
 
     // Subscription info
     if (sub && planCode !== 'free') {
@@ -3196,19 +3236,18 @@ function runKeyInfluencers() {
     });
   });
 
-  const apiKey = getApiKey();
-  if (apiKey) {
+  if (isLoggedIn()) {
     // AI-powered analysis
     const colMetaClean = {};
     Object.entries(ec.colMeta).forEach(([k, v]) => {
       colMetaClean[k] = { ...v, vals: undefined, uniqueVals: v.uniqueVals?.slice(0,15) };
     });
+    const token = localStorage.getItem('genbi-auth-token');
 
     fetch('/api/key-influencers', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({
-        apiKey,
         metric,
         columns: App.excelData.headers,
         colMeta: colMetaClean,
@@ -3626,7 +3665,7 @@ async function submitKIAskAi(questionOverride) {
   const question = questionOverride || (inputEl ? inputEl.value.trim() : '');
   if (!question) return;
   if (inputEl) inputEl.value = question;
-  if (!getApiKey()) { respEl.innerHTML = aiNoKeyHTML(); return; }
+  if (!isLoggedIn()) { respEl.innerHTML = aiNoAuthHTML(); return; }
   respEl.innerHTML = aiLoadingHTML('kiAskLoader');
   try {
     const ec = App.excelChartConfig;
@@ -3645,7 +3684,7 @@ async function submitKIAskAi(questionOverride) {
     }
     respEl.innerHTML = html;
   } catch(e) {
-    if (e.message === 'NO_KEY') respEl.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') respEl.innerHTML = aiNoAuthHTML();
     else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -3675,7 +3714,7 @@ async function runKIInteractions() {
   }
 
   var resContainer = document.getElementById('kiTabResults') || tabContent;
-  if (!getApiKey()) {
+  if (!isLoggedIn()) {
     renderKIInteractionsLocal(resContainer, crossTab, overallAvg);
     return;
   }
@@ -3770,7 +3809,7 @@ async function runKISegmentCompare() {
     segmentData[segVal] = groupedAvgs;
   });
 
-  if (!getApiKey()) {
+  if (!isLoggedIn()) {
     renderKISegmentsLocal(results, segmentData, overallAvg, segCol);
     return;
   }
@@ -3876,7 +3915,7 @@ async function runKITemporal() {
   });
 
   var resContainer = document.getElementById('kiTabResults') || tabContent;
-  if (!getApiKey()) {
+  if (!isLoggedIn()) {
     renderKITemporalLocal(resContainer, periodsData);
     return;
   }
@@ -3929,7 +3968,7 @@ function renderKITemporalAI(container) {
 async function handleRootCauseChain(idx) {
   const container = document.getElementById('kiRootCauseBox');
   if (!container) return;
-  if (!getApiKey()) { container.innerHTML = aiNoKeyHTML(); container.style.display = 'block'; return; }
+  if (!isLoggedIn()) { container.innerHTML = aiNoAuthHTML(); container.style.display = 'block'; return; }
   container.innerHTML = aiLoadingHTML('rootCauseLoader');
   container.style.display = 'block';
   try {
@@ -3952,7 +3991,7 @@ async function handleRootCauseChain(idx) {
       (data.rootAction ? '<div style="margin-top:10px;padding:10px 14px;border-radius:10px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.15);display:flex;align-items:flex-start;gap:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:12px;color:var(--text-primary);line-height:1.5">' + data.rootAction + '</span></div>' : '');
     setTimeout(() => drawRootCauseCanvas(chain, inf), 30);
   } catch(e) {
-    if (e.message === 'NO_KEY') { container.innerHTML = aiNoKeyHTML(); return; }
+    if (e.message === 'NO_KEY') { container.innerHTML = aiNoAuthHTML(); return; }
     // Fallback: build a local root cause chain from the data we have
     const pctDiff = inf.overallAvg > 0 ? Math.round(((inf.avgWhenTrue - inf.overallAvg) / inf.overallAvg) * 100) : 0;
     const dir = pctDiff >= 0 ? 'higher' : 'lower';
@@ -4100,7 +4139,7 @@ function simpleMarkdown(text) {
 async function generateKINarrative() {
   const box = document.getElementById('kiNarrativeBox');
   if (!box) return;
-  if (!getApiKey()) { box.innerHTML = aiNoKeyHTML(); box.style.display = 'block'; return; }
+  if (!isLoggedIn()) { box.innerHTML = aiNoAuthHTML(); box.style.display = 'block'; return; }
   box.innerHTML = aiLoadingHTML('narrLoader');
   box.style.display = 'block';
   try {
@@ -4108,7 +4147,7 @@ async function generateKINarrative() {
     box.innerHTML = '<div class="ki-narr-title">Executive Summary</div><div id="kiNarrText" style="line-height:1.7">' + simpleMarkdown(data.answer || '') + '</div>' +
       '<button class="btn btn-ghost ki-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById(\'kiNarrText\').innerText).then(()=>toast(\'Copied\',\'success\'))" style="margin-top:8px">📋 Copy</button>';
   } catch(e) {
-    if (e.message === 'NO_KEY') box.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') box.innerHTML = aiNoAuthHTML();
     else box.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -6270,37 +6309,8 @@ function saveSettings() {
   toast('Settings saved!', 'success');
 }
 
-function saveApiKey() {
-  const input = document.getElementById('apiKeyInput');
-  const key = input?.value?.trim() || '';
-  try { localStorage.setItem('genbi-api-key', key); } catch(e) {}
-  toast(key ? 'API key saved!' : 'API key cleared.', 'success');
-}
-
-function testApiKey() {
-  const input = document.getElementById('apiKeyInput');
-  const key = input?.value?.trim() || '';
-  const status = document.getElementById('apiKeyStatus');
-  if (!key) { if (status) status.innerHTML = '<span style="color:var(--accent-rose)">No key entered</span>'; return; }
-  if (status) status.innerHTML = '<span style="color:var(--accent-amber)">Testing...</span>';
-  fetch('/api/chart-assist', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey: key, message: 'test', columns: ['test'], sampleRows: [], colMeta: {} })
-  }).then(r => r.json()).then(data => {
-    if (data.error && data.error.includes('Invalid API key')) {
-      if (status) status.innerHTML = '<span style="color:var(--accent-rose)">Invalid key</span>';
-    } else {
-      if (status) status.innerHTML = '<span style="color:var(--accent-emerald)">Connected!</span>';
-      try { localStorage.setItem('genbi-api-key', key); } catch(e) {}
-    }
-  }).catch(() => {
-    if (status) status.innerHTML = '<span style="color:var(--accent-rose)">Server not reachable</span>';
-  });
-}
-
-function getApiKey() {
-  try { return localStorage.getItem('genbi-api-key') || ''; } catch(e) { return ''; }
+function isLoggedIn() {
+  try { return !!localStorage.getItem('genbi-auth-token'); } catch(e) { return false; }
 }
 
 // ══════════════════════════════════════════════
@@ -6308,20 +6318,19 @@ function getApiKey() {
 // ══════════════════════════════════════════════
 
 async function fetchAI(endpoint, body) {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error('NO_KEY');
-  body.apiKey = apiKey;
-  const headers = { 'Content-Type': 'application/json' };
   const token = localStorage.getItem('genbi-auth-token');
-  if (token) headers['Authorization'] = 'Bearer ' + token;
+  if (!token) throw new Error('AUTH_REQUIRED');
+  const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
   if (csrfToken) headers['X-CSRFToken'] = csrfToken;
   const resp = await fetch(endpoint, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (resp.status === 401) throw new Error('AUTH_REQUIRED');
   if (resp.status === 402) {
     const d = await resp.json();
-    throw new Error('QUOTA:' + (d.error || 'Quota exceeded'));
+    throw new Error('QUOTA:' + (d.error || 'Monthly AI query limit reached. Upgrade your plan for more.'));
   }
-  if (resp.status === 401) throw new Error('INVALID_KEY');
+  if (resp.status === 429) throw new Error('RATE_LIMIT');
+  if (resp.status === 503 || resp.status === 504) throw new Error('AI_UNAVAILABLE');
   const data = await resp.json();
   if (data.error) throw new Error(data.error);
   return data;
@@ -6384,8 +6393,8 @@ function aiLoadingHTML(id) {
   return '<div class="ai-loading" id="' + id + '"><span class="ai-loading-dot"></span><span class="ai-loading-dot"></span><span class="ai-loading-dot"></span><span style="margin-left:4px">Analyzing...</span></div>';
 }
 
-function aiNoKeyHTML() {
-  return '<div style="font-size:12px;color:var(--text-tertiary);padding:12px">Add your Gemini API key in <a href="#" onclick="navigate(\'settings\');return false" style="color:var(--accent-cyan)">Settings</a> to enable AI features.</div>';
+function aiNoAuthHTML() {
+  return '<div style="font-size:12px;color:var(--text-tertiary);padding:12px"><a href="#" onclick="navigate(\'login\');return false" style="color:var(--accent-cyan)">Sign in</a> to use AI-powered features.</div>';
 }
 
 async function generateAutoInsights() {
@@ -6520,7 +6529,7 @@ async function getSuggestedActions() {
 async function loadBriefingCard() {
   const container = document.getElementById('aiBriefingCard');
   if (!container) return;
-  if (!getApiKey()) { container.innerHTML = aiNoKeyHTML(); return; }
+  if (!isLoggedIn()) { container.innerHTML = aiNoAuthHTML(); return; }
   if (!App.excelData) { container.innerHTML = ''; return; }
   container.innerHTML = aiLoadingHTML('briefingLoader');
   try {
@@ -6529,13 +6538,13 @@ async function loadBriefingCard() {
     container.innerHTML = '<div class="ai-card-header"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg> AI Insights</div>' +
       data.insights.map(i => '<div class="insight-item"><span class="insight-type-dot ' + (i.type || 'pattern') + '"></span><span>' + i.text + '</span></div>').join('');
   } catch(e) {
-    if (e.message === 'NO_KEY') container.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
     else container.innerHTML = '<div style="font-size:12px;color:var(--accent-rose);padding:8px">' + e.message + '</div>';
   }
 }
 
 async function loadAnomalyBadges() {
-  if (!getApiKey() || !App.excelData) return;
+  if (!isLoggedIn() || !App.excelData) return;
   try {
     const data = await detectAnomalies();
     if (!data || !data.anomalies) return;
@@ -6563,12 +6572,12 @@ function toggleAnomalyDetail(idx) {
 async function loadNarrativeCaptions() {
   if (!App.excelData) return;
   const ec = App.excelChartConfig;
-  const hasKey = !!getApiKey();
+  const hasAuth = isLoggedIn();
   for (let i = 0; i < ec.chartPlan.length; i++) {
     const chart = ec.chartPlan[i];
     const el = document.getElementById('aiCaption' + i);
     if (!el) continue;
-    if (!hasKey) {
+    if (!hasAuth) {
       el.textContent = chart.desc || chart.title || '';
       continue;
     }
@@ -6645,7 +6654,7 @@ async function submitAskAiFromModal(questionOverride) {
     renderAskAiResponse(respEl, App._askAiCache[cacheKey]);
     return;
   }
-  if (!getApiKey()) { respEl.innerHTML = aiNoKeyHTML(); return; }
+  if (!isLoggedIn()) { respEl.innerHTML = aiNoAuthHTML(); return; }
   respEl.innerHTML = aiLoadingHTML('askAiPopupLoader');
   try {
     var payload = buildAskAiPayload(source, idx, question);
@@ -6654,7 +6663,7 @@ async function submitAskAiFromModal(questionOverride) {
     App._askAiCache[cacheKey] = data;
     renderAskAiResponse(respEl, data);
   } catch(e) {
-    if (e.message === 'NO_KEY') respEl.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') respEl.innerHTML = aiNoAuthHTML();
     else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -6721,7 +6730,7 @@ async function handleAskData() {
   if (!input || !answerEl) return;
   const question = input.value.trim();
   if (!question) return;
-  if (!getApiKey()) { answerEl.innerHTML = aiNoKeyHTML(); answerEl.style.display = 'block'; return; }
+  if (!isLoggedIn()) { answerEl.innerHTML = aiNoAuthHTML(); answerEl.style.display = 'block'; return; }
   answerEl.innerHTML = aiLoadingHTML('askLoader');
   answerEl.style.display = 'block';
   try {
@@ -6735,7 +6744,7 @@ async function handleAskData() {
     answerEl.innerHTML = html;
     if (data.chart && data.chart.type !== 'stats') initAskChart(data.chart);
   } catch(e) {
-    if (e.message === 'NO_KEY') answerEl.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') answerEl.innerHTML = aiNoAuthHTML();
     else answerEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -6879,14 +6888,14 @@ async function handleForecast(chartIdx) {
     if (btn) btn.textContent = 'Forecasted';
   } catch(e) {
     if (btn) btn.textContent = 'Forecast';
-    toast(e.message === 'NO_KEY' ? 'Add API key in Settings' : e.message, 'error');
+    toast(e.message === 'AUTH_REQUIRED' ? 'Sign in to use AI features' : e.message === 'RATE_LIMIT' ? 'Too many requests — please wait' : e.message === 'AI_UNAVAILABLE' ? 'AI service temporarily unavailable' : e.message.startsWith('QUOTA:') ? e.message.slice(6) : e.message, 'error');
   }
 }
 
 async function loadDataQuality() {
   const container = document.getElementById('dataQualityPanel');
   if (!container) return;
-  if (!getApiKey()) { container.innerHTML = aiNoKeyHTML(); return; }
+  if (!isLoggedIn()) { container.innerHTML = aiNoAuthHTML(); return; }
   container.innerHTML = aiLoadingHTML('qualityLoader');
   try {
     const data = await generateDataQuality();
@@ -6902,7 +6911,7 @@ async function loadDataQuality() {
     }
     container.innerHTML = html;
   } catch(e) {
-    if (e.message === 'NO_KEY') container.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
     else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -6910,7 +6919,7 @@ async function loadDataQuality() {
 async function loadColumnDescriptions() {
   const container = document.getElementById('colDescPanel');
   if (!container) return;
-  if (!getApiKey()) { container.innerHTML = aiNoKeyHTML(); return; }
+  if (!isLoggedIn()) { container.innerHTML = aiNoAuthHTML(); return; }
   container.innerHTML = aiLoadingHTML('descLoader');
   try {
     const data = await describeColumns();
@@ -6923,7 +6932,7 @@ async function loadColumnDescriptions() {
         return '<tr><td>' + h + '</td><td>' + (descs[h] || '—') + '</td><td>' + type + '</td></tr>';
       }).join('') + '</tbody></table>';
   } catch(e) {
-    if (e.message === 'NO_KEY') container.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
     else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -6931,7 +6940,7 @@ async function loadColumnDescriptions() {
 async function handleExplainInfluencer(idx) {
   const container = document.getElementById('kiExplainBox');
   if (!container) return;
-  if (!getApiKey()) { container.innerHTML = aiNoKeyHTML(); container.style.display = 'block'; return; }
+  if (!isLoggedIn()) { container.innerHTML = aiNoAuthHTML(); container.style.display = 'block'; return; }
   container.innerHTML = aiLoadingHTML('explainLoader');
   container.style.display = 'block';
   try {
@@ -6943,7 +6952,7 @@ async function handleExplainInfluencer(idx) {
     }
     container.innerHTML = html;
   } catch(e) {
-    if (e.message === 'NO_KEY') container.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
     else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -6951,7 +6960,7 @@ async function handleExplainInfluencer(idx) {
 async function handleGetRecommendations() {
   const container = document.getElementById('kiRecsBox');
   if (!container) return;
-  if (!getApiKey()) { container.innerHTML = aiNoKeyHTML(); container.style.display = 'block'; return; }
+  if (!isLoggedIn()) { container.innerHTML = aiNoAuthHTML(); container.style.display = 'block'; return; }
   container.innerHTML = aiLoadingHTML('recsLoader');
   container.style.display = 'block';
   try {
@@ -6960,7 +6969,7 @@ async function handleGetRecommendations() {
     container.innerHTML = '<ul class="ki-recs-list">' +
       data.recommendations.map((r, i) => '<li><span class="rec-priority ' + (r.priority || 'medium') + '">' + (r.priority || 'medium') + '</span>' + (i + 1) + '. ' + r.action + '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">Impact: ' + (r.impact || '') + '</div></li>').join('') + '</ul>';
   } catch(e) {
-    if (e.message === 'NO_KEY') container.innerHTML = aiNoKeyHTML();
+    if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
     else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
   }
 }
@@ -6995,7 +7004,7 @@ function executeSuggestedAction(text, actionType) {
 async function loadSuggestedActions() {
   const container = document.getElementById('aiSuggestionsCard');
   if (!container) return;
-  if (!getApiKey()) { container.innerHTML = ''; return; }
+  if (!isLoggedIn()) { container.innerHTML = ''; return; }
   container.innerHTML = aiLoadingHTML('suggestLoader');
   try {
     const data = await getSuggestedActions();
@@ -7019,7 +7028,7 @@ function renderDataChat() {
     '<div class="header-actions"><button class="btn btn-ghost" onclick="App._dataChatMessages=[];navigate(\'datachat\')">Clear Chat</button></div></div>' +
     '<div class="data-chat-page"><div class="glass-panel" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding:0">' +
     '<div class="data-chat-messages" id="dataChatMessages">' +
-    (msgs || '<div style="text-align:center;padding:60px 0;color:var(--text-tertiary);font-size:13px">' + (getApiKey() ? (App.excelData ? 'Ask anything about your data...' : 'Upload a dataset first to start chatting.') : 'Add your API key in Settings to enable Data Chat.') + '</div>') +
+    (msgs || '<div style="text-align:center;padding:60px 0;color:var(--text-tertiary);font-size:13px">' + (isLoggedIn() ? (App.excelData ? 'Ask anything about your data...' : 'Upload a dataset first to start chatting.') : 'Sign in to enable AI-powered Data Chat.') + '</div>') +
     '</div>' +
     '<div class="data-chat-input-wrap">' +
     '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>' +
@@ -7054,7 +7063,7 @@ async function sendDataChatMsg() {
     const pending = document.getElementById('chatPending');
     if (pending) {
       pending.removeAttribute('id');
-      pending.innerHTML = '<span style="color:var(--accent-rose)">' + (e.message === 'NO_KEY' ? 'Add API key in Settings' : e.message) + '</span>';
+      pending.innerHTML = '<span style="color:var(--accent-rose)">' + (e.message === 'AUTH_REQUIRED' ? 'Sign in to use AI features' : e.message === 'RATE_LIMIT' ? 'Too many requests — please wait' : e.message === 'AI_UNAVAILABLE' ? 'AI service temporarily unavailable' : e.message.startsWith('QUOTA:') ? e.message.slice(6) : e.message) + '</span>';
     }
   }
   if (msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight;
@@ -7067,7 +7076,7 @@ async function applyNLFilter() {
   if (!input) return;
   const query = input.value.trim();
   if (!query) return;
-  if (!getApiKey()) { toast('Add API key in Settings', 'error'); return; }
+  if (!isLoggedIn()) { toast('Sign in to use AI features', 'error'); return; }
   try {
     const data = await askData('Extract a data filter from this: "' + query + '". Return the filter field in your response.');
     if (data.filter && data.filter.column && data.filter.value) {
@@ -7077,7 +7086,7 @@ async function applyNLFilter() {
       toast(data.answer || 'Could not extract filter', 'info');
     }
   } catch(e) {
-    toast(e.message === 'NO_KEY' ? 'Add API key in Settings' : e.message, 'error');
+    toast(e.message === 'AUTH_REQUIRED' ? 'Sign in to use AI features' : e.message === 'RATE_LIMIT' ? 'Too many requests — please wait' : e.message === 'AI_UNAVAILABLE' ? 'AI service temporarily unavailable' : e.message.startsWith('QUOTA:') ? e.message.slice(6) : e.message, 'error');
   }
 }
 
@@ -7115,8 +7124,8 @@ function renderChartAssistant() {
   const history = App.assistantMessages.map(m => `<div class="chat-msg ${m.role==='user'?'sent':'received'}">${m.text}<div class="chat-msg-time">${m.time}</div></div>`).join('');
   return `<div style="display:flex;flex-direction:column;height:100%">
     <div style="font-size:11px;color:var(--text-secondary);padding:8px 10px;border-radius:var(--radius-sm);background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.08);margin-bottom:10px">
-      <strong style="color:var(--accent-cyan)">${getApiKey() ? 'AI-Powered' : 'Basic Mode'}</strong>
-      ${getApiKey() ? ' — Ask anything naturally!' : ' — Add Gemini key in <strong style="cursor:pointer;text-decoration:underline" onclick="closePanel();navigate(\'settings\')">Settings</strong>'}
+      <strong style="color:var(--accent-cyan)">${isLoggedIn() ? 'AI-Powered' : 'Basic Mode'}</strong>
+      ${isLoggedIn() ? ' — Ask anything naturally!' : ' — <strong style="cursor:pointer;text-decoration:underline" onclick="closePanel();navigate(\'login\')">Sign in</strong> to enable AI'}
     </div>
     ${colChips}
     <div style="margin-bottom:10px">
@@ -7254,17 +7263,16 @@ function sendAssistantMsg() {
     return;
   }
 
-  const apiKey = getApiKey();
-  if (apiKey) {
+  if (isLoggedIn()) {
     // AI-powered mode
     addAssistantReply('<span style="color:var(--accent-amber)">Thinking...</span>', true);
     const ec = App.excelChartConfig;
     const sampleRows = App.excelData.rows.slice(0, 3);
+    const token = localStorage.getItem('genbi-auth-token');
     fetch('/api/chart-assist', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({
-        apiKey,
         message: text,
         columns: App.excelData.headers,
         sampleRows,
