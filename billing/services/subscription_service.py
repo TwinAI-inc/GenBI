@@ -127,8 +127,21 @@ def switch_plan(user_id, user_email, target_plan_code):
 # STRIPE FLOWS
 # ═════════════════════════════════════════════════════════════════════════
 
+def _resolve_stripe_price_id(plan):
+    """Get Stripe Price ID from DB column or env var fallback."""
+    if plan.stripe_price_id:
+        return plan.stripe_price_id
+    # Fallback to env vars keyed by plan code
+    env_key = f'STRIPE_PRICE_ID_{plan.code.upper()}'
+    return os.environ.get(env_key)
+
+
 def _stripe_checkout(user_id, user_email, plan):
     """Create Stripe Checkout Session for a new subscription."""
+    price_id = _resolve_stripe_price_id(plan)
+    if not price_id:
+        return None, f'Stripe Price ID not configured for {plan.name} plan.'
+
     stripe = _get_stripe()
     base = _base_url()
 
@@ -144,7 +157,7 @@ def _stripe_checkout(user_id, user_email, plan):
 
     checkout_params = dict(
         mode='subscription',
-        line_items=[{'price': plan.stripe_price_id, 'quantity': 1}],
+        line_items=[{'price': price_id, 'quantity': 1}],
         success_url=os.environ.get('STRIPE_SUCCESS_URL', f'{base}/billing/success?session_id={{CHECKOUT_SESSION_ID}}'),
         cancel_url=os.environ.get('STRIPE_CANCEL_URL', f'{base}/billing/cancel'),
         metadata={'user_id': user_id, 'plan_code': plan.code},
@@ -189,7 +202,7 @@ def _stripe_update_subscription(existing_sub, target_plan):
         existing_sub.provider_subscription_id,
         items=[{
             'id': sub_obj['items']['data'][0]['id'],
-            'price': target_plan.stripe_price_id,
+            'price': _resolve_stripe_price_id(target_plan) or target_plan.stripe_price_id,
         }],
         proration_behavior='create_prorations',
     )
