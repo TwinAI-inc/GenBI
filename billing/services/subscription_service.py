@@ -102,6 +102,9 @@ def switch_plan(user_id, user_email, target_plan_code):
     if current_plan_code == 'free' or not existing:
         if _is_stripe_configured():
             return _stripe_checkout(user_id, user_email, target_plan)
+        elif existing:
+            # User has an active free-plan subscription row — switch it in place
+            return _mock_switch(existing, target_plan)
         else:
             return _mock_activate(user_id, target_plan)
 
