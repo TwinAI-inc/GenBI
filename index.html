@@ -295,6 +295,7 @@ body.theme-light .sidebar-profile svg{stroke:#9496a1;}
 body.theme-light .main-content{background:transparent;}
 body.theme-light .pricing-card{background:rgba(255,255,255,0.8);}
 body.theme-light .pricing-card:hover{box-shadow:0 12px 40px rgba(0,0,0,0.08);}
+body.theme-light .pricing-card.current{border-color:var(--accent-emerald);box-shadow:0 0 20px rgba(34,197,94,0.08);}
 body.theme-light .pricing-card.featured{border-color:var(--accent-cyan);}
 body.theme-light .pricing-btn{border-color:rgba(0,0,0,0.1);color:#1a1a2e;}
 body.theme-light .pricing-btn:hover{background:rgba(0,0,0,0.04);}
@@ -1137,6 +1138,8 @@ body.theme-light .hp-footer p{color:#9496a1;}
 .pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;max-width:960px;margin:0 auto;}
 .pricing-card{background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:var(--radius-lg);padding:32px 28px;display:flex;flex-direction:column;position:relative;transition:all .3s ease;}
 .pricing-card:hover{border-color:var(--glass-border-bright);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.2);}
+.pricing-card.current{border-color:var(--accent-emerald);box-shadow:0 0 30px rgba(34,197,94,0.1);}
+.pricing-card.current::after{content:'Your Plan';position:absolute;top:12px;right:12px;background:var(--accent-emerald);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:9999px;letter-spacing:0.03em;z-index:1;}
 .pricing-card.featured{border-color:var(--accent-cyan);box-shadow:0 0 30px rgba(0,229,255,0.08);}
 .pricing-card.featured::before{content:'Most Popular';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent-cyan);color:#000;font-size:11px;font-weight:700;padding:4px 16px;border-radius:9999px;letter-spacing:0.03em;}
 .pricing-plan-name{font-size:18px;font-weight:600;margin-bottom:4px;}
@@ -2415,7 +2418,7 @@ function _renderPricingCard(plan, currentPlanCode) {
     btnClass = ' primary';
   }
 
-  return `<div class="pricing-card${isFeatured ? ' featured' : ''}">
+  return `<div class="pricing-card${isFeatured ? ' featured' : ''}${isCurrent ? ' current' : ''}">
     <div class="pricing-plan-name">${plan.name}</div>
     <div class="pricing-plan-desc">${plan.description || ''}</div>
     ${price}
