@@ -46,8 +46,6 @@ class ProductionConfig(_BaseConfig):
     # Required env vars — fail fast if missing
     _REQUIRED = [
         'FLASK_SECRET_KEY', 'JWT_SECRET_KEY', 'DATABASE_URL',
-        'AZURE_OPENAI_ENDPOINT', 'AZURE_OPENAI_DEPLOYMENT',
-        'AZURE_OPENAI_API_VERSION',
     ]
 
     @staticmethod
