@@ -201,13 +201,16 @@ def create_app():
         import uuid as _uuid
         cid = _uuid.uuid4().hex[:12]
         err_str = str(e).lower()
+        if 'not configured' in err_str or 'missing' in err_str:
+            logger.error('AI not configured cid=%s category=config err=%s', cid, e)
+            return jsonify({'error': 'AI service is not configured yet. Contact support.', 'correlation_id': cid}), 503
         if 'authentication' in err_str or 'credential' in err_str:
-            logger.error('AI auth error cid=%s category=auth', cid)
+            logger.error('AI auth error cid=%s category=auth err=%s', cid, e)
             return jsonify({'error': 'AI service authentication error. Contact support.', 'correlation_id': cid}), 503
         if 'timeout' in err_str or 'timed out' in err_str:
             logger.error('AI timeout cid=%s category=timeout', cid)
             return jsonify({'error': 'AI service timed out. Please try again.', 'correlation_id': cid}), 504
-        logger.error('AI request failed cid=%s category=unknown', cid)
+        logger.error('AI request failed cid=%s category=unknown err=%s', cid, e)
         return jsonify({'error': 'AI request failed. Please try again.', 'correlation_id': cid}), 500
 
     # ── AI endpoints ─────────────────────────────────────────────────────
