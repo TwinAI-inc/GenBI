@@ -20,7 +20,10 @@ from .services.subscription_service import (
     get_portal_url,
     process_webhook,
 )
-from .services.entitlement_service import get_all_usage_summary, get_user_plan
+from .services.entitlement_service import (
+    get_all_usage_summary, get_user_plan,
+    can_consume, record_usage, ALL_FEATURES,
+)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -138,6 +141,42 @@ def usage():
     user = request.current_user
     summary = get_all_usage_summary(user.id)
     return jsonify({'usage': summary})
+
+
+@billing_bp.route('/consume', methods=['POST'])
+@auth_required
+def consume():
+    """Check quota and record one usage unit for a feature.
+
+    Body: { "feature_key": "export" }
+    Returns 200 with { allowed, current_usage, limit_value } on success,
+    or 402 with { error, upgrade_required } when quota exceeded.
+    """
+    user = request.current_user
+    data = request.get_json(silent=True) or {}
+    feature_key = data.get('feature_key', '').strip()
+
+    if feature_key not in ALL_FEATURES:
+        return jsonify({'error': 'Invalid feature key.'}), 422
+
+    check = can_consume(user.id, feature_key, 1)
+    if not check['allowed']:
+        plan_info = get_user_plan(user.id)
+        return jsonify({
+            'error': check['reason'],
+            'feature': feature_key,
+            'current_usage': check['current_usage'],
+            'limit_value': check['limit_value'],
+            'current_plan': plan_info['plan_code'],
+            'upgrade_required': True,
+        }), 402
+
+    record_usage(user.id, feature_key, 1)
+    return jsonify({
+        'allowed': True,
+        'current_usage': check['current_usage'] + 1,
+        'limit_value': check['limit_value'],
+    })
 
 
 @billing_bp.route('/webhook', methods=['POST'])

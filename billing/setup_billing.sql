@@ -235,11 +235,11 @@ FROM plans p,
 (VALUES
     ('document_uploads', 50::INTEGER, TRUE),
     ('ai_queries', 400::INTEGER, TRUE),
-    ('custom_charts', NULL::INTEGER, TRUE),
+    ('custom_charts', 50::INTEGER, TRUE),
     ('premium_themes', NULL::INTEGER, TRUE),
-    ('export', NULL::INTEGER, TRUE),
+    ('export', 100::INTEGER, TRUE),
     ('priority_support', NULL::INTEGER, FALSE),
-    ('saved_projects', NULL::INTEGER, TRUE)
+    ('saved_projects', 25::INTEGER, TRUE)
 ) AS e(feature_key, limit_value, is_enabled)
 WHERE p.code = 'pro'
 ON CONFLICT (plan_id, feature_key) DO UPDATE SET

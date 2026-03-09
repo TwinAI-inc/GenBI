@@ -2328,7 +2328,6 @@ function renderSettings() {
   <div class="glass-panel" style="max-width:640px"><h2 class="panel-title" style="margin-bottom:24px">Profile Settings</h2>
     <div class="form-group"><label class="form-label">Display Name</label><input class="form-input" id="settingsName" value="${App.user && App.user.name ? App.user.name : 'User'}"></div>
     <div class="form-group"><label class="form-label">Email</label><input class="form-input" id="settingsEmail" value="${App.user && App.user.email ? App.user.email : ''}" readonly></div>
-    <div class="form-group"><label class="form-label">Role</label><select class="form-select"><option>Admin</option><option>Editor</option><option>Viewer</option></select></div>
     <div class="form-group"><label class="form-label">Theme</label><select class="form-select" id="themeSelect" onchange="applyTheme(this.value)">${themes.map(t => `<option${t===current?' selected':''}>${t}</option>`).join('')}</select></div>
     <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button></div>
   <div class="glass-panel" style="max-width:640px;margin-top:20px">
@@ -2362,8 +2361,8 @@ const _xSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" strok
 const _featureLabels = {
   ai_queries: 'AI chats / month',
   document_uploads: 'Document uploads / month',
-  custom_charts: 'Custom charts',
-  export: 'Export (PNG / PDF / CSV)',
+  custom_charts: 'Custom charts / month',
+  export: 'Exports / month',
   saved_projects: 'Saved projects',
   priority_support: 'Priority support',
 };
@@ -2498,6 +2497,27 @@ async function switchPlan(planCode) {
 // Legacy alias
 function billingCheckout(planCode) { switchPlan(planCode); }
 
+// ── Quota check + record (used before exports, chart saves, project creates) ──
+async function checkQuota(featureKey) {
+  const token = localStorage.getItem('genbi-auth-token');
+  if (!token) return { allowed: true };
+  try {
+    const resp = await fetch('/api/billing/consume', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ feature_key: featureKey }),
+    });
+    const data = await resp.json();
+    if (resp.status === 402) {
+      toast(data.error || 'Quota exceeded. Upgrade your plan.', 'error');
+      return { allowed: false, ...data };
+    }
+    return { allowed: true, ...data };
+  } catch(e) {
+    return { allowed: true };
+  }
+}
+
 // ── Billing success polling (after Stripe redirect) ────────────────────
 async function pollBillingSuccess(maxAttempts) {
   const token = localStorage.getItem('genbi-auth-token');
@@ -2599,8 +2619,8 @@ async function loadBillingSection() {
     const features = [
       { key: 'ai_queries', label: 'AI Chats', desc: 'AI-powered insights, explanations & recommendations', color: '#818cf8' },
       { key: 'document_uploads', label: 'Document Uploads', desc: 'Upload Excel files for analysis', color: '#60a5fa' },
-      { key: 'custom_charts', label: 'Custom Charts', desc: 'Create and save personalized chart configurations', color: '#34d399' },
-      { key: 'export', label: 'Exports', desc: 'Download charts as PNG, PDF, or CSV', color: '#fbbf24' },
+      { key: 'custom_charts', label: 'Custom Charts', desc: 'Create and save personalized chart configurations per month', color: '#34d399' },
+      { key: 'export', label: 'Exports', desc: 'Download charts as PNG, SVG, or JPG per month', color: '#fbbf24' },
       { key: 'saved_projects', label: 'Saved Projects', desc: 'Organize your analyses into projects', color: '#f472b6' },
     ];
     html += '<div style="display:flex;flex-direction:column;gap:0;margin-bottom:20px">';
@@ -3597,9 +3617,11 @@ function closeKIMoreMenu() {
   if (menu) menu.classList.remove('open');
 }
 
-function exportKIToPNG() {
+async function exportKIToPNG() {
   const canvas = document.getElementById('kiOverviewChart') || document.getElementById('kiWaterfallChart');
   if (!canvas) { toast('No chart to export', 'error'); return; }
+  const quota = await checkQuota('export');
+  if (!quota.allowed) return;
   canvas.toBlob(function(blob) {
     if (!blob) { toast('Export failed', 'error'); return; }
     const url = URL.createObjectURL(blob);
@@ -9064,9 +9086,11 @@ document.addEventListener('click', function(e) {
   }
 
   // ── Export handler ────────────────────────────────────────────────────
-  function handleExport() {
+  async function handleExport() {
     var visual = getSelectedVisual();
     if (!visual || !visual.canvas) { toast('No chart selected', 'error'); return; }
+    var quota = await checkQuota('export');
+    if (!quota.allowed) return;
     var canvas = visual.canvas;
     var titleText = visual.title || 'Chart';
     var safeTitle = titleText.replace(/[^a-zA-Z0-9]/g, '_');

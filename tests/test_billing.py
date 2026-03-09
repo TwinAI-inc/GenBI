@@ -92,7 +92,10 @@ class TestPlansAPI:
         pro = next(p for p in plans if p['code'] == 'pro')
         assert pro['price_cents'] == 1900
         assert pro['entitlements']['ai_queries']['limit_value'] == 400
-        assert pro['entitlements']['custom_charts']['limit_value'] is None  # unlimited
+        assert pro['entitlements']['custom_charts']['limit_value'] == 50
+        assert pro['entitlements']['export']['is_enabled'] is True
+        assert pro['entitlements']['export']['limit_value'] == 100
+        assert pro['entitlements']['saved_projects']['limit_value'] == 25
 
     def test_business_plan_limits(self, client):
         resp = client.get('/api/billing/plans')
@@ -208,6 +211,30 @@ class TestEntitlementChecks:
                 {'uid': test_user['user'].id, 'fk': 'nonexistent_feature'},
             ).fetchone()
             assert row[0] is False
+
+
+class TestConsumeEndpoint:
+    def test_consume_requires_auth(self, client):
+        resp = client.post('/api/billing/consume',
+            json={'feature_key': 'export'})
+        assert resp.status_code == 401
+
+    def test_consume_invalid_feature(self, client, test_user):
+        resp = client.post('/api/billing/consume',
+            headers={'Authorization': f'Bearer {test_user["token"]}',
+                     'Content-Type': 'application/json'},
+            json={'feature_key': 'nonexistent'})
+        assert resp.status_code == 422
+
+    def test_consume_allowed(self, client, test_user):
+        """Business plan user can consume export (unlimited)."""
+        resp = client.post('/api/billing/consume',
+            headers={'Authorization': f'Bearer {test_user["token"]}',
+                     'Content-Type': 'application/json'},
+            json={'feature_key': 'export'})
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['allowed'] is True
 
 
 class TestWebhookIdempotency:
