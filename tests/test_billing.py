@@ -1,5 +1,5 @@
 """
-Minimal billing tests.
+Billing tests — validates plan limits, payment-gated upgrades, and entitlements.
 Run: python3 -m pytest tests/test_billing.py -v
 """
 
@@ -15,6 +15,8 @@ os.environ.setdefault('DATABASE_URL', 'postgresql://localhost/genbi_auth')
 os.environ.setdefault('JWT_SECRET_KEY', 'test-secret')
 os.environ.setdefault('FLASK_SECRET_KEY', 'test-secret')
 os.environ.setdefault('EMAIL_PROVIDER', 'console')
+# Ensure no Stripe key in test env (mock mode should be blocked)
+os.environ.pop('STRIPE_SECRET_KEY', None)
 
 from server import create_app
 from extensions import db
@@ -129,9 +131,11 @@ class TestSubscriptionAPI:
         assert 'ai_queries' in data['usage']
 
 
-class TestCheckoutAndCancel:
-    def test_checkout_mock_mode(self, client, test_user):
-        """In mock mode, checkout should immediately activate."""
+class TestPaymentGatedUpgrades:
+    """Upgrades MUST go through Stripe — no instant/mock activation."""
+
+    def test_upgrade_blocked_without_stripe(self, client, test_user):
+        """Without STRIPE_SECRET_KEY, upgrade returns error."""
         resp = client.post('/api/billing/checkout',
             headers={
                 'Authorization': f'Bearer {test_user["token"]}',
@@ -139,50 +143,62 @@ class TestCheckoutAndCancel:
             },
             json={'plan_code': 'pro'},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 400
         data = resp.get_json()
-        assert data.get('action') == 'mock_upgrade'
-        assert data['subscription']['plan']['code'] == 'pro'
+        assert 'not configured' in data['error'].lower() or 'contact support' in data['error'].lower()
 
-    def test_subscription_now_pro(self, client, test_user):
+    def test_plan_stays_free_after_blocked_upgrade(self, client, test_user):
+        """After a blocked upgrade attempt, user remains on free plan."""
         resp = client.get('/api/billing/subscription', headers={
             'Authorization': f'Bearer {test_user["token"]}'
         })
         data = resp.get_json()
-        assert data['plan']['plan_code'] == 'pro'
+        assert data['plan']['plan_code'] == 'free'
 
-    def test_cancel(self, client, test_user):
-        resp = client.post('/api/billing/cancel', headers={
-            'Authorization': f'Bearer {test_user["token"]}'
-        })
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data['subscription']['subscription']['cancel_at_period_end'] is True
-
-    def test_resume(self, client, test_user):
-        resp = client.post('/api/billing/resume', headers={
-            'Authorization': f'Bearer {test_user["token"]}'
-        })
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data['subscription']['cancel_at_period_end'] is False
-
-    def test_switch_to_business(self, client, test_user):
-        resp = client.post('/api/billing/checkout',
+    def test_switch_plan_also_blocked(self, client, test_user):
+        """switch-plan endpoint also requires Stripe for upgrades."""
+        resp = client.post('/api/billing/switch-plan',
             headers={
                 'Authorization': f'Bearer {test_user["token"]}',
                 'Content-Type': 'application/json',
             },
             json={'plan_code': 'business'},
         )
-        assert resp.status_code == 200
+        assert resp.status_code == 400
         data = resp.get_json()
-        assert data['subscription']['plan']['code'] == 'business'
+        assert 'not configured' in data['error'].lower() or 'contact support' in data['error'].lower()
+
+    def test_downgrade_to_free_when_already_free(self, client, test_user):
+        """User already on free plan — returns 'already on this plan'."""
+        resp = client.post('/api/billing/switch-plan',
+            headers={
+                'Authorization': f'Bearer {test_user["token"]}',
+                'Content-Type': 'application/json',
+            },
+            json={'plan_code': 'free'},
+        )
+        # Already on free → returns error (same plan)
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'already' in data['error'].lower()
+
+    def test_no_mock_action_in_response(self, client, test_user):
+        """Ensure mock_upgrade / mock_switch actions never appear."""
+        resp = client.post('/api/billing/switch-plan',
+            headers={
+                'Authorization': f'Bearer {test_user["token"]}',
+                'Content-Type': 'application/json',
+            },
+            json={'plan_code': 'pro'},
+        )
+        data = resp.get_json()
+        action = data.get('action', '')
+        assert 'mock' not in action
 
 
 class TestEntitlementChecks:
-    def test_entitlement_via_db(self, app, test_user):
-        """Test PL/pgSQL get_entitlement function directly."""
+    def test_free_plan_entitlement(self, app, test_user):
+        """Test PL/pgSQL get_entitlement for free plan user."""
         with app.app_context():
             row = db.session.execute(
                 db.text('SELECT is_enabled, limit_value FROM get_entitlement(:uid, :fk)'),
@@ -190,8 +206,8 @@ class TestEntitlementChecks:
             ).fetchone()
             assert row is not None
             assert row[0] is True  # is_enabled
-            # Business plan = 1500/mo
-            assert row[1] == 1500
+            # Free plan = 25/mo
+            assert row[1] == 25
 
     def test_can_consume(self, app, test_user):
         """Test PL/pgSQL can_consume function."""
@@ -204,11 +220,11 @@ class TestEntitlementChecks:
             assert row[1] == 'OK'
 
     def test_disabled_feature_blocked(self, app, test_user):
-        """Business plan has all features enabled, so test with a fake feature."""
+        """Free plan: export is disabled."""
         with app.app_context():
             row = db.session.execute(
                 db.text('SELECT is_enabled FROM get_entitlement(:uid, :fk)'),
-                {'uid': test_user['user'].id, 'fk': 'nonexistent_feature'},
+                {'uid': test_user['user'].id, 'fk': 'export'},
             ).fetchone()
             assert row[0] is False
 
@@ -226,12 +242,22 @@ class TestConsumeEndpoint:
             json={'feature_key': 'nonexistent'})
         assert resp.status_code == 422
 
-    def test_consume_allowed(self, client, test_user):
-        """Business plan user can consume export (unlimited)."""
+    def test_consume_blocked_on_free(self, client, test_user):
+        """Free plan user cannot consume export (disabled)."""
         resp = client.post('/api/billing/consume',
             headers={'Authorization': f'Bearer {test_user["token"]}',
                      'Content-Type': 'application/json'},
             json={'feature_key': 'export'})
+        assert resp.status_code == 402
+        data = resp.get_json()
+        assert data['upgrade_required'] is True
+
+    def test_consume_ai_queries_allowed(self, client, test_user):
+        """Free plan user can consume ai_queries (within limit)."""
+        resp = client.post('/api/billing/consume',
+            headers={'Authorization': f'Bearer {test_user["token"]}',
+                     'Content-Type': 'application/json'},
+            json={'feature_key': 'ai_queries'})
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['allowed'] is True
@@ -243,3 +269,24 @@ class TestWebhookIdempotency:
         resp = client.post('/api/billing/webhook', data='{}',
             content_type='application/json')
         assert resp.status_code == 400
+
+
+class TestCheckoutStatus:
+    def test_checkout_status_requires_auth(self, client):
+        resp = client.get('/api/billing/checkout-status?session_id=test')
+        assert resp.status_code == 401
+
+    def test_checkout_status_requires_session_id(self, client, test_user):
+        resp = client.get('/api/billing/checkout-status', headers={
+            'Authorization': f'Bearer {test_user["token"]}'
+        })
+        assert resp.status_code == 422
+
+    def test_checkout_status_no_stripe(self, client, test_user):
+        """Without Stripe, checkout-status returns error."""
+        resp = client.get('/api/billing/checkout-status?session_id=cs_test_123', headers={
+            'Authorization': f'Bearer {test_user["token"]}'
+        })
+        assert resp.status_code == 400
+        data = resp.get_json()
+        assert 'not configured' in data['error'].lower()

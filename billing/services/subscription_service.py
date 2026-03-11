@@ -70,15 +70,14 @@ def get_user_plan_code(user_id):
 def switch_plan(user_id, user_email, target_plan_code):
     """
     Handle every plan transition:
-      free  → paid : Stripe Checkout (or mock instant activation)
-      paid  → paid : Stripe Billing Portal (or mock instant switch)
+      free  → paid : Stripe Checkout (always requires payment)
+      paid  → paid : Stripe Checkout (new subscription replaces old)
       paid  → free : Cancel subscription at period end
 
     Returns (result_dict, error_string).
     result_dict may contain:
-      redirect_url  — Stripe Checkout / Portal URL (client must redirect)
-      subscription  — updated subscription dict (mock mode)
-      action        — 'checkout' | 'portal' | 'cancel' | 'mock_switch' | 'mock_upgrade'
+      redirect_url  — Stripe Checkout URL (client must redirect)
+      action        — 'checkout' | 'portal' | 'cancel'
       message       — human-readable status
     """
     target_plan = get_plan_by_code(target_plan_code)
@@ -92,35 +91,24 @@ def switch_plan(user_id, user_email, target_plan_code):
     if target_plan_code == current_plan_code:
         return None, 'You are already on this plan.'
 
-    # ── PAID → FREE (cancel at period end) ────────────────────────────
+    # ── PAID → FREE (cancel at period end — no payment needed) ────────
     if target_plan_code == 'free':
         if not existing or current_plan_code == 'free':
             return {'action': 'noop', 'message': 'You are already on the free plan.'}, None
         return _downgrade_to_free(existing)
 
-    # ── FREE → PAID (new subscription via Checkout) ───────────────────
-    if current_plan_code == 'free' or not existing:
-        if _is_stripe_configured():
-            return _stripe_checkout(user_id, user_email, target_plan)
-        elif existing:
-            # User has an active free-plan subscription row — switch it in place
-            return _mock_switch(existing, target_plan)
-        else:
-            return _mock_activate(user_id, target_plan)
+    # ── ANY → PAID (upgrade always requires Stripe Checkout) ──────────
+    if not _is_stripe_configured():
+        return None, 'Payments are not configured. Contact support.'
 
-    # ── PAID → DIFFERENT PAID (upgrade/downgrade via Portal or update) ─
-    if existing.plan_id == target_plan.id:
-        return None, 'You are already on this plan.'
+    # For paid→paid with active Stripe sub + customer, use Billing Portal
+    if (existing and current_plan_code != 'free'
+            and existing.provider == 'stripe'
+            and existing.provider_customer_id):
+        return _stripe_portal(existing)
 
-    if _is_stripe_configured() and existing.provider == 'stripe':
-        # Has a Stripe subscription → send to Billing Portal
-        if existing.provider_customer_id:
-            return _stripe_portal(existing)
-        # Has a Stripe sub but no customer ID (shouldn't happen)
-        return _stripe_update_subscription(existing, target_plan)
-    else:
-        # Mock mode → instant switch
-        return _mock_switch(existing, target_plan)
+    # Otherwise: new checkout session (free→paid, or mock→paid upgrade)
+    return _stripe_checkout(user_id, user_email, target_plan)
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -158,8 +146,8 @@ def _stripe_checkout(user_id, user_email, plan):
     checkout_params = dict(
         mode='subscription',
         line_items=[{'price': price_id, 'quantity': 1}],
-        success_url=os.environ.get('STRIPE_SUCCESS_URL', f'{base}/billing/success?session_id={{CHECKOUT_SESSION_ID}}'),
-        cancel_url=os.environ.get('STRIPE_CANCEL_URL', f'{base}/billing/cancel'),
+        success_url=f'{base}/dashboard?stripe=success&session_id={{CHECKOUT_SESSION_ID}}',
+        cancel_url=f'{base}/dashboard?stripe=cancel',
         metadata={'user_id': user_id, 'plan_code': plan.code},
     )
     if customer_id:
@@ -167,7 +155,11 @@ def _stripe_checkout(user_id, user_email, plan):
     else:
         checkout_params['customer_email'] = user_email
 
-    session = stripe.checkout.Session.create(**checkout_params)
+    try:
+        session = stripe.checkout.Session.create(**checkout_params)
+    except Exception as e:
+        return None, f'Could not create checkout session. Please try again.'
+
     return {
         'action': 'checkout',
         'redirect_url': session.url,
@@ -180,10 +172,14 @@ def _stripe_portal(existing_sub):
     stripe = _get_stripe()
     base = _base_url()
 
-    session = stripe.billing_portal.Session.create(
-        customer=existing_sub.provider_customer_id,
-        return_url=f'{base}/dashboard?billing=updated',
-    )
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=existing_sub.provider_customer_id,
+            return_url=f'{base}/dashboard?billing=updated',
+        )
+    except Exception:
+        return None, 'Could not open billing portal. Please try again.'
+
     return {
         'action': 'portal',
         'redirect_url': session.url,
@@ -283,6 +279,34 @@ def _downgrade_to_free(existing_sub):
 # ═════════════════════════════════════════════════════════════════════════
 # LEGACY ENTRY POINTS (kept for backward compat with existing routes)
 # ═════════════════════════════════════════════════════════════════════════
+
+def verify_checkout_session(user_id, session_id):
+    """
+    Verify a completed Stripe Checkout session. Called after redirect back.
+    Does NOT update the DB — that's the webhook's job. This just confirms status.
+    """
+    if not _is_stripe_configured():
+        return None, 'Stripe not configured.'
+
+    stripe = _get_stripe()
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+    except Exception:
+        return None, 'Could not retrieve checkout session.'
+
+    # Verify the session belongs to this user
+    if session.get('metadata', {}).get('user_id') != user_id:
+        return None, 'Session does not belong to this user.'
+
+    paid = session.get('payment_status') == 'paid'
+    plan_code = session.get('metadata', {}).get('plan_code')
+
+    return {
+        'paid': paid,
+        'plan_code': plan_code,
+        'subscription_id': session.get('subscription'),
+    }, None
+
 
 def create_checkout(user_id, user_email, plan_code):
     """Legacy: redirect to switch_plan."""

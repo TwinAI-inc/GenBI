@@ -2478,17 +2478,17 @@ async function switchPlan(planCode) {
       toast(data.error, 'error');
       return;
     }
-    // Stripe redirect (Checkout or Billing Portal)
+    // Stripe redirect (Checkout or Billing Portal) — always redirect for upgrades
     if (data.redirect_url) {
       window.location.href = data.redirect_url;
       return;
     }
-    // Immediate result (mock mode or cancel)
-    const msg = data.message || 'Plan updated successfully!';
-    toast(msg, 'success');
-    if (App.currentPage === 'pricing') navigate('pricing');
-    else if (App.currentPage === 'subscription') navigate('subscription');
-    else if (App.currentPage === 'settings') navigate('settings');
+    // Only downgrades/cancels return immediate results (no payment needed)
+    if (data.action === 'cancel' || data.action === 'noop') {
+      toast(data.message || 'Plan updated.', 'success');
+      if (App.currentPage === 'pricing') navigate('pricing');
+      else if (App.currentPage === 'subscription') navigate('subscription');
+    }
   } catch(e) {
     toast('Plan switch failed. Please try again.', 'error');
   }
@@ -8408,17 +8408,41 @@ document.addEventListener('click', function(e) {
       return;
     }
     enterAppMode();
-    // Handle ?billing= query params (returning from Portal or success)
+    // Handle ?stripe= query params (returning from Stripe Checkout)
+    const stripeParam = params.get('stripe');
+    const sessionId = params.get('session_id');
+    // Handle ?billing= query params (returning from Portal)
     const billingParam = params.get('billing');
-    if (billingParam === 'success') {
-      navigate('settings');
-      setTimeout(() => toast('Payment successful! Your plan has been updated.', 'success'), 300);
+
+    if (stripeParam === 'success' && sessionId) {
+      // Verify checkout session with backend, then refresh subscription
+      navigate('subscription');
+      setTimeout(async () => {
+        try {
+          const resp = await fetch('/api/billing/checkout-status?session_id=' + encodeURIComponent(sessionId), {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          const data = await resp.json();
+          if (data.paid) {
+            toast('Payment confirmed! Your plan has been upgraded.', 'success');
+          } else {
+            toast('Payment is being processed. Your plan will update shortly.', 'info');
+          }
+        } catch(e) {
+          toast('Checking payment status...', 'info');
+        }
+        // Clean URL
+        window.history.replaceState({}, '', '/dashboard');
+        // Reload subscription page to show updated plan
+        navigate('subscription');
+      }, 500);
+    } else if (stripeParam === 'cancel') {
+      navigate('pricing');
+      window.history.replaceState({}, '', '/dashboard');
+      setTimeout(() => toast('Checkout was canceled. You can try again anytime.', 'info'), 300);
     } else if (billingParam === 'updated') {
       navigate('settings');
       setTimeout(() => toast('Billing updated successfully.', 'success'), 300);
-    } else if (billingParam === 'canceled') {
-      navigate('settings');
-      setTimeout(() => toast('Checkout was canceled.', 'info'), 300);
     } else {
       navigate('analytics');
     }

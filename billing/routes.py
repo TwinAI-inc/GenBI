@@ -19,6 +19,7 @@ from .services.subscription_service import (
     resume_subscription,
     get_portal_url,
     process_webhook,
+    verify_checkout_session,
 )
 from .services.entitlement_service import (
     get_all_usage_summary, get_user_plan,
@@ -98,6 +99,20 @@ def checkout():
     if error:
         return jsonify({'error': error}), 400
 
+    return jsonify(result)
+
+
+@billing_bp.route('/checkout-status', methods=['GET'])
+@auth_required
+def checkout_status():
+    """Verify a Stripe Checkout session after redirect back."""
+    session_id = request.args.get('session_id', '').strip()
+    if not session_id:
+        return jsonify({'error': 'session_id is required.'}), 422
+
+    result, error = verify_checkout_session(request.current_user.id, session_id)
+    if error:
+        return jsonify({'error': error}), 400
     return jsonify(result)
 
 
