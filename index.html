@@ -2917,6 +2917,7 @@ function renderKIDetail() {
     '</div>' +
     '<div class="ki-sensitivity">' +
       '<label>What if we shifted <span id="kiSensePct">10</span>% of data to this group?</label>' +
+      '<div style="font-size:11px;color:var(--text-tertiary);margin:2px 0 6px">Drag the slider to simulate how the overall average would change if more data points belonged to this group.</div>' +
       '<input type="range" min="5" max="50" value="10" oninput="updateKISensitivity(this.value)">' +
       '<div id="kiSenseResult"></div>' +
     '</div>' +
