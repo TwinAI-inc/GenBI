@@ -1,10 +1,10 @@
 """
-Subscription lifecycle management with Stripe + mock fallback.
+Subscription lifecycle management with Stripe.
 
 Switch-plan flow:
   Free → Paid    : Stripe Checkout (new subscription)
   Paid → Paid    : Stripe Billing Portal (plan change + proration)
-  Paid → Free    : Cancel at period end
+  Paid → Free    : Cancel at period end (Stripe) or expire immediately (mock legacy)
 """
 
 import os
@@ -210,53 +210,27 @@ def _stripe_update_subscription(existing_sub, target_plan):
 
 
 # ═════════════════════════════════════════════════════════════════════════
-# MOCK FLOWS (no Stripe configured — instant activation for development)
-# ═════════════════════════════════════════════════════════════════════════
-
-def _mock_activate(user_id, plan):
-    """Immediately activate a new subscription in mock mode."""
-    now = datetime.now(timezone.utc)
-    sub = Subscription(
-        id=str(uuid.uuid4()),
-        user_id=user_id,
-        plan_id=plan.id,
-        status='active',
-        current_period_start=now,
-        current_period_end=now + timedelta(days=30),
-        provider='mock',
-    )
-    db.session.add(sub)
-    db.session.commit()
-    return {
-        'action': 'mock_upgrade',
-        'subscription': sub.to_dict(),
-        'message': f'Upgraded to {plan.name}!',
-    }, None
-
-
-def _mock_switch(existing_sub, target_plan):
-    """Instantly switch plan in mock mode (keeps period, changes plan)."""
-    existing_sub.plan_id = target_plan.id
-    existing_sub.updated_at = datetime.now(timezone.utc)
-    existing_sub.cancel_at_period_end = False
-    existing_sub.canceled_at = None
-    db.session.commit()
-    return {
-        'action': 'mock_switch',
-        'subscription': existing_sub.to_dict(),
-        'message': f'Switched to {target_plan.name}!',
-    }, None
-
-
-# ═════════════════════════════════════════════════════════════════════════
-# DOWNGRADE TO FREE (cancel at period end)
+# DOWNGRADE TO FREE
 # ═════════════════════════════════════════════════════════════════════════
 
 def _downgrade_to_free(existing_sub):
-    """Cancel the subscription at period end so user keeps access until then."""
+    """Cancel the subscription — Stripe subs cancel at period end, mock subs expire immediately."""
     now = datetime.now(timezone.utc)
 
-    if _is_stripe_configured() and existing_sub.provider == 'stripe' and existing_sub.provider_subscription_id:
+    # Mock subscriptions have no real billing period — expire immediately
+    if existing_sub.provider != 'stripe':
+        existing_sub.status = 'expired'
+        existing_sub.canceled_at = now
+        existing_sub.updated_at = now
+        db.session.commit()
+        return {
+            'action': 'cancel',
+            'message': 'Your plan has been downgraded to Free.',
+            'subscription': existing_sub.to_dict(),
+        }, None
+
+    # Stripe subscriptions — cancel at period end so user keeps access
+    if _is_stripe_configured() and existing_sub.provider_subscription_id:
         stripe = _get_stripe()
         stripe.Subscription.modify(
             existing_sub.provider_subscription_id,
