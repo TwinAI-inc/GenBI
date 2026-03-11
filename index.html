@@ -135,8 +135,6 @@ body.theme-aurora .nav-item.active::before{background:#20c997;box-shadow:none;}
 .ki-item-mult.increase { color: #107C10; background: rgba(16,124,16,0.08); }
 .ki-item-mult.decrease { color: #D13438; background: rgba(209,52,56,0.08); }
 .ki-item-desc { font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; }
-.ki-bar-track { height: 6px; border-radius: 3px; background: hsl(0 0% 12%); overflow: hidden; }
-.ki-bar-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
 
 /* ══════ KI FEATURE ADDITIONS ══════ */
 .ki-search{width:100%;padding:8px 12px;font-size:13px;font-family:'Inter',system-ui,sans-serif;border:1px solid var(--glass-border);border-radius:8px;background:hsl(0 0% 5%);color:var(--text-primary);outline:none;transition:border-color .2s;margin-bottom:12px;}
@@ -2836,12 +2834,9 @@ function renderKIList() {
     if (aPinned !== bPinned) return bPinned - aPinned;
     return isIncDir ? b.avgWhenTrue - a.avgWhenTrue : a.avgWhenTrue - b.avgWhenTrue;
   });
-  const maxMult = Math.max(...items.map(inf => Math.abs(inf.multiplier - 1)));
   return items.map((inf, i) => {
     const allIdx = App.kiState.influencers.indexOf(inf);
-    const barPct = maxMult > 0 ? (Math.abs(inf.multiplier - 1) / maxMult) * 100 : 50;
     const isInc = inf.direction === 'increase';
-    const barGrad = isInc ? 'linear-gradient(90deg,#00b482,#20c997,#69f0ae)' : 'linear-gradient(90deg,#b42850,#D13438,#ff6b9d)';
     const multLabel = isInc ? inf.multiplier.toFixed(2) + 'x higher' : inf.multiplier.toFixed(2) + 'x lower';
     const conf = computeKIConfidence(inf);
     const pinned = isKIPinned(inf.factor, inf.value);
@@ -2852,8 +2847,7 @@ function renderKIList() {
         '<span class="ki-confidence ' + conf + '">' + conf + '</span>' +
         '<button class="ki-pin-btn' + (pinned ? ' pinned' : '') + '" onclick="event.stopPropagation();toggleKIPin(\'' + inf.factor.replace(/'/g,"\\'") + '\',\'' + String(inf.value).replace(/'/g,"\\'") + '\')">★</button>' +
       '</span></div>' +
-      '<div class="ki-item-desc">' + (inf.explanation || 'When ' + inf.factor.replace(/_/g,' ') + ' is ' + inf.value + ', ' + App.kiState.metric.replace(/_/g,' ') + ' is ' + multLabel) + '</div>' +
-      '<div class="ki-bar-track"><div class="ki-bar-fill" style="width:' + barPct + '%;background:' + barGrad + '"></div></div></div>';
+      '<div class="ki-item-desc">' + (inf.explanation || 'When ' + inf.factor.replace(/_/g,' ') + ' is ' + inf.value + ', ' + App.kiState.metric.replace(/_/g,' ') + ' is ' + multLabel) + '</div></div>';
   }).join('');
 }
 
