@@ -20,6 +20,6 @@ google-api-python-client>=2.0,<3.0
 google-auth>=2.0,<3.0
 # Optional: Azure Communication Services email
 # azure-communication-email>=1.0,<2.0
-# Optional: Stripe payment processing (leave uninstalled for mock billing mode)
-# stripe>=7.0,<8.0
+# Stripe payment processing
+stripe>=7.0,<8.0
 pytest>=8.0,<9.0
