@@ -180,15 +180,19 @@ def consume():
 
 
 @billing_bp.route('/webhook', methods=['POST'])
+@billing_bp.route('/stripe/webhook', methods=['POST'])
 def webhook():
     """Stripe webhook endpoint (no auth — verified by signature)."""
-    payload = request.get_data(as_text=True)
-    sig = request.headers.get('Stripe-Signature', '')
+    try:
+        payload = request.get_data(as_text=True)
+        sig = request.headers.get('Stripe-Signature', '')
 
-    success, message = process_webhook(payload, sig)
-    if not success:
-        return jsonify({'error': message}), 400
-    return jsonify({'message': message})
+        success, message = process_webhook(payload, sig)
+        if not success:
+            return jsonify({'error': message}), 400
+        return jsonify({'message': message})
+    except Exception:
+        return jsonify({'error': 'Webhook processing error.'}), 500
 
 
 # ═════════════════════════════════════════════════════════════════════════════

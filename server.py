@@ -87,6 +87,7 @@ def create_app():
     limiter.limit('10/minute')(app.view_functions['billing.switch_plan_endpoint'])
 
     # ── CSRF exemptions (webhook endpoints that receive external POSTs) ──
+    # Both /api/billing/webhook and /api/billing/stripe/webhook map to same function
     csrf.exempt(app.view_functions['billing.webhook'])
 
     # ── CSRF token endpoint ──────────────────────────────────────────────
