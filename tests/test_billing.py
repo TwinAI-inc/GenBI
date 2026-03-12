@@ -264,8 +264,21 @@ class TestConsumeEndpoint:
 
 
 class TestWebhookIdempotency:
+    def test_webhook_get_health_check(self, client):
+        """GET on webhook URL returns 200 with ok:true (browser verification)."""
+        resp = client.get('/api/billing/webhook')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['ok'] is True
+
+    def test_webhook_get_stripe_path(self, client):
+        """GET on /stripe/webhook alias also returns 200."""
+        resp = client.get('/api/billing/stripe/webhook')
+        assert resp.status_code == 200
+        assert resp.get_json()['ok'] is True
+
     def test_webhook_no_stripe(self, client):
-        """Without Stripe config, webhook should return 400."""
+        """Without Stripe config, webhook POST should return 400."""
         resp = client.post('/api/billing/webhook', data='{}',
             content_type='application/json')
         assert resp.status_code == 400

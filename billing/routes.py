@@ -194,10 +194,14 @@ def consume():
     })
 
 
-@billing_bp.route('/webhook', methods=['POST'])
-@billing_bp.route('/stripe/webhook', methods=['POST'])
+@billing_bp.route('/webhook', methods=['GET', 'POST'])
+@billing_bp.route('/stripe/webhook', methods=['GET', 'POST'])
 def webhook():
     """Stripe webhook endpoint (no auth — verified by signature)."""
+    # GET: health check so you can verify the URL isn't 404 in a browser
+    if request.method == 'GET':
+        return jsonify({'ok': True, 'endpoint': 'stripe-webhook'})
+
     try:
         payload = request.get_data(as_text=True)
         sig = request.headers.get('Stripe-Signature', '')

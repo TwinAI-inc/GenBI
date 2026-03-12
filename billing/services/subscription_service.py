@@ -22,7 +22,7 @@ def _is_stripe_configured():
 
 
 def _get_stripe():
-    """Lazy-import stripe so it's not required when in mock mode."""
+    """Lazy-import and configure stripe module."""
     import stripe
     stripe.api_key = os.environ['STRIPE_SECRET_KEY']
     return stripe
@@ -331,7 +331,7 @@ def get_portal_url(user_id):
         )
         return {'portal_url': session.url}, None
 
-    return {'portal_url': None, 'mock': True, 'message': 'Billing portal not available in mock mode.'}, None
+    return None, 'Billing portal is not available. Contact support.'
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -342,8 +342,11 @@ def process_webhook(payload, sig_header):
     if not _is_stripe_configured():
         return False, 'Stripe not configured.'
 
-    stripe = _get_stripe()
     webhook_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+    if not webhook_secret:
+        return False, 'Webhook secret not configured.'
+
+    stripe = _get_stripe()
 
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
