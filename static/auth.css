@@ -156,6 +156,54 @@ body::after{
 }
 .otp-input::placeholder{letter-spacing:8px;font-size:22px;font-weight:400;}
 
+/* ── Light theme ─────────────────────────────────────────────────────────── */
+body.theme-light{background:#f8f9fa;color:#1a1a2e;}
+body.theme-light::before{
+  background:
+    radial-gradient(ellipse 60% 55% at 15% 25%, rgba(8,145,178,0.06) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 55% at 85% 75%, rgba(124,58,237,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 55% 10%, rgba(8,145,178,0.03) 0%, transparent 60%);
+}
+body.theme-light::after{
+  background-image:
+    linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+}
+body.theme-light .auth-card{
+  background:rgba(255,255,255,0.9);border-color:rgba(0,0,0,0.08);
+  box-shadow:0 8px 32px rgba(0,0,0,0.08);
+}
+body.theme-light .auth-brand-icon{background:#1a1a2e;}
+body.theme-light .auth-brand-icon svg{stroke:#fff;}
+body.theme-light .auth-brand-name{color:#1a1a2e;}
+body.theme-light .auth-title{color:#1a1a2e;}
+body.theme-light .auth-subtitle{color:#555770;}
+body.theme-light .form-field label{color:#555770;}
+body.theme-light .form-field input{
+  background:#fff;border-color:rgba(0,0,0,0.12);color:#1a1a2e;
+}
+body.theme-light .form-field input:focus{
+  border-color:rgba(0,0,0,0.25);box-shadow:0 0 0 3px rgba(0,0,0,0.05);
+}
+body.theme-light .form-field input::placeholder{color:#999;}
+body.theme-light .auth-submit{background:#1a1a2e;color:#fff;}
+body.theme-light .auth-submit:hover:not(:disabled){box-shadow:0 4px 16px rgba(0,0,0,0.15);}
+body.theme-light .spinner{border-top-color:#fff;}
+body.theme-light .auth-footer{color:#777;}
+body.theme-light .auth-footer a{color:#0891b2;font-weight:600;}
+body.theme-light .auth-link-row a{color:#777;}
+body.theme-light .auth-link-row a:hover{color:#0891b2;}
+body.theme-light .auth-alert.error{background:rgba(225,29,72,0.06);border-color:rgba(225,29,72,0.15);color:#be123c;}
+body.theme-light .auth-alert.success{background:rgba(5,150,105,0.06);border-color:rgba(5,150,105,0.15);color:#047857;}
+body.theme-light .password-toggle{color:#999;}
+body.theme-light .password-toggle:hover{color:#555;}
+body.theme-light .auth-divider{color:#bbb;}
+body.theme-light .auth-divider::before,body.theme-light .auth-divider::after{background:rgba(0,0,0,0.08);}
+body.theme-light .google-btn{background:#fff;border-color:rgba(0,0,0,0.12);color:#1a1a2e;}
+body.theme-light .google-btn:hover{background:#f5f5f5;border-color:rgba(0,0,0,0.2);}
+body.theme-light .strength-meter{background:rgba(0,0,0,0.06);}
+body.theme-light .strength-text{color:#777;}
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media(max-width:480px){
   .auth-card{padding:28px 20px;margin:16px;}
