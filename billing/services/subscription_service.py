@@ -149,6 +149,7 @@ def _stripe_checkout(user_id, user_email, plan):
         success_url=f'{base}/dashboard?stripe=success&session_id={{CHECKOUT_SESSION_ID}}',
         cancel_url=f'{base}/dashboard?stripe=cancel',
         metadata={'user_id': user_id, 'plan_code': plan.code},
+        allow_promotion_codes=True,
     )
     if customer_id:
         checkout_params['customer'] = customer_id
