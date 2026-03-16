@@ -1,13 +1,15 @@
 """
 Azure OpenAI client for GenBI.
 
-Uses Managed Identity (DefaultAzureCredential) in production and
-az-cli/VS Code credentials in local development. No API keys stored.
+Supports two auth modes (checked in order):
+  1. API Key  — if AZURE_OPENAI_API_KEY is set
+  2. Managed Identity — via DefaultAzureCredential (requires RBAC role)
 
 Environment variables:
   AZURE_OPENAI_ENDPOINT     - e.g. https://<resource>.openai.azure.com/
   AZURE_OPENAI_DEPLOYMENT   - deployment name in Azure OpenAI
   AZURE_OPENAI_API_VERSION  - e.g. 2024-12-01-preview
+  AZURE_OPENAI_API_KEY      - (optional) API key for key-based auth
 """
 
 import json
@@ -51,27 +53,41 @@ def _get_config():
 
 
 def _build_client():
-    """Build an OpenAI client configured for Azure with Managed Identity."""
-    from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+    """Build an OpenAI client configured for Azure (API key or Managed Identity)."""
     from openai import AzureOpenAI
 
     endpoint, deployment, api_version = _get_config()
-    scope = os.environ.get(
-        'AZURE_OPENAI_SCOPE',
-        'https://cognitiveservices.azure.com/.default',
-    )
+    api_key = os.environ.get('AZURE_OPENAI_API_KEY', '').strip()
 
-    credential = DefaultAzureCredential()
-    token_provider = get_bearer_token_provider(credential, scope)
-
-    client = AzureOpenAI(
-        azure_endpoint=endpoint,
-        azure_deployment=deployment,
-        api_version=api_version,
-        azure_ad_token_provider=token_provider,
-        timeout=_READ_TIMEOUT,
-        max_retries=_MAX_RETRIES,
-    )
+    if api_key:
+        # API key auth — simplest setup
+        logger.info('Azure OpenAI: using API key authentication')
+        client = AzureOpenAI(
+            azure_endpoint=endpoint,
+            azure_deployment=deployment,
+            api_version=api_version,
+            api_key=api_key,
+            timeout=_READ_TIMEOUT,
+            max_retries=_MAX_RETRIES,
+        )
+    else:
+        # Managed Identity auth — requires RBAC role assignment
+        from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+        logger.info('Azure OpenAI: using Managed Identity authentication')
+        scope = os.environ.get(
+            'AZURE_OPENAI_SCOPE',
+            'https://cognitiveservices.azure.com/.default',
+        )
+        credential = DefaultAzureCredential()
+        token_provider = get_bearer_token_provider(credential, scope)
+        client = AzureOpenAI(
+            azure_endpoint=endpoint,
+            azure_deployment=deployment,
+            api_version=api_version,
+            azure_ad_token_provider=token_provider,
+            timeout=_READ_TIMEOUT,
+            max_retries=_MAX_RETRIES,
+        )
     return client
 
 

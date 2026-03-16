@@ -3714,7 +3714,7 @@ async function submitKIAskAi(questionOverride) {
     respEl.innerHTML = html;
   } catch(e) {
     if (e.message === 'NO_KEY') respEl.innerHTML = aiNoAuthHTML();
-    else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -4177,7 +4177,7 @@ async function generateKINarrative() {
       '<button class="btn btn-ghost ki-copy-btn" onclick="navigator.clipboard.writeText(document.getElementById(\'kiNarrText\').innerText).then(()=>toast(\'Copied\',\'success\'))" style="margin-top:8px">📋 Copy</button>';
   } catch(e) {
     if (e.message === 'NO_KEY') box.innerHTML = aiNoAuthHTML();
-    else box.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else box.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -6426,6 +6426,14 @@ function aiNoAuthHTML() {
   return '<div style="font-size:12px;color:var(--text-tertiary);padding:12px"><a href="#" onclick="navigate(\'login\');return false" style="color:var(--accent-cyan)">Sign in</a> to use AI-powered features.</div>';
 }
 
+function friendlyAIError(msg) {
+  if (msg === 'AUTH_REQUIRED') return 'Sign in to use AI features';
+  if (msg === 'RATE_LIMIT') return 'Too many requests — please wait';
+  if (msg === 'AI_UNAVAILABLE') return 'AI service temporarily unavailable — try again shortly';
+  if (msg && msg.startsWith('QUOTA:')) return msg.slice(6);
+  return msg || 'Something went wrong';
+}
+
 async function generateAutoInsights() {
   if (App._cachedInsights) return App._cachedInsights;
   if (!App.excelData) return null;
@@ -6568,7 +6576,7 @@ async function loadBriefingCard() {
       data.insights.map(i => '<div class="insight-item"><span class="insight-type-dot ' + (i.type || 'pattern') + '"></span><span>' + i.text + '</span></div>').join('');
   } catch(e) {
     if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
-    else container.innerHTML = '<div style="font-size:12px;color:var(--accent-rose);padding:8px">' + e.message + '</div>';
+    else container.innerHTML = '<div style="font-size:12px;color:var(--accent-rose);padding:8px">' + friendlyAIError(e.message) + '</div>';
   }
 }
 
@@ -6693,7 +6701,7 @@ async function submitAskAiFromModal(questionOverride) {
     renderAskAiResponse(respEl, data);
   } catch(e) {
     if (e.message === 'NO_KEY') respEl.innerHTML = aiNoAuthHTML();
-    else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -6774,7 +6782,7 @@ async function handleAskData() {
     if (data.chart && data.chart.type !== 'stats') initAskChart(data.chart);
   } catch(e) {
     if (e.message === 'NO_KEY') answerEl.innerHTML = aiNoAuthHTML();
-    else answerEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else answerEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -6917,7 +6925,7 @@ async function handleForecast(chartIdx) {
     if (btn) btn.textContent = 'Forecasted';
   } catch(e) {
     if (btn) btn.textContent = 'Forecast';
-    toast(e.message === 'AUTH_REQUIRED' ? 'Sign in to use AI features' : e.message === 'RATE_LIMIT' ? 'Too many requests — please wait' : e.message === 'AI_UNAVAILABLE' ? 'AI service temporarily unavailable' : e.message.startsWith('QUOTA:') ? e.message.slice(6) : e.message, 'error');
+    toast(friendlyAIError(e.message), 'error');
   }
 }
 
@@ -6941,7 +6949,7 @@ async function loadDataQuality() {
     container.innerHTML = html;
   } catch(e) {
     if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
-    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -6962,7 +6970,7 @@ async function loadColumnDescriptions() {
       }).join('') + '</tbody></table>';
   } catch(e) {
     if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
-    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -6982,7 +6990,7 @@ async function handleExplainInfluencer(idx) {
     container.innerHTML = html;
   } catch(e) {
     if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
-    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -6999,7 +7007,7 @@ async function handleGetRecommendations() {
       data.recommendations.map((r, i) => '<li><span class="rec-priority ' + (r.priority || 'medium') + '">' + (r.priority || 'medium') + '</span>' + (i + 1) + '. ' + r.action + '<div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">Impact: ' + (r.impact || '') + '</div></li>').join('') + '</ul>';
   } catch(e) {
     if (e.message === 'NO_KEY') container.innerHTML = aiNoAuthHTML();
-    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + e.message + '</span>';
+    else container.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
   }
 }
 
@@ -7092,7 +7100,7 @@ async function sendDataChatMsg() {
     const pending = document.getElementById('chatPending');
     if (pending) {
       pending.removeAttribute('id');
-      pending.innerHTML = '<span style="color:var(--accent-rose)">' + (e.message === 'AUTH_REQUIRED' ? 'Sign in to use AI features' : e.message === 'RATE_LIMIT' ? 'Too many requests — please wait' : e.message === 'AI_UNAVAILABLE' ? 'AI service temporarily unavailable' : e.message.startsWith('QUOTA:') ? e.message.slice(6) : e.message) + '</span>';
+      pending.innerHTML = '<span style="color:var(--accent-rose)">' + friendlyAIError(e.message) + '</span>';
     }
   }
   if (msgContainer) msgContainer.scrollTop = msgContainer.scrollHeight;
@@ -7115,7 +7123,7 @@ async function applyNLFilter() {
       toast(data.answer || 'Could not extract filter', 'info');
     }
   } catch(e) {
-    toast(e.message === 'AUTH_REQUIRED' ? 'Sign in to use AI features' : e.message === 'RATE_LIMIT' ? 'Too many requests — please wait' : e.message === 'AI_UNAVAILABLE' ? 'AI service temporarily unavailable' : e.message.startsWith('QUOTA:') ? e.message.slice(6) : e.message, 'error');
+    toast(friendlyAIError(e.message), 'error');
   }
 }
 
