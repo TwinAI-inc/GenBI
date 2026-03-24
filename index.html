@@ -6055,6 +6055,23 @@ function restoreProjectData(data) {
   App.drillStates = data.drillStates || {};
 }
 
+function downloadProjectToDevice(name, meta) {
+  try {
+    var payload = { meta: meta, data: serializeProjectData() };
+    var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name.replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.genbi.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    console.error('Download to device failed:', e);
+  }
+}
+
 function saveProject(name) {
   const idx = getProjectIndex();
   const id = _activeProjectId || ('proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
@@ -6082,6 +6099,8 @@ function saveProject(name) {
     console.error('Failed to save project data:', e);
     return false;
   }
+  // Also download to device
+  downloadProjectToDevice(name, meta);
   toast(isUpdate ? 'Project updated!' : 'Project "' + name + '" saved!', 'success');
   updateProjectIndicator();
   return true;
