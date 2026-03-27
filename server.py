@@ -112,11 +112,11 @@ def create_app():
 
     @app.route('/')
     def index():
-        return send_from_directory('.', 'index.html')
+        return send_from_directory('.', 'index.html', max_age=0)
 
     @app.route('/dashboard')
     def dashboard_page():
-        return send_from_directory('.', 'index.html')
+        return send_from_directory('.', 'index.html', max_age=0)
 
     # ── Session fixation prevention ──────────────────────────────────────
     @app.before_request
@@ -268,18 +268,36 @@ def create_app():
 The user wants: {user_message}
 
 Respond with ONLY a valid JSON object (no markdown, no code fences) with these fields:
-- "chartType": one of "bar", "line", "donut"
+- "chartType": one of "bar", "line", "donut", "hbar", "area", "stacked", "gauge", "bubble", "lollipop", "funnel", "waterfall", "radar", "heatmap", "boxplot", "treemap", "candlestick", "sankey"
 - "xCol": exact column name for X axis / grouping
 - "yCol": exact column name for Y axis / values (null ONLY for donut showing distribution of a single categorical column)
 - "aggFn": one of "sum", "avg", "max", "count"
-- "groupCol": (optional) categorical column to split into multiple lines — only for line charts (see MULTI-LINE CHARTS below)
+- "groupCol": (optional) categorical column to split into multiple lines — only for line/area/stacked charts
+- "sizeCol": (optional) numeric column for bubble size — only for bubble charts
+- "width": one of "full", "two-thirds", "half", "one-third" — layout width hint
 - "title": short, clean chart title
 - "explanation": one sentence explaining the business insight this chart reveals
 
 CHART TYPE SELECTION (choose the type that tells the clearest story):
-- "bar": Use for COMPARING values across categories (e.g. revenue by region, sales by product). Best when xCol is categorical with 3-15 unique values. Always pair with a numeric yCol.
-- "line": Use ONLY for TRENDS OVER TIME where xCol is a date/time/period/year/quarter/month column. Never use line charts for non-sequential categories — that creates misleading connections between unrelated points.
-- "donut": Use for showing PROPORTIONAL BREAKDOWN of a whole (e.g. market share, distribution of categories). Best with 2-8 segments. Use yCol=null only when showing counts of a categorical column.
+- "bar": COMPARING values across categories (3-15 unique values). Always pair with numeric yCol.
+- "line": TRENDS OVER TIME where xCol is date/time/period. Never for non-sequential categories.
+- "donut": PROPORTIONAL BREAKDOWN (2-8 segments). yCol=null for counts.
+- "hbar": Horizontal bar — best when category labels are long.
+- "area": Like line but emphasizes volume/magnitude over time.
+- "stacked": Stacked bars showing composition within each category.
+- "gauge": Single KPI arc — use for showing a single metric against a target/threshold. Best for 1 value.
+- "bubble": Scatter with sized circles — needs xCol (numeric), yCol (numeric), sizeCol (numeric). Shows 3 dimensions.
+- "lollipop": Elegant bar alternative with stem + dot. Same data as bar but cleaner for fewer categories.
+- "funnel": Pipeline/conversion stages — data must be in descending order (e.g. Visitors > Leads > Sales).
+- "waterfall": Running totals with pos/neg coloring — great for P&L, revenue buildup, bridge charts.
+- "radar": Multi-axis comparison on polar coords — best for comparing 4-8 metrics across 2-4 entities.
+- "heatmap": Color-intensity matrix — for correlations or time-vs-category patterns. Needs groupCol for Y axis.
+- "boxplot": Statistical distribution — shows Q1, median, Q3, whiskers. Good for comparing distributions.
+- "treemap": Hierarchical proportional areas — like donut but for more segments (up to 30).
+- "candlestick": OHLC financial data — requires open/high/low/close columns with date xCol.
+- "sankey": Flow diagram — shows how quantities flow between categories. Needs xCol (source) and groupCol (target).
+
+WIDTH RULES: full for line/area/heatmap/sankey, two-thirds for bar/waterfall/stacked/hbar, one-third for donut/gauge/funnel/radar/treemap, half as default.
 
 AGGREGATION RULES (critical for correctness):
 - "sum": Use for additive quantities — revenue, sales, cost, profit, count of items, population, units sold
@@ -323,12 +341,94 @@ If the request is impossible with the available columns, respond with: {{"error"
                 'yCol': parsed.get('yCol'),
                 'aggFn': parsed.get('aggFn', 'sum'),
                 'groupCol': parsed.get('groupCol'),
+                'sizeCol': parsed.get('sizeCol'),
+                'width': parsed.get('width', 'half'),
                 'title': parsed.get('title', 'Chart'),
                 'explanation': parsed.get('explanation', '')
             })
 
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response. Please try rephrasing your request.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/dashboard-plan', methods=['POST'])
+    @limiter.limit('5/minute')
+    def dashboard_plan():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+
+        data = request.get_json()
+        columns = data.get('columns', [])
+        sample_rows = data.get('sampleRows', [])
+        col_meta = data.get('colMeta', {})
+
+        if not columns:
+            return jsonify({'error': 'No data columns available.'}), 400
+
+        col_descriptions = []
+        for col in columns:
+            meta = col_meta.get(col, {})
+            desc = col
+            if meta.get('isMetric'):
+                desc += ' (numeric/metric)'
+            elif meta.get('isCategorical'):
+                desc += f" (categorical, {meta.get('uniqueCount', '?')} unique values)"
+            elif meta.get('isDate'):
+                desc += ' (date/time)'
+            elif meta.get('isIndex'):
+                desc += ' (index/ID)'
+            col_descriptions.append(desc)
+
+        sample_str = ""
+        if sample_rows:
+            sample_str = "\n\nSample data (first 3 rows):\n"
+            for row in sample_rows[:3]:
+                sample_str += json.dumps(row, default=str) + "\n"
+
+        prompt = f"""You are an expert BI dashboard designer. Given this dataset, create a comprehensive dashboard plan with KPI cards and charts.
+
+Columns:
+{chr(10).join('- ' + d for d in col_descriptions)}
+{sample_str}
+
+Respond with ONLY valid JSON (no markdown):
+{{
+  "kpis": [
+    {{"label": "display name", "col": "exact column name", "aggFn": "sum|avg|max|count", "icon": "dollar-sign|trending-up|users|package|bar-chart|hash|percent|target|zap|activity|database", "format": "currency|percent|number"}}
+  ],
+  "charts": [
+    {{"chartType": "bar|line|donut|hbar|area|stacked|gauge|bubble|lollipop|funnel|waterfall|radar|heatmap|boxplot|treemap|candlestick|sankey",
+      "xCol": "column", "yCol": "column", "aggFn": "sum|avg|max|count",
+      "groupCol": null, "sizeCol": null,
+      "width": "full|two-thirds|half|one-third",
+      "priority": 1, "title": "chart title"}}
+  ]
+}}
+
+RULES:
+- Generate 3-5 KPIs: total records first, then top business metrics (revenue > cost > count)
+- Generate 3-6 charts, ordered by insight value (most insightful first)
+- Use appropriate chart types: line for time trends, bar for comparisons, donut for proportions, gauge for single KPIs
+- Width rules: full for line/area, two-thirds for bar/waterfall, one-third for donut/gauge/funnel
+- Icon selection: dollar-sign for money, percent for rates, users for people, package for products
+- Format: currency for money columns, percent for rate columns, number for everything else
+- Column names MUST exactly match the provided names (case-sensitive)
+- Never chart index/ID columns"""
+
+        try:
+            parsed, _usage = _call_ai(prompt)
+            _record_ai_usage()
+            return jsonify({
+                'kpis': parsed.get('kpis', []),
+                'charts': parsed.get('charts', [])
+            })
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response.'}), 200
         except Exception as e:
             return _ai_error_response(e)
 
