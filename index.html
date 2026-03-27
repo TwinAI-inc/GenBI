@@ -5486,7 +5486,8 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
     // Y label (left side)
     ctx.fillStyle = chartTextColor(isHover ? 0.8 : 0.3);
     ctx.font = (isHover ? '500 ' : '') + '10px Inter'; ctx.textAlign = 'right';
-    const lbl = String(labels[i]).length > 10 ? String(labels[i]).substring(0, 9) + '..' : String(labels[i]);
+    var rawLbl = String(fmtChartLabel(labels[i]));
+    const lbl = rawLbl.length > 10 ? rawLbl.substring(0, 9) + '..' : rawLbl;
     ctx.fillText(lbl, padL - 8, y + barH / 2 + 3);
   });
 
@@ -5644,7 +5645,8 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
     // X label
     ctx.fillStyle = chartTextColor(li === highlightIdx ? 0.8 : 0.3);
     ctx.font = (li === highlightIdx ? '500 ' : '') + '10px Inter'; ctx.textAlign = 'center';
-    const lbl = String(label).length > 9 ? String(label).substring(0, 8) + '..' : String(label);
+    var fLabel = String(fmtChartLabel(label));
+    const lbl = fLabel.length > 9 ? fLabel.substring(0, 8) + '..' : fLabel;
     const lx = startX + li * (barW + gap) + barW / 2;
     ctx.save(); ctx.translate(lx, padT + ch + 14);
     if (labels.length > 7) ctx.rotate(-0.45);
@@ -5922,7 +5924,8 @@ function drawLollipopChart(canvas, labels, data, colorName, opts = {}) {
     ctx.fillText(formatNumber(val, {abbreviate: val >= 1e4, decimals:0}), x, yTop - dotR - 5);
     // X label
     ctx.fillStyle = chartTextColor(0.3); ctx.font = '10px Inter';
-    const lbl = String(labels[i]).length > 9 ? String(labels[i]).substring(0, 8) + '..' : String(labels[i]);
+    var fL = String(fmtChartLabel(labels[i]));
+    const lbl = fL.length > 9 ? fL.substring(0, 8) + '..' : fL;
     ctx.save(); ctx.translate(x, padT + ch + 14);
     if (labels.length > 7) ctx.rotate(-0.45);
     ctx.fillText(lbl, 0, 0); ctx.restore();
@@ -6107,7 +6110,8 @@ function drawWaterfallChart(canvas, labels, data, colorName, opts = {}) {
     ctx.fillText((val >= 0 ? '+' : '') + formatNumber(val, {abbreviate:true}), x + barW / 2, yTop - 5);
     // X label
     ctx.fillStyle = chartTextColor(0.3); ctx.font = '10px Inter';
-    const lbl = String(labels[i]).length > 9 ? String(labels[i]).substring(0, 8) + '..' : String(labels[i]);
+    var fL2 = String(fmtChartLabel(labels[i]));
+    const lbl = fL2.length > 9 ? fL2.substring(0, 8) + '..' : fL2;
     ctx.save(); ctx.translate(x + barW / 2, padT + ch + 14);
     if (labels.length > 7) ctx.rotate(-0.45);
     ctx.fillText(lbl, 0, 0); ctx.restore();
