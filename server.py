@@ -112,11 +112,11 @@ def create_app():
 
     @app.route('/')
     def index():
-        return send_from_directory('.', 'index.html')
+        return send_from_directory('.', 'index.html', max_age=0)
 
     @app.route('/dashboard')
     def dashboard_page():
-        return send_from_directory('.', 'index.html')
+        return send_from_directory('.', 'index.html', max_age=0)
 
     # ── Session fixation prevention ──────────────────────────────────────
     @app.before_request
