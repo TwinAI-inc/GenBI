@@ -8689,7 +8689,7 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeAskAiModal();
 });
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.ask-ai-popup') && !e.target.closest('.ask-ai-btn')) {
+  if (!e.target.closest('.ask-ai-popup') && !e.target.closest('.ask-ai-btn') && !e.target.closest('.chart-actions-menu')) {
     closeAskAiModal();
   }
 });
