@@ -352,6 +352,118 @@ If the request is impossible with the available columns, respond with: {{"error"
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/chart-modify', methods=['POST'])
+    @limiter.limit('10/minute')
+    def chart_modify():
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+
+        data = request.get_json()
+        user_message = data.get('message', '').strip()
+        current_chart = data.get('currentChart', {})
+        columns = data.get('columns', [])
+        sample_rows = data.get('sampleRows', [])
+        col_meta = data.get('colMeta', {})
+
+        if not user_message:
+            return jsonify({'error': 'No message provided.'}), 400
+        if len(user_message) > 2000:
+            return jsonify({'error': 'Message too long (max 2000 characters).'}), 400
+        if not columns:
+            return jsonify({'error': 'No data columns available.'}), 400
+        if not current_chart:
+            return jsonify({'error': 'No current chart provided.'}), 400
+
+        col_descriptions = []
+        for col in columns:
+            meta = col_meta.get(col, {})
+            desc = col
+            if meta.get('isMetric'):
+                desc += ' (numeric/metric)'
+            elif meta.get('isCategorical'):
+                desc += f" (categorical, {meta.get('uniqueCount', '?')} unique values)"
+            elif meta.get('isDate'):
+                desc += ' (date/time)'
+            elif meta.get('isIndex'):
+                desc += ' (index/ID)'
+            col_descriptions.append(desc)
+
+        sample_str = ""
+        if sample_rows:
+            sample_str = "\n\nSample data (first 3 rows):\n"
+            for row in sample_rows[:3]:
+                sample_str += json.dumps(row, default=str) + "\n"
+
+        current_spec = json.dumps(current_chart, default=str)
+
+        prompt = f"""You are modifying an EXISTING chart, not creating a new one. The user wants to change something about their current chart.
+
+Current chart specification:
+{current_spec}
+
+Available columns:
+{chr(10).join('- ' + d for d in col_descriptions)}
+{sample_str}
+The user wants: {user_message}
+
+IMPORTANT: Keep ALL fields the same UNLESS the user explicitly asks to change them. Return the FULL updated chart spec.
+
+Respond with ONLY a valid JSON object (no markdown, no code fences) with these fields:
+- "chartType": one of "bar", "line", "donut", "hbar", "area", "stacked", "gauge", "bubble", "lollipop", "funnel", "waterfall", "radar", "heatmap", "boxplot", "treemap", "candlestick", "sankey"
+- "xCol": exact column name for X axis / grouping
+- "yCol": exact column name for Y axis / values (null ONLY for donut showing distribution of a single categorical column)
+- "aggFn": one of "sum", "avg", "max", "count"
+- "groupCol": (optional) categorical column to split into multiple lines — only for line/area/stacked charts
+- "sizeCol": (optional) numeric column for bubble size — only for bubble charts
+- "width": one of "full", "two-thirds", "half", "one-third"
+- "title": short, clean chart title
+- "color": one of "cyan", "violet", "emerald", "amber", "rose", "sky", "blue", "indigo", "navy", "slate", "red", "orange", "gold", "lime", "coral", "teal", "mint", "forest", "lavender", "blush", "multi"
+- "explanation": one sentence describing what was changed
+
+COLOR RULES: If the user asks to change color, use the closest match from the available colors list above.
+
+CHART TYPE RULES: If the user asks to change chart type, pick the appropriate type from the list above.
+
+COLUMN/AXIS RULES: If the user asks to show a different column, use the exact column name from the available columns list.
+
+If unchanged, carry over the original values exactly. Do not change fields the user did not mention."""
+
+        try:
+            parsed, _usage = _call_ai(prompt)
+
+            if 'error' in parsed:
+                return jsonify({'error': parsed['error']}), 200
+
+            if parsed.get('xCol') and parsed['xCol'] not in columns:
+                return jsonify({'error': f"Column '{parsed['xCol']}' not found in your data."}), 200
+            if parsed.get('yCol') and parsed['yCol'] not in columns:
+                return jsonify({'error': f"Column '{parsed['yCol']}' not found in your data."}), 200
+            if parsed.get('groupCol') and parsed['groupCol'] not in columns:
+                return jsonify({'error': f"Column '{parsed['groupCol']}' not found in your data."}), 200
+
+            _record_ai_usage()
+            return jsonify({
+                'chartType': parsed.get('chartType', current_chart.get('chartType', 'bar')),
+                'xCol': parsed.get('xCol', current_chart.get('xCol')),
+                'yCol': parsed.get('yCol', current_chart.get('yCol')),
+                'aggFn': parsed.get('aggFn', current_chart.get('aggFn', 'sum')),
+                'groupCol': parsed.get('groupCol'),
+                'sizeCol': parsed.get('sizeCol'),
+                'width': parsed.get('width', current_chart.get('width', 'half')),
+                'color': parsed.get('color', current_chart.get('color', 'cyan')),
+                'title': parsed.get('title', current_chart.get('title', 'Chart')),
+                'explanation': parsed.get('explanation', '')
+            })
+
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned an unexpected response. Please try rephrasing your request.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/dashboard-plan', methods=['POST'])
     @limiter.limit('5/minute')
     def dashboard_plan():

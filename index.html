@@ -8537,6 +8537,7 @@ function openAskAiModal(source, idx, event) {
     popup.classList.remove('open');
     return;
   }
+  App._focusedChart = { source: source, idx: idx };
   var chart = getChartForAskAi(source, idx);
   var title = chart ? chart.title : 'Chart';
   document.getElementById('askAiPopupTitle').textContent = 'Ask AI: ' + title;
@@ -8590,11 +8591,41 @@ async function submitAskAiFromModal(questionOverride) {
   if (!isLoggedIn()) { respEl.innerHTML = aiNoAuthHTML(); return; }
   respEl.innerHTML = aiLoadingHTML('askAiPopupLoader');
   try {
-    var payload = buildAskAiPayload(source, idx, question);
-    if (!payload) { respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">Chart data not available.</span>'; return; }
-    var data = await fetchAI('/api/chart-explain', payload);
-    App._askAiCache[cacheKey] = data;
-    renderAskAiResponse(respEl, data);
+    if (isModifyIntent(question)) {
+      // Modify existing chart in-place
+      var chart = getChartForAskAi(source, idx);
+      if (!chart) { respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">Chart data not available.</span>'; return; }
+      var ec = App.excelChartConfig || {};
+      var modifyPayload = {
+        message: question,
+        currentChart: {
+          chartType: chart._userType || chart.type || 'bar',
+          xCol: chart.xCol || '',
+          yCol: chart.yCol || '',
+          aggFn: chart.aggFn || 'sum',
+          color: chart._userColor || chart.color || 'cyan',
+          title: chart.title || '',
+          groupCol: chart.groupCol || null
+        },
+        columns: App.excelData ? App.excelData.headers.slice(0, 50) : [],
+        sampleRows: App.excelData ? App.excelData.rows.slice(0, 3) : [],
+        colMeta: ec.colMeta || {}
+      };
+      var data = await fetchAI('/api/chart-modify', modifyPayload);
+      var ok = applyChartModification(source, idx, data);
+      if (ok) {
+        respEl.innerHTML = '<span style="color:var(--accent-emerald);font-size:12px">&#10003; ' + (data.explanation || 'Chart updated.') + '</span>';
+      } else {
+        respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">Could not apply the modification. Try rephrasing.</span>';
+      }
+    } else {
+      // Explain chart (existing behavior)
+      var payload = buildAskAiPayload(source, idx, question);
+      if (!payload) { respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">Chart data not available.</span>'; return; }
+      var data = await fetchAI('/api/chart-explain', payload);
+      App._askAiCache[cacheKey] = data;
+      renderAskAiResponse(respEl, data);
+    }
   } catch(e) {
     if (e.message === 'NO_KEY') respEl.innerHTML = aiNoAuthHTML();
     else respEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
@@ -8617,6 +8648,12 @@ function getAskAiSuggestions(source, idx) {
   if (t === 'line') return ['Why this trend?', 'Any anomalies?', 'What drives changes?'];
   if (t === 'donut' || t === 'doughnut' || t === 'pie') return ['Largest segment?', 'Any surprises?', 'What stands out?'];
   return ['Why these differences?', 'What stands out?', 'Top takeaway?'];
+}
+
+function isModifyIntent(text) {
+  return /\b(change|switch|make it|convert|set|use|update|modify|turn into|swap)\b.*(color|colour|type|chart type|bar|line|donut|pie|area|hbar|title|name|column|axis|aggregat)/i.test(text)
+    || /\b(color|colour|type)\b.*(to|into|as)\b/i.test(text)
+    || /\bmake\s+(it|this|the chart)\s+(a\s+)?(bar|line|donut|pie|area|hbar|stacked|gauge|bubble|lollipop|funnel|waterfall|radar|heatmap|treemap)/i.test(text);
 }
 
 function buildAskAiPayload(source, idx, question) {
@@ -9198,10 +9235,63 @@ function sendAssistantMsg() {
 
   if (isLoggedIn()) {
     // AI-powered mode
-    addAssistantReply('<span style="color:var(--accent-amber)">Thinking...</span>', true);
     const ec = App.excelChartConfig;
     const sampleRows = App.excelData.rows.slice(0, 3);
     const token = localStorage.getItem('genbi-auth-token');
+
+    // Check if this is a modify intent with a focused chart
+    if (isModifyIntent(text) && App._focusedChart) {
+      const fc = App._focusedChart;
+      const focusedChart = getChartForAskAi(fc.source, fc.idx);
+      if (!focusedChart) {
+        addAssistantReply('The selected chart is no longer available. Please click the &#9889; menu on a chart first.');
+        return;
+      }
+      addAssistantReply('<span style="color:var(--accent-amber)">Modifying chart...</span>', true);
+      fetch('/api/chart-modify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({
+          message: text,
+          currentChart: {
+            chartType: focusedChart._userType || focusedChart.type || 'bar',
+            xCol: focusedChart.xCol || '',
+            yCol: focusedChart.yCol || '',
+            aggFn: focusedChart.aggFn || 'sum',
+            color: focusedChart._userColor || focusedChart.color || 'cyan',
+            title: focusedChart.title || '',
+            groupCol: focusedChart.groupCol || null
+          },
+          columns: App.excelData.headers,
+          sampleRows,
+          colMeta: ec.colMeta || {}
+        })
+      })
+      .then(r => r.json())
+      .then(data => {
+        removeThinkingMsg();
+        if (data.error) { addAssistantReply(data.error); return; }
+        const ok = applyChartModification(fc.source, fc.idx, data);
+        if (ok) {
+          addAssistantReply('&#10003; Updated <strong>' + (data.title || focusedChart.title) + '</strong>' + (data.explanation ? ': ' + data.explanation : ''));
+        } else {
+          addAssistantReply('Could not apply the modification. Try rephrasing your request.');
+        }
+      })
+      .catch(err => {
+        removeThinkingMsg();
+        addAssistantReply('Connection error: ' + err.message);
+      });
+      return;
+    }
+
+    if (isModifyIntent(text) && !App._focusedChart) {
+      addAssistantReply('Please click the &#9889; menu on a chart first to select it, then ask me to modify it.');
+      return;
+    }
+
+    // Create new chart (existing behavior)
+    addAssistantReply('<span style="color:var(--accent-amber)">Thinking...</span>', true);
     fetch('/api/chart-assist', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -9401,6 +9491,57 @@ function buildChartFromAI(aiResponse) {
   };
 }
 
+function applyChartModification(source, idx, aiResponse) {
+  var chart, canvasId;
+  if (source === 'analytics') {
+    chart = App.excelChartConfig.chartPlan[idx];
+    canvasId = 'analyticsChart' + idx;
+  } else {
+    chart = (App.customCharts || [])[idx];
+    canvasId = 'customChart' + idx;
+  }
+  if (!chart) return false;
+
+  // Check if structural change (xCol/yCol/aggFn changed) — need to rebuild data
+  var structuralChange = (aiResponse.xCol && aiResponse.xCol !== chart.xCol)
+    || (aiResponse.yCol && aiResponse.yCol !== chart.yCol)
+    || (aiResponse.aggFn && aiResponse.aggFn !== (chart.aggFn || 'sum'));
+
+  if (structuralChange) {
+    var rebuilt = buildChartFromAI(aiResponse);
+    if (!rebuilt) return false;
+    // Preserve position: copy rebuilt properties onto the existing chart object
+    Object.keys(rebuilt).forEach(function(k) { chart[k] = rebuilt[k]; });
+    if (aiResponse.color && aiResponse.color !== 'multi') {
+      chart.color = aiResponse.color;
+      chart._userColor = aiResponse.color;
+    }
+    if (aiResponse.title) chart.title = aiResponse.title;
+  } else {
+    // Simple property changes (type, color, title)
+    if (aiResponse.chartType) { chart.type = aiResponse.chartType; chart._userType = aiResponse.chartType; }
+    if (aiResponse.color) { chart.color = aiResponse.color; chart._userColor = aiResponse.color; }
+    if (aiResponse.title) chart.title = aiResponse.title;
+  }
+
+  // Re-render the chart
+  var canvas = document.getElementById(canvasId);
+  if (canvas) {
+    canvas._hasChartEvents = false;
+    canvas._chartHit = null;
+    var tt = document.getElementById('chartTooltip');
+    if (tt) tt.classList.remove('visible');
+    animateChartFromPlan(canvas, chart, 0);
+  }
+  // Update the title in the DOM if present
+  var card = canvas ? canvas.closest('.glass-panel') : null;
+  if (card && aiResponse.title) {
+    var titleEl = card.querySelector('.panel-title');
+    if (titleEl) titleEl.textContent = aiResponse.title;
+  }
+  return true;
+}
+
 function parseChartRequest(text) {
   const headers = App.excelData.headers;
   const rows = App.excelData.rows;
@@ -9581,6 +9722,7 @@ function parseChartRequest(text) {
 
 // Bridge: bolt menu → VE panel
 function veSelectChart(chartIdx) {
+  App._focusedChart = { source: 'analytics', idx: chartIdx };
   const canvas = document.getElementById('analyticsChart' + chartIdx);
   if (!canvas) return;
   const card = canvas.closest('.glass-panel');
