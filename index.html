@@ -8651,9 +8651,25 @@ function getAskAiSuggestions(source, idx) {
 }
 
 function isModifyIntent(text) {
-  return /\b(change|switch|make it|convert|set|use|update|modify|turn into|swap)\b.*(color|colour|type|chart type|bar|line|donut|pie|area|hbar|title|name|column|axis|aggregat)/i.test(text)
-    || /\b(color|colour|type)\b.*(to|into|as)\b/i.test(text)
-    || /\bmake\s+(it|this|the chart)\s+(a\s+)?(bar|line|donut|pie|area|hbar|stacked|gauge|bubble|lollipop|funnel|waterfall|radar|heatmap|treemap)/i.test(text);
+  // Explicit modify verbs + chart property targets
+  if (/\b(change|switch|make it|convert|set|use|update|modify|turn into|swap)\b.*(color|colour|type|chart type|bar|line|donut|pie|area|hbar|title|name|column|axis|aggregat)/i.test(text)) return true;
+  // "color/type to X"
+  if (/\b(color|colour|type)\b.*(to|into|as)\b/i.test(text)) return true;
+  // "make it/this a bar chart"
+  if (/\bmake\s+(it|this|the chart)\s+(a\s+)?(bar|line|donut|pie|area|hbar|stacked|gauge|bubble|lollipop|funnel|waterfall|radar|heatmap|treemap)/i.test(text)) return true;
+  // Filter/range/scope instructions: "only from...", "filter to...", "limit to...", "between X and Y"
+  if (/\b(only\s+(from|show|include|between|for)|filter|limit\s+to|restrict|exclude|remove|hide|show\s+only|from\s+\w+\s+to\s+\w+|between\s+\w+\s+and\s+\w+)\b/i.test(text)) return true;
+  // Desire/instruction patterns: "I want...", "I need...", "can you...", "please..."
+  if (/\b(i\s+want|i\s+need|i('d| would)\s+like|can\s+you|could\s+you|please)\b.*(chart|only|from|to|show|display|instead|rather|filter|limit|color|type|title|axis|column)/i.test(text)) return true;
+  // "show X instead of Y", "use X instead"
+  if (/\b(instead\s+of|rather\s+than|replace\s+with|swap\s+with)\b/i.test(text)) return true;
+  // "sort by...", "reverse...", "flip..."
+  if (/\b(sort|reverse|flip|reorder|rearrange)\b/i.test(text)) return true;
+  // "add/remove gridlines/legend/labels"
+  if (/\b(add|remove|hide|show)\s+(the\s+)?(gridlines|legend|labels|title|axis)\b/i.test(text)) return true;
+  // Negative check: if it's clearly a question, it's NOT a modify intent
+  if (/^(why|what|how|when|where|who|which|is|are|does|do|can|could|would|should|tell me|explain|describe|summarize|summarise)\b/i.test(text.trim())) return false;
+  return false;
 }
 
 function buildAskAiPayload(source, idx, question) {
@@ -9505,11 +9521,42 @@ function applyChartModification(source, idx, aiResponse) {
   // Check if structural change (xCol/yCol/aggFn changed) — need to rebuild data
   var structuralChange = (aiResponse.xCol && aiResponse.xCol !== chart.xCol)
     || (aiResponse.yCol && aiResponse.yCol !== chart.yCol)
-    || (aiResponse.aggFn && aiResponse.aggFn !== (chart.aggFn || 'sum'));
+    || (aiResponse.aggFn && aiResponse.aggFn !== (chart.aggFn || 'sum'))
+    || aiResponse.filterRange;
 
   if (structuralChange) {
     var rebuilt = buildChartFromAI(aiResponse);
     if (!rebuilt) return false;
+
+    // Apply filterRange if present (e.g. "only from Jan 2023 to Jan 2024")
+    if (aiResponse.filterRange && rebuilt.labels && rebuilt.data) {
+      var fr = aiResponse.filterRange;
+      var fromVal = (fr.from || '').toLowerCase();
+      var toVal = (fr.to || '').toLowerCase();
+      if (fromVal || toVal) {
+        var startIdx = 0, endIdx = rebuilt.labels.length - 1;
+        if (fromVal) {
+          for (var fi = 0; fi < rebuilt.labels.length; fi++) {
+            if (String(rebuilt.labels[fi]).toLowerCase().indexOf(fromVal) !== -1 || String(rebuilt.labels[fi]).toLowerCase() >= fromVal) { startIdx = fi; break; }
+          }
+        }
+        if (toVal) {
+          for (var ti = rebuilt.labels.length - 1; ti >= 0; ti--) {
+            if (String(rebuilt.labels[ti]).toLowerCase().indexOf(toVal) !== -1 || String(rebuilt.labels[ti]).toLowerCase() <= toVal) { endIdx = ti; break; }
+          }
+        }
+        if (startIdx <= endIdx) {
+          rebuilt.labels = rebuilt.labels.slice(startIdx, endIdx + 1);
+          if (rebuilt.data) rebuilt.data = rebuilt.data.slice(startIdx, endIdx + 1);
+          if (rebuilt.series) {
+            rebuilt.series = rebuilt.series.map(function(s) {
+              return Object.assign({}, s, { data: s.data.slice(startIdx, endIdx + 1) });
+            });
+          }
+        }
+      }
+    }
+
     // Preserve position: copy rebuilt properties onto the existing chart object
     Object.keys(rebuilt).forEach(function(k) { chart[k] = rebuilt[k]; });
     if (aiResponse.color && aiResponse.color !== 'multi') {
@@ -9518,10 +9565,49 @@ function applyChartModification(source, idx, aiResponse) {
     }
     if (aiResponse.title) chart.title = aiResponse.title;
   } else {
-    // Simple property changes (type, color, title)
+    // Simple property changes (type, color, title) — also handle filterRange on existing data
     if (aiResponse.chartType) { chart.type = aiResponse.chartType; chart._userType = aiResponse.chartType; }
     if (aiResponse.color) { chart.color = aiResponse.color; chart._userColor = aiResponse.color; }
     if (aiResponse.title) chart.title = aiResponse.title;
+
+    // Apply filterRange on existing chart labels/data
+    if (aiResponse.filterRange && chart.labels) {
+      var fr2 = aiResponse.filterRange;
+      var from2 = (fr2.from || '').toLowerCase();
+      var to2 = (fr2.to || '').toLowerCase();
+      if (from2 || to2) {
+        var sIdx = 0, eIdx = chart.labels.length - 1;
+        if (from2) {
+          for (var fi2 = 0; fi2 < chart.labels.length; fi2++) {
+            if (String(chart.labels[fi2]).toLowerCase().indexOf(from2) !== -1 || String(chart.labels[fi2]).toLowerCase() >= from2) { sIdx = fi2; break; }
+          }
+        }
+        if (to2) {
+          for (var ti2 = chart.labels.length - 1; ti2 >= 0; ti2--) {
+            if (String(chart.labels[ti2]).toLowerCase().indexOf(to2) !== -1 || String(chart.labels[ti2]).toLowerCase() <= to2) { eIdx = ti2; break; }
+          }
+        }
+        if (sIdx <= eIdx) {
+          chart.labels = chart.labels.slice(sIdx, eIdx + 1);
+          if (chart.data) chart.data = chart.data.slice(sIdx, eIdx + 1);
+          if (chart.series) {
+            chart.series = chart.series.map(function(s) {
+              return Object.assign({}, s, { data: s.data.slice(sIdx, eIdx + 1) });
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Apply sort if requested
+  if (aiResponse.sort && chart.labels && chart.data) {
+    var sortDir = aiResponse.sort;
+    var indices = chart.labels.map(function(_, i) { return i; });
+    if (sortDir === 'asc') indices.sort(function(a, b) { return chart.data[a] - chart.data[b]; });
+    else if (sortDir === 'desc') indices.sort(function(a, b) { return chart.data[b] - chart.data[a]; });
+    chart.labels = indices.map(function(i) { return chart.labels[i]; });
+    chart.data = indices.map(function(i) { return chart.data[i]; });
   }
 
   // Re-render the chart

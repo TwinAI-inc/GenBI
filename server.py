@@ -430,6 +430,14 @@ CHART TYPE RULES: If the user asks to change chart type, pick the appropriate ty
 
 COLUMN/AXIS RULES: If the user asks to show a different column, use the exact column name from the available columns list.
 
+FILTER/RANGE RULES: If the user asks to filter, limit, or show data for a specific range (e.g. "only from Jan 2023 to Jan 2024", "show only Q1"), include a "filterRange" object with:
+- "column": the column to filter on (usually xCol for date/time ranges)
+- "from": the start value (inclusive) — use the format matching the data (e.g. "Jan 2023")
+- "to": the end value (inclusive)
+If no filtering is requested, omit filterRange or set it to null.
+
+SORT/ORDER RULES: If the user asks to sort, reverse, or reorder data, include "sort" with value "asc", "desc", or "original". If not requested, omit it.
+
 If unchanged, carry over the original values exactly. Do not change fields the user did not mention."""
 
         try:
@@ -446,7 +454,7 @@ If unchanged, carry over the original values exactly. Do not change fields the u
                 return jsonify({'error': f"Column '{parsed['groupCol']}' not found in your data."}), 200
 
             _record_ai_usage()
-            return jsonify({
+            result = {
                 'chartType': parsed.get('chartType', current_chart.get('chartType', 'bar')),
                 'xCol': parsed.get('xCol', current_chart.get('xCol')),
                 'yCol': parsed.get('yCol', current_chart.get('yCol')),
@@ -457,7 +465,12 @@ If unchanged, carry over the original values exactly. Do not change fields the u
                 'color': parsed.get('color', current_chart.get('color', 'cyan')),
                 'title': parsed.get('title', current_chart.get('title', 'Chart')),
                 'explanation': parsed.get('explanation', '')
-            })
+            }
+            if parsed.get('filterRange'):
+                result['filterRange'] = parsed['filterRange']
+            if parsed.get('sort'):
+                result['sort'] = parsed['sort']
+            return jsonify(result)
 
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response. Please try rephrasing your request.'}), 200
