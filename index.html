@@ -9531,8 +9531,8 @@ function applyChartModification(source, idx, aiResponse) {
     // Apply filterRange if present (e.g. "only from Jan 2023 to Jan 2024")
     if (aiResponse.filterRange && rebuilt.labels && rebuilt.data) {
       var fr = aiResponse.filterRange;
-      var fromVal = (fr.from || '').toLowerCase();
-      var toVal = (fr.to || '').toLowerCase();
+      var fromVal = String(fr.from || '').toLowerCase();
+      var toVal = String(fr.to || '').toLowerCase();
       if (fromVal || toVal) {
         var startIdx = 0, endIdx = rebuilt.labels.length - 1;
         if (fromVal) {
@@ -9573,8 +9573,8 @@ function applyChartModification(source, idx, aiResponse) {
     // Apply filterRange on existing chart labels/data
     if (aiResponse.filterRange && chart.labels) {
       var fr2 = aiResponse.filterRange;
-      var from2 = (fr2.from || '').toLowerCase();
-      var to2 = (fr2.to || '').toLowerCase();
+      var from2 = String(fr2.from || '').toLowerCase();
+      var to2 = String(fr2.to || '').toLowerCase();
       if (from2 || to2) {
         var sIdx = 0, eIdx = chart.labels.length - 1;
         if (from2) {
