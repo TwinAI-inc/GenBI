@@ -9507,6 +9507,40 @@ function buildChartFromAI(aiResponse) {
   };
 }
 
+function _filterChartLabels(labels, data, series, fromVal, toVal) {
+  // Find start/end indices by substring match against the existing (correctly ordered) labels
+  if (!labels || labels.length === 0) return null;
+  var startIdx = -1, endIdx = -1;
+  for (var i = 0; i < labels.length; i++) {
+    var lbl = String(labels[i]).toLowerCase();
+    if (startIdx === -1 && fromVal && lbl.indexOf(fromVal) !== -1) startIdx = i;
+    if (toVal && lbl.indexOf(toVal) !== -1) endIdx = i;
+  }
+  // Fallback: if exact substring not found, try prefix match
+  if (startIdx === -1 && fromVal) {
+    for (var j = 0; j < labels.length; j++) {
+      if (String(labels[j]).toLowerCase() >= fromVal) { startIdx = j; break; }
+    }
+  }
+  if (endIdx === -1 && toVal) {
+    for (var k = labels.length - 1; k >= 0; k--) {
+      if (String(labels[k]).toLowerCase() <= toVal + '\uffff') { endIdx = k; break; }
+    }
+  }
+  if (startIdx === -1) startIdx = 0;
+  if (endIdx === -1) endIdx = labels.length - 1;
+  if (startIdx > endIdx) return null;
+
+  var result = { labels: labels.slice(startIdx, endIdx + 1) };
+  if (data) result.data = data.slice(startIdx, endIdx + 1);
+  if (series) {
+    result.series = series.map(function(s) {
+      return Object.assign({}, s, { data: s.data.slice(startIdx, endIdx + 1) });
+    });
+  }
+  return result;
+}
+
 function applyChartModification(source, idx, aiResponse) {
   var chart, canvasId;
   if (source === 'analytics') {
@@ -9518,96 +9552,66 @@ function applyChartModification(source, idx, aiResponse) {
   }
   if (!chart) return false;
 
+  // Save original data so we can filter from the full dataset (not a previously filtered subset)
+  if (!chart._origLabels && chart.labels) chart._origLabels = chart.labels.slice();
+  if (!chart._origData && chart.data) chart._origData = chart.data.slice();
+  if (!chart._origSeries && chart.series) chart._origSeries = JSON.parse(JSON.stringify(chart.series));
+
   // Check if structural change (xCol/yCol/aggFn changed) — need to rebuild data
   var structuralChange = (aiResponse.xCol && aiResponse.xCol !== chart.xCol)
     || (aiResponse.yCol && aiResponse.yCol !== chart.yCol)
-    || (aiResponse.aggFn && aiResponse.aggFn !== (chart.aggFn || 'sum'))
-    || aiResponse.filterRange;
+    || (aiResponse.aggFn && aiResponse.aggFn !== (chart.aggFn || 'sum'));
 
   if (structuralChange) {
     var rebuilt = buildChartFromAI(aiResponse);
     if (!rebuilt) return false;
-
-    // Apply filterRange if present (e.g. "only from Jan 2023 to Jan 2024")
-    if (aiResponse.filterRange && rebuilt.labels && rebuilt.data) {
-      var fr = aiResponse.filterRange;
-      var fromVal = String(fr.from || '').toLowerCase();
-      var toVal = String(fr.to || '').toLowerCase();
-      if (fromVal || toVal) {
-        var startIdx = 0, endIdx = rebuilt.labels.length - 1;
-        if (fromVal) {
-          for (var fi = 0; fi < rebuilt.labels.length; fi++) {
-            if (String(rebuilt.labels[fi]).toLowerCase().indexOf(fromVal) !== -1 || String(rebuilt.labels[fi]).toLowerCase() >= fromVal) { startIdx = fi; break; }
-          }
-        }
-        if (toVal) {
-          for (var ti = rebuilt.labels.length - 1; ti >= 0; ti--) {
-            if (String(rebuilt.labels[ti]).toLowerCase().indexOf(toVal) !== -1 || String(rebuilt.labels[ti]).toLowerCase() <= toVal) { endIdx = ti; break; }
-          }
-        }
-        if (startIdx <= endIdx) {
-          rebuilt.labels = rebuilt.labels.slice(startIdx, endIdx + 1);
-          if (rebuilt.data) rebuilt.data = rebuilt.data.slice(startIdx, endIdx + 1);
-          if (rebuilt.series) {
-            rebuilt.series = rebuilt.series.map(function(s) {
-              return Object.assign({}, s, { data: s.data.slice(startIdx, endIdx + 1) });
-            });
-          }
-        }
-      }
-    }
-
-    // Preserve position: copy rebuilt properties onto the existing chart object
     Object.keys(rebuilt).forEach(function(k) { chart[k] = rebuilt[k]; });
+    // Save new originals after structural rebuild
+    chart._origLabels = chart.labels ? chart.labels.slice() : null;
+    chart._origData = chart.data ? chart.data.slice() : null;
+    chart._origSeries = chart.series ? JSON.parse(JSON.stringify(chart.series)) : null;
     if (aiResponse.color && aiResponse.color !== 'multi') {
       chart.color = aiResponse.color;
       chart._userColor = aiResponse.color;
     }
     if (aiResponse.title) chart.title = aiResponse.title;
   } else {
-    // Simple property changes (type, color, title) — also handle filterRange on existing data
+    // Simple property changes (type, color, title)
     if (aiResponse.chartType) { chart.type = aiResponse.chartType; chart._userType = aiResponse.chartType; }
     if (aiResponse.color) { chart.color = aiResponse.color; chart._userColor = aiResponse.color; }
     if (aiResponse.title) chart.title = aiResponse.title;
+  }
 
-    // Apply filterRange on existing chart labels/data
-    if (aiResponse.filterRange && chart.labels) {
-      var fr2 = aiResponse.filterRange;
-      var from2 = String(fr2.from || '').toLowerCase();
-      var to2 = String(fr2.to || '').toLowerCase();
-      if (from2 || to2) {
-        var sIdx = 0, eIdx = chart.labels.length - 1;
-        if (from2) {
-          for (var fi2 = 0; fi2 < chart.labels.length; fi2++) {
-            if (String(chart.labels[fi2]).toLowerCase().indexOf(from2) !== -1 || String(chart.labels[fi2]).toLowerCase() >= from2) { sIdx = fi2; break; }
-          }
-        }
-        if (to2) {
-          for (var ti2 = chart.labels.length - 1; ti2 >= 0; ti2--) {
-            if (String(chart.labels[ti2]).toLowerCase().indexOf(to2) !== -1 || String(chart.labels[ti2]).toLowerCase() <= to2) { eIdx = ti2; break; }
-          }
-        }
-        if (sIdx <= eIdx) {
-          chart.labels = chart.labels.slice(sIdx, eIdx + 1);
-          if (chart.data) chart.data = chart.data.slice(sIdx, eIdx + 1);
-          if (chart.series) {
-            chart.series = chart.series.map(function(s) {
-              return Object.assign({}, s, { data: s.data.slice(sIdx, eIdx + 1) });
-            });
-          }
-        }
+  // Apply filterRange on the ORIGINAL (full) data to avoid cumulative slicing
+  if (aiResponse.filterRange) {
+    var fr = aiResponse.filterRange;
+    var fromVal = String(fr.from || '').toLowerCase();
+    var toVal = String(fr.to || '').toLowerCase();
+    if (fromVal || toVal) {
+      var srcLabels = chart._origLabels || chart.labels;
+      var srcData = chart._origData || chart.data;
+      var srcSeries = chart._origSeries || chart.series;
+      var filtered = _filterChartLabels(srcLabels, srcData, srcSeries, fromVal, toVal);
+      if (filtered) {
+        chart.labels = filtered.labels;
+        if (filtered.data) chart.data = filtered.data;
+        if (filtered.series) chart.series = filtered.series;
       }
     }
   }
 
-  // Apply sort if requested
-  if (aiResponse.sort && chart.labels && chart.data) {
-    var sortDir = aiResponse.sort;
-    var indices = chart.labels.map(function(_, i) { return i; });
-    if (sortDir === 'asc') indices.sort(function(a, b) { return chart.data[a] - chart.data[b]; });
-    else if (sortDir === 'desc') indices.sort(function(a, b) { return chart.data[b] - chart.data[a]; });
-    chart.labels = indices.map(function(i) { return chart.labels[i]; });
-    chart.data = indices.map(function(i) { return chart.data[i]; });
+  // Apply sort only for non-time-series charts (don't scramble chronological order)
+  if (aiResponse.sort && chart.labels && chart.data && !chart.series) {
+    var chartType = chart._userType || chart.type || 'bar';
+    var isTimeSeries = chartType === 'line' || chartType === 'area';
+    if (!isTimeSeries) {
+      var sortDir = aiResponse.sort;
+      var indices = chart.labels.map(function(_, i) { return i; });
+      if (sortDir === 'asc') indices.sort(function(a, b) { return chart.data[a] - chart.data[b]; });
+      else if (sortDir === 'desc') indices.sort(function(a, b) { return chart.data[b] - chart.data[a]; });
+      chart.labels = indices.map(function(i) { return chart.labels[i]; });
+      chart.data = indices.map(function(i) { return chart.data[i]; });
+    }
   }
 
   // Re-render the chart
