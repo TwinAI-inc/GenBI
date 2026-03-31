@@ -7077,8 +7077,13 @@ function rebuildChartData(origChart, rows, chartIdx) {
   }));
 
   const type = origChart._userType || origChart.type;
-  if (type === 'line') entries.sort((a,b) => a.label.localeCompare(b.label));
-  else entries.sort((a,b) => b.value - a.value);
+  if (type === 'line') {
+    const _dp = App.excelChartConfig.colMeta[xCol]?.datePattern;
+    entries.sort((a,b) => {
+      if (_dp) { const da = parseDateValue(a.label, _dp), db = parseDateValue(b.label, _dp); if (da && db) return da - db; }
+      return a.label.localeCompare(b.label);
+    });
+  } else entries.sort((a,b) => b.value - a.value);
 
   if (type !== 'line') entries = entries.slice(0, 15);
 
@@ -9435,7 +9440,11 @@ function buildChartFromAI(aiResponse) {
     // Collect all unique x-labels (union across groups), sorted chronologically
     const allLabelsSet = new Set();
     topGroups.forEach(g => { if (grouped[g]) Object.keys(grouped[g]).forEach(x => allLabelsSet.add(x)); });
-    const allLabels = Array.from(allLabelsSet).sort((a, b) => a.localeCompare(b));
+    const _datePat = ec.colMeta[xCol] && ec.colMeta[xCol].datePattern;
+    const allLabels = Array.from(allLabelsSet).sort((a, b) => {
+      if (_datePat) { const da = parseDateValue(a, _datePat), db = parseDateValue(b, _datePat); if (da && db) return da - db; }
+      return a.localeCompare(b);
+    });
     // Build series
     const series = topGroups.map((g, i) => {
       const data = allLabels.map(x => {
@@ -9479,7 +9488,11 @@ function buildChartFromAI(aiResponse) {
 
   const isDateAxis = ec.colMeta[xCol]?.isDate;
   if (isDateAxis || chartType === 'line') {
-    entries.sort((a, b) => a.label.localeCompare(b.label));
+    const _dp = ec.colMeta[xCol]?.datePattern;
+    entries.sort((a, b) => {
+      if (_dp) { const da = parseDateValue(a.label, _dp), db = parseDateValue(b.label, _dp); if (da && db) return da - db; }
+      return a.label.localeCompare(b.label);
+    });
   } else {
     entries.sort((a, b) => b.value - a.value);
     entries = entries.slice(0, 15);
@@ -9785,7 +9798,11 @@ function parseChartRequest(text) {
   }));
 
   if (isDateAxis || chartType === 'line') {
-    entries.sort((a, b) => a.label.localeCompare(b.label));
+    const _dp = ec.colMeta[xCol]?.datePattern;
+    entries.sort((a, b) => {
+      if (_dp) { const da = parseDateValue(a.label, _dp), db = parseDateValue(b.label, _dp); if (da && db) return da - db; }
+      return a.label.localeCompare(b.label);
+    });
     chartType = chartType === 'donut' ? 'line' : chartType;
     if (chartType !== 'bar') chartType = 'line';
   } else {
@@ -10263,7 +10280,11 @@ function autoMapExcelData(rows) {
         .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1])).slice(0, 6).map(e => e[0]);
       const allLabelsSet = new Set();
       topGroups.forEach(g => { if (grouped[g]) Object.keys(grouped[g]).forEach(x => allLabelsSet.add(x)); });
-      const allLabels = Array.from(allLabelsSet).sort((a, b) => a.localeCompare(b));
+      const datePat = colMeta[dateCol] && colMeta[dateCol].datePattern;
+      const allLabels = Array.from(allLabelsSet).sort((a, b) => {
+        if (datePat) { const da = parseDateValue(a, datePat), db = parseDateValue(b, datePat); if (da && db) return da - db; }
+        return a.localeCompare(b);
+      });
       if (allLabels.length >= 3 && topGroups.length >= 2) {
         const series = topGroups.map((g, i) => {
           const data = allLabels.map(x => {
