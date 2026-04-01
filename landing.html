@@ -67,8 +67,16 @@
     }
     .nav-logo svg { flex-shrink: 0; }
 
-    .nav-cta {
+    .nav-right {
       position: absolute; top: 1.5rem; right: 2rem; z-index: 15;
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .nav-signin {
+      font-size: 0.875rem; font-weight: 300; color: var(--text-secondary);
+      transition: color 0.25s;
+    }
+    .nav-signin:hover { color: var(--text-white); }
+    .nav-cta {
       font-size: 0.875rem; font-weight: 400; color: var(--white-100);
       padding: 0.5rem 1.25rem; border: 1px solid var(--white-20);
       border-radius: 5rem; transition: all 0.3s;
@@ -334,8 +342,7 @@
 
     <nav class="nav-left">
       <a href="#capabilities" class="nav-label">Features</a>
-      <a href="#contact" class="nav-label">Pricing</a>
-      <a href="#contact" class="nav-label">About</a>
+      <a href="#flow" class="nav-label">How it works</a>
     </nav>
 
     <a href="/" class="nav-logo">
@@ -348,12 +355,15 @@
       GenBI
     </a>
 
-    <a href="/dashboard" class="nav-cta">Start free</a>
+    <div class="nav-right">
+      <a href="/login" class="nav-signin">Sign in</a>
+      <a href="/login" class="nav-cta">Get started</a>
+    </div>
 
     <div class="hero-content">
       <h1 class="hero-headline">Your data deserves<br>a <span class="genbi-accent">smarter</span> story</h1>
       <p class="hero-sub">AI-powered business intelligence. Upload your data, ask questions in plain English, and get beautiful charts and insights in seconds.</p>
-      <a href="/dashboard" class="hero-cta">
+      <a href="/login" class="hero-cta">
         <span class="cta-circle"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
         Try GenBI free
       </a>
@@ -373,10 +383,9 @@
     </span>
     <div class="nav-pill-links">
       <a href="#capabilities">Features</a>
-      <a href="#contact">About</a>
-      <a href="#contact">Pricing</a>
+      <a href="#flow">How it works</a>
     </div>
-    <a href="/dashboard" class="nav-pill-cta">Start free</a>
+    <a href="/login" class="nav-pill-cta">Start free</a>
   </div>
 
   <!-- ══ CAPABILITIES ══ -->
@@ -426,7 +435,7 @@
   </section>
 
   <!-- ══ FLOW — data pipeline chips ══ -->
-  <section class="flow">
+  <section class="flow" id="flow">
     <h2 class="flow-heading">From spreadsheet to story<br>in one seamless flow</h2>
     <div class="flow-rows">
 
@@ -487,21 +496,11 @@
     <div class="cta-bg"><img src="public/images/cta-genbi.png" alt=""></div>
     <div class="cta-content">
       <h2>Stop wrestling with spreadsheets.<br>Start making <em>decisions</em></h2>
-      <a href="/dashboard" class="cta-btn">
+      <a href="/login" class="cta-btn">
         <span class="cta-circle"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
         Get started free
       </a>
     </div>
-  </section>
-
-  <!-- ══ NEWSLETTER ══ -->
-  <section class="newsletter" id="contact">
-    <h3>Stay in the loop</h3>
-    <p>Get product updates and data tips. No spam, unsubscribe anytime.</p>
-    <form class="newsletter-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='Subscribed!'">
-      <input type="email" placeholder="you@company.com">
-      <button type="submit">Subscribe</button>
-    </form>
   </section>
 
   <!-- ══ FOOTER ══ -->
@@ -518,9 +517,9 @@
       </div>
       <div class="footer-address">AI-Powered Business Intelligence<br>by TwinAI Inc.</div>
     </div>
-    <div class="footer-col"><h5>Product</h5><a href="#capabilities">Features</a><a href="#contact">Pricing</a><a href="#">Changelog</a></div>
-    <div class="footer-col"><h5>Resources</h5><a href="#">Documentation</a><a href="#">API</a><a href="#">Blog</a></div>
-    <div class="footer-col"><h5>Company</h5><a href="https://twinai.net">TwinAI</a><a href="#contact">Contact</a><a href="#">Privacy</a></div>
+    <div class="footer-col"><h5>Product</h5><a href="#capabilities">Features</a><a href="#flow">How it works</a><a href="/pricing">Pricing</a></div>
+    <div class="footer-col"><h5>Get started</h5><a href="/login">Sign in</a><a href="/login">Create account</a></div>
+    <div class="footer-col"><h5>Company</h5><a href="https://twinai.net">TwinAI</a><a href="mailto:info@twinai.net">Contact</a></div>
   </footer>
   <div class="footer-bottom">&copy; 2026 TwinAI Inc. All rights reserved.</div>
 
