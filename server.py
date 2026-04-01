@@ -75,6 +75,9 @@ def create_app():
     app.register_blueprint(billing_bp)
     app.register_blueprint(billing_pages_bp)
 
+    from datasets import datasets_bp
+    app.register_blueprint(datasets_bp)
+
     # ── Rate limits ──────────────────────────────────────────────────────
     limiter.limit('5/minute')(app.view_functions['auth.login'])
     limiter.limit('5/minute')(app.view_functions['auth.signup'])
