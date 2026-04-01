@@ -6588,6 +6588,13 @@ function animateSankeyChart(canvas, chart) {
 }
 
 // ── CHART INTERACTIVITY HANDLERS ──
+function _posTooltip(tt, e) {
+  const card = e.currentTarget.closest('.glass-panel');
+  const cardRect = card ? card.getBoundingClientRect() : null;
+  const ttH = tt.offsetHeight || 120;
+  tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 310) + 'px';
+  tt.style.top = (cardRect ? Math.max(cardRect.top - ttH - 8, 4) : Math.max(e.clientY - ttH - 20, 4)) + 'px';
+}
 function handleBarHover(e) {
   const canvas = e.currentTarget;
   const hit = canvas._chartHit;
@@ -6632,15 +6639,13 @@ function handleBarHover(e) {
         '<div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:'+Math.round((a.value/maxVal)*100)+'%;background:rgba('+rgb+',0.8)"></div></div>' +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 80) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 80) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -6689,15 +6694,13 @@ function handleDonutHover(e) {
         othersHtml +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 100) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 100) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -6800,8 +6803,7 @@ function handleMultiLineHover(e) {
     '<div class="tt-divider"></div>' +
     seriesRows +
     '</div>';
-  tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-  tt.style.top = Math.max(e.clientY - 100, 10) + 'px';
+  _posTooltip(tt, e);
   tt.classList.add('visible');
 }
 
@@ -6846,15 +6848,13 @@ function handleHbarHover(e) {
         '<div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:'+Math.round((a.value/maxVal)*100)+'%;background:rgba('+rgb+',0.8)"></div></div>' +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 80) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 80) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -6902,16 +6902,14 @@ function handleStackedBarHover(e) {
           seriesRows +
           '</div>';
         tt.classList.add('visible');
-        tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-        tt.style.top = (e.clientY - 80) + 'px';
+        _posTooltip(tt, e);
       }
     } else {
       tt.classList.remove('visible');
     }
   } else if (foundBar >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 80) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -6944,15 +6942,13 @@ function handleScatterHover(e) {
         '<div class="tt-row"><span class="tt-row-label">' + yLabel + '</span><span class="tt-row-value">' + (typeof p.yVal === 'number' ? p.yVal.toLocaleString('en-US',{maximumFractionDigits:2}) : p.yVal) + '</span></div>' +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 60) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 60) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
