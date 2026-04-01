@@ -9808,6 +9808,10 @@ function applyChartModification(source, idx, aiResponse) {
   if (canvas) {
     canvas._hasChartEvents = false;
     canvas._chartHit = null;
+    canvas._lockedW = null;
+    canvas._lockedH = null;
+    canvas._lastHover = -1;
+    if (canvas._animFrame) { cancelAnimationFrame(canvas._animFrame); canvas._animFrame = null; }
     var tt = document.getElementById('chartTooltip');
     if (tt) tt.classList.remove('visible');
     animateChartFromPlan(canvas, chart, 0);
@@ -10485,6 +10489,7 @@ function autoMapExcelData(rows) {
         chartPlan.push({
           type: 'stacked', title: metricLabel + ' Trend by ' + lineCat.replace(/_/g, ' '),
           labels: allLabels, series, data: null, color: 'cyan', suffix: '',
+          xCol: dateCol, yCol: primaryMetric, groupCol: lineCat, aggFn: fn,
           xLabel: dateCol.replace(/_/g, ' '), yLabel: metricLabel,
           desc: insightText
         });
