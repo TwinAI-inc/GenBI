@@ -2808,6 +2808,7 @@ function renderAnalytics() {
         return '<div class="' + widthCls + '"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + '</h2>' +
           '<div style="display:flex;align-items:center;gap:6px">' +
           '<span id="anomalyBadge' + i + '"></span>' +
+          '<button class="ask-ai-btn" onclick="openAskAiModal(\'analytics\',' + i + ',event)" title="Ask AI"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ask AI</button>' +
           '<div class="chart-actions-bolt">' +
             '<button class="chart-bolt-btn" title="Chart actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>' +
             '<div class="chart-actions-menu" style="background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none">' +
@@ -2815,7 +2816,6 @@ function renderAnalytics() {
               '<button class="chart-action-item" onclick="veSelectChart(' + i + ');veShowSection(\'colors\')" title="Change colors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="6.5" cy="13.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>Colors</button>' +
               '<button class="chart-action-item" onclick="veSelectChart(' + i + ');veShowSection(\'fonts\')" title="Fonts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>Fonts</button>' +
               '<div style="height:1px;background:var(--glass-border);margin:3px 6px"></div>' +
-              '<button class="chart-action-item" onclick="openAskAiModal(\'analytics\',' + i + ',event)" title="Ask AI"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ask AI</button>' +
               (isLine ? '<button class="chart-action-item" onclick="handleForecast(' + i + ')" title="Forecast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Forecast</button>' : '') +
               '<button class="chart-action-item" onclick="veSelectChart(' + i + ');veShowSection(\'export\')" title="Export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>' +
               '<div style="height:1px;background:var(--glass-border);margin:3px 6px"></div>' +
@@ -2842,10 +2842,10 @@ function renderAnalytics() {
     const desc = (c.desc || 'Custom chart created via Chart Assistant.').replace(/'/g, '&#39;');
     return '<div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">'+c.title+'</h2>' +
       '<div style="display:flex;gap:6px;align-items:center">' +
+      '<button class="ask-ai-btn" onclick="openAskAiModal(\'custom\',' + i + ',event)" title="Ask AI"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ask AI</button>' +
       '<div class="chart-actions-bolt">' +
         '<button class="chart-bolt-btn" title="Chart actions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></button>' +
         '<div class="chart-actions-menu" style="background:#fff;backdrop-filter:none;-webkit-backdrop-filter:none">' +
-          '<button class="chart-action-item" onclick="openAskAiModal(\'custom\',' + i + ',event)" title="Ask AI"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ask AI</button>' +
           '<button class="chart-action-item" onclick="removeCustomChart('+i+')" title="Delete chart" style="color:var(--accent-rose)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Delete</button>' +
         '</div>' +
       '</div>' +
