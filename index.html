@@ -5120,7 +5120,7 @@ function drawChart(canvas, datasets, labels, opts = {}) {
         const isPeak = (pi === 0 || ds.data[pi] >= ds.data[pi-1]) && (pi === ds.data.length-1 || ds.data[pi] >= ds.data[pi+1]);
         const isTrough = (pi === 0 || ds.data[pi] <= ds.data[pi-1]) && (pi === ds.data.length-1 || ds.data[pi] <= ds.data[pi+1]);
         if (isPeak || isTrough || pi === 0 || pi === pts.length - 1) {
-          ctx.fillText(formatNumber(ds.data[pi], {abbreviate:true}), p.x, p.y + (isPeak ? -8 : 14));
+          ctx.fillText(formatNumber(ds.data[pi], {abbreviate:true, decimals: ds.data[pi] >= 1e6 ? 1 : 0}), p.x, p.y + (isPeak ? -8 : 14));
         }
       });
     }
@@ -5250,7 +5250,7 @@ function drawBarChart(canvas, labels, data, colorName, opts = {}) {
     const valAlpha = isHover ? 1 : (highlightIdx >= 0 ? 0.3 : 0.8);
     ctx.fillStyle = th.style === 'executive' ? chartTextColor(valAlpha) : 'rgba(' + barRgb + ',' + valAlpha + ')';
     ctx.font = (isHover ? 'bold ' : '') + th.valueFont; ctx.textAlign = 'center';
-    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val % 1 ? 1 : 0}) : String(val);
+    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 1 : (val % 1 ? 1 : 0)}) : String(val);
     ctx.fillText(vText, x + barW / 2, y - 6);
 
     // X label — themed font, executive uses CAPS
@@ -5488,7 +5488,7 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
     // Value at end of bar
     const valAlpha = isHover ? 1 : (highlightIdx >= 0 ? 0.3 : 0.9);
     ctx.fillStyle = 'rgba(' + barRgb + ',' + valAlpha + ')'; ctx.font = (isHover ? 'bold ' : '') + '10px Inter'; ctx.textAlign = 'left';
-    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val % 1 ? 1 : 0}) : String(val);
+    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 1 : (val % 1 ? 1 : 0)}) : String(val);
     ctx.fillText(vText, x + barW + 6, y + barH / 2 + 3);
 
     // Y label (left side)
