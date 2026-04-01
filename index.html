@@ -5592,7 +5592,7 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const w = rect.width, h = rect.height;
   ctx.clearRect(0, 0, w, h);
-  const padL = 52, padR = 16, padT = 20, padB = 64;
+  const padL = 58, padR = 16, padT = 20, padB = 64;
   const cw = w - padL - padR, ch = h - padT - padB;
 
   // Calculate max stacked total
@@ -5600,6 +5600,7 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
   const maxVal = Math.ceil(Math.max(...totals) * 1.15 / 10) * 10 || 100;
   const highlightIdx = opts._highlightIdx !== undefined ? opts._highlightIdx : -1;
   const highlightSeries = opts._highlightSeries !== undefined ? opts._highlightSeries : -1;
+  const isCurrencyAxis = /revenue|sales|cost|expense|price|profit|income/i.test(opts.yLabel || '');
 
   // Grid + Y labels
   for (let i = 0; i <= 4; i++) {
@@ -5607,7 +5608,9 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
     ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
     ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
-    ctx.fillText(formatTickLabel(maxVal, 4, i, opts.suffix || ''), padL - 10, y + 4);
+    const tickVal = maxVal - (maxVal / 4) * i;
+    const tickLabel = (isCurrencyAxis ? '$' : '') + formatTickLabel(maxVal, 4, i, opts.suffix || '');
+    ctx.fillText(tickLabel, padL - 10, y + 4);
   }
 
   // Bars
@@ -10302,11 +10305,23 @@ function autoMapExcelData(rows) {
           });
           return { name: g, data, color: seriesColors[i % seriesColors.length] };
         });
+        // Compute insight from aggregated data
+        const monthTotals = allLabels.map((lbl, li) => series.reduce((s, sr) => s + (sr.data[li] || 0), 0));
+        let peakIdx = 0, lowIdx = 0;
+        monthTotals.forEach((v, i) => { if (v > monthTotals[peakIdx]) peakIdx = i; if (v < monthTotals[lowIdx]) lowIdx = i; });
+        const trendDir = monthTotals[monthTotals.length - 1] >= monthTotals[0] ? 'an upward' : 'a downward';
+        const metricLabel = primaryMetric.replace(/_/g, ' ');
+        const isCurrency = /revenue|sales|cost|expense|price|profit|income/i.test(primaryMetric);
+        const fmtInsight = (v) => isCurrency ? '$' + formatNumber(v, {abbreviate: true, decimals: 1}) : formatNumber(v, {abbreviate: true, decimals: 1});
+        const insightText = metricLabel + ' peaked at ' + fmtInsight(monthTotals[peakIdx]) + ' in ' + allLabels[peakIdx] +
+          ', with a low of ' + fmtInsight(monthTotals[lowIdx]) + ' in ' + allLabels[lowIdx] +
+          ', showing ' + trendDir + ' trend overall.';
+
         chartPlan.push({
-          type: 'line', title: primaryMetric.replace(/_/g, ' ') + ' Trend by ' + lineCat.replace(/_/g, ' '),
+          type: 'stacked', title: metricLabel + ' Trend by ' + lineCat.replace(/_/g, ' '),
           labels: allLabels, series, data: null, color: 'cyan', suffix: '',
-          xLabel: dateCol.replace(/_/g, ' '), yLabel: primaryMetric.replace(/_/g, ' '),
-          desc: 'Shows how ' + primaryMetric.replace(/_/g, ' ').toLowerCase() + ' trends over time for each ' + lineCat.replace(/_/g, ' ').toLowerCase() + '.'
+          xLabel: dateCol.replace(/_/g, ' '), yLabel: metricLabel,
+          desc: insightText
         });
         usedCombos.add(dateCol + '|' + primaryMetric);
       }
