@@ -3048,17 +3048,10 @@ const _featureLabels = {
 function _renderPricingCard(plan, currentPlanCode) {
   const isFeatured = plan.code === 'pro';
   const isCurrent = plan.code === currentPlanCode;
-  const promoCode = 'LAUNCH90';
-  const promoDiscount = 90;
-  const hasPromo = plan.price_cents > 0;
-  const originalPrice = (plan.price_cents / 100).toFixed(0);
-  const discountedPrice = (plan.price_cents / 100 * (1 - promoDiscount / 100)).toFixed(2);
+  const fullPrice = (plan.price_cents / 100).toFixed(0);
   const price = plan.price_cents === 0
     ? '<span class="pricing-price-free">$0</span>'
-    : `<span class="pricing-price" style="display:flex;align-items:baseline;gap:8px"><span style="text-decoration:line-through;font-size:22px;color:var(--text-tertiary);font-weight:400">$${originalPrice}</span>$${discountedPrice}<span>/mo</span></span>`;
-  const promoBanner = hasPromo
-    ? `<div style="margin:8px 0 4px;padding:6px 10px;border-radius:6px;background:rgba(0,180,130,0.1);border:1px solid rgba(0,180,130,0.2);font-size:11px;font-weight:600;color:#00b482;display:flex;align-items:center;gap:6px"><span style="background:#00b482;color:#fff;padding:1px 6px;border-radius:3px;font-size:10px;letter-spacing:0.5px">${promoCode}</span> ${promoDiscount}% off your first month</div>`
-    : '';
+    : `<span class="pricing-price">$${fullPrice}<span>/mo</span></span>`;
 
   const featureOrder = ['ai_queries', 'document_uploads', 'custom_charts', 'export', 'saved_projects', 'priority_support'];
   const features = featureOrder.map(fk => {
@@ -3107,7 +3100,6 @@ function _renderPricingCard(plan, currentPlanCode) {
     <div class="pricing-plan-name">${plan.name}</div>
     <div class="pricing-plan-desc">${plan.description || ''}</div>
     ${price}
-    ${promoBanner}
     <div class="pricing-divider"></div>
     <ul class="pricing-features">${features}</ul>
     <button class="pricing-btn${btnClass}"${btnDisabled}${btnAction ? ` onclick="${btnAction}"` : ''}>${btnLabel}</button>
