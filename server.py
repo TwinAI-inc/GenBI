@@ -75,6 +75,9 @@ def create_app():
     app.register_blueprint(billing_bp)
     app.register_blueprint(billing_pages_bp)
 
+    from datasets import datasets_bp
+    app.register_blueprint(datasets_bp)
+
     # ── Rate limits ──────────────────────────────────────────────────────
     limiter.limit('5/minute')(app.view_functions['auth.login'])
     limiter.limit('5/minute')(app.view_functions['auth.signup'])
@@ -358,9 +361,7 @@ If the request is impossible with the available columns, respond with: {{"error"
         auth_err = _require_ai_auth()
         if auth_err:
             return auth_err
-        quota_error = _check_ai_quota()
-        if quota_error:
-            return quota_error
+        # No quota check — modifying existing charts is free
 
         data = request.get_json()
         user_message = data.get('message', '').strip()
@@ -453,7 +454,6 @@ If unchanged, carry over the original values exactly. Do not change fields the u
             if parsed.get('groupCol') and parsed['groupCol'] not in columns:
                 return jsonify({'error': f"Column '{parsed['groupCol']}' not found in your data."}), 200
 
-            _record_ai_usage()
             result = {
                 'chartType': parsed.get('chartType', current_chart.get('chartType', 'bar')),
                 'xCol': parsed.get('xCol', current_chart.get('xCol')),
@@ -640,9 +640,7 @@ Rules:
         auth_err = _require_ai_auth()
         if auth_err:
             return auth_err
-        quota_error = _check_ai_quota()
-        if quota_error:
-            return quota_error
+        # No quota — auto-triggered, not a user chat
         data = request.get_json()
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
@@ -665,7 +663,6 @@ Rules:
 - severity=high for critical findings, medium for notable, low for informational"""
         try:
             parsed, _usage = _call_ai(prompt)
-            _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response.'}), 200
@@ -678,9 +675,7 @@ Rules:
         auth_err = _require_ai_auth()
         if auth_err:
             return auth_err
-        quota_error = _check_ai_quota()
-        if quota_error:
-            return quota_error
+        # No quota — auto-triggered
         data = request.get_json()
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
@@ -700,7 +695,6 @@ Rules:
 - column must exactly match provided column names"""
         try:
             parsed, _usage = _call_ai(prompt)
-            _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response.'}), 200
@@ -713,9 +707,7 @@ Rules:
         auth_err = _require_ai_auth()
         if auth_err:
             return auth_err
-        quota_error = _check_ai_quota()
-        if quota_error:
-            return quota_error
+        # No quota check — chart narratives are free
         data = request.get_json()
         chart_type = data.get('chartType', '')
         title = data.get('title', '')
@@ -738,7 +730,6 @@ Rules:
 - Keep it under 30 words"""
         try:
             parsed, _usage = _call_ai(prompt)
-            _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response.'}), 200
@@ -843,9 +834,7 @@ Rules:
         auth_err = _require_ai_auth()
         if auth_err:
             return auth_err
-        quota_error = _check_ai_quota()
-        if quota_error:
-            return quota_error
+        # No quota — auto-triggered
         data = request.get_json()
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
@@ -866,7 +855,6 @@ Rules:
 - column must exactly match provided column names"""
         try:
             parsed, _usage = _call_ai(prompt)
-            _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response.'}), 200
@@ -879,9 +867,7 @@ Rules:
         auth_err = _require_ai_auth()
         if auth_err:
             return auth_err
-        quota_error = _check_ai_quota()
-        if quota_error:
-            return quota_error
+        # No quota — auto-triggered
         data = request.get_json()
         columns = data.get('columns', [])
         col_meta = data.get('colMeta', {})
@@ -901,7 +887,6 @@ Rules:
 - Infer meaning from column name, data type, and sample values"""
         try:
             parsed, _usage = _call_ai(prompt)
-            _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned an unexpected response.'}), 200

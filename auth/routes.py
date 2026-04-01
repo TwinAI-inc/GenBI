@@ -257,12 +257,12 @@ def google_auth():
     if not code or not redirect_uri:
         return jsonify({'error': 'Authorization code and redirect_uri are required.'}), 400
 
-    # Validate redirect_uri against server-side whitelist
-    allowed_redirect_uri = os.environ.get(
-        'GOOGLE_OAUTH_REDIRECT_URI',
-        request.host_url.rstrip('/') + '/auth/google/callback',
-    )
-    if redirect_uri != allowed_redirect_uri:
+    # Validate redirect_uri against server-side whitelist (comma-separated env var)
+    raw_uris = os.environ.get('GOOGLE_OAUTH_REDIRECT_URI', '')
+    allowed_uris = {u.strip() for u in raw_uris.split(',') if u.strip()} if raw_uris else set()
+    # Always allow the current host as fallback
+    allowed_uris.add(request.host_url.rstrip('/') + '/auth/google/callback')
+    if redirect_uri not in allowed_uris:
         logger.warning('OAuth redirect_uri mismatch: got %s', redirect_uri)
         return jsonify({'error': 'Invalid redirect URI.'}), 400
 

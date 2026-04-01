@@ -84,7 +84,7 @@ class TestPlansAPI:
         plans = resp.get_json()['plans']
         free = next(p for p in plans if p['code'] == 'free')
         assert free['price_cents'] == 0
-        assert free['entitlements']['ai_queries']['limit_value'] == 25
+        assert free['entitlements']['ai_queries']['limit_value'] == 50
         assert free['entitlements']['document_uploads']['limit_value'] == 5
         assert free['entitlements']['export']['is_enabled'] is False
 
@@ -206,8 +206,8 @@ class TestEntitlementChecks:
             ).fetchone()
             assert row is not None
             assert row[0] is True  # is_enabled
-            # Free plan = 25/mo
-            assert row[1] == 25
+            # Free plan = 50/mo
+            assert row[1] == 50
 
     def test_can_consume(self, app, test_user):
         """Test PL/pgSQL can_consume function."""

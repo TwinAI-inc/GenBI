@@ -2844,19 +2844,8 @@ function renderKPICards(kpis) {
 }
 
 function chartWidthClass(chart, idx, total) {
-  const type = chart._userType || chart.type;
-  if (chart._width) return 'chart-cell-' + chart._width;
-  // Smart layout: for 3-4 charts, make top row 2 halves, bottom row adapts
-  if (total <= 4) {
-    if (['line', 'area', 'heatmap', 'sankey', 'candlestick'].includes(type)) return 'chart-cell-full';
-    if (total === 3 && idx === 2) return 'chart-cell-full'; // last chart spans full if 3 total
-    return 'chart-cell-half';
-  }
-  // Fallback for larger plans
-  if (['line', 'area', 'heatmap', 'sankey'].includes(type)) return 'chart-cell-full';
-  if (['bar', 'waterfall', 'stacked', 'hbar', 'scatter', 'bubble', 'boxplot', 'candlestick'].includes(type)) return 'chart-cell-two-thirds';
-  if (['donut', 'gauge', 'funnel', 'radar', 'treemap'].includes(type)) return 'chart-cell-one-third';
-  return 'chart-cell-half';
+  if (chart._width === 'half') return 'chart-cell-half';
+  return 'chart-cell-full';
 }
 
 function renderAnalytics() {
@@ -5199,7 +5188,7 @@ function drawChart(canvas, datasets, labels, opts = {}) {
         const isPeak = (pi === 0 || ds.data[pi] >= ds.data[pi-1]) && (pi === ds.data.length-1 || ds.data[pi] >= ds.data[pi+1]);
         const isTrough = (pi === 0 || ds.data[pi] <= ds.data[pi-1]) && (pi === ds.data.length-1 || ds.data[pi] <= ds.data[pi+1]);
         if (isPeak || isTrough || pi === 0 || pi === pts.length - 1) {
-          ctx.fillText(formatNumber(ds.data[pi], {abbreviate:true, decimals: ds.data[pi] >= 1e6 ? 1 : 0}), p.x, p.y + (isPeak ? -8 : 14));
+          ctx.fillText(formatNumber(ds.data[pi], {abbreviate:true, decimals: ds.data[pi] >= 1e6 ? 2 : 0}), p.x, p.y + (isPeak ? -8 : 14));
         }
       });
     }
@@ -5329,7 +5318,7 @@ function drawBarChart(canvas, labels, data, colorName, opts = {}) {
     const valAlpha = isHover ? 1 : (highlightIdx >= 0 ? 0.3 : 0.8);
     ctx.fillStyle = th.style === 'executive' ? chartTextColor(valAlpha) : 'rgba(' + barRgb + ',' + valAlpha + ')';
     ctx.font = (isHover ? 'bold ' : '') + th.valueFont; ctx.textAlign = 'center';
-    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 1 : (val % 1 ? 1 : 0)}) : String(val);
+    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 2 : (val >= 1e4 ? 1 : (val % 1 ? 1 : 0))}) : String(val);
     ctx.fillText(vText, x + barW / 2, y - 6);
 
     // X label — themed font, executive uses CAPS
@@ -5567,7 +5556,7 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
     // Value at end of bar
     const valAlpha = isHover ? 1 : (highlightIdx >= 0 ? 0.3 : 0.9);
     ctx.fillStyle = 'rgba(' + barRgb + ',' + valAlpha + ')'; ctx.font = (isHover ? 'bold ' : '') + '10px Inter'; ctx.textAlign = 'left';
-    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 1 : (val % 1 ? 1 : 0)}) : String(val);
+    const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 2 : (val >= 1e4 ? 1 : (val % 1 ? 1 : 0))}) : String(val);
     ctx.fillText(vText, x + barW + 6, y + barH / 2 + 3);
 
     // Y label (left side)
@@ -5707,7 +5696,7 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
       const x = startX + li * (barW + gap);
       const y = cumY - segH;
       const sRgb = getColorRgb(series.color);
-      const isHover = li === highlightIdx && si === highlightSeries;
+      const isHover = li === highlightIdx && (highlightSeries < 0 || si === highlightSeries);
       const dimmed = highlightIdx >= 0 && !isHover;
       const alpha = isHover ? 1 : (dimmed ? 0.3 : 0.8);
       const r = (si === seriesData.length - 1) ? Math.min(3, barW / 2) : 0;
@@ -6667,6 +6656,13 @@ function animateSankeyChart(canvas, chart) {
 }
 
 // ── CHART INTERACTIVITY HANDLERS ──
+function _posTooltip(tt, e) {
+  const ttH = tt.offsetHeight || 120;
+  const canvas = e.currentTarget;
+  const cRect = canvas.getBoundingClientRect();
+  tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 310) + 'px';
+  tt.style.top = Math.max(cRect.top - ttH - 6, 4) + 'px';
+}
 function handleBarHover(e) {
   const canvas = e.currentTarget;
   const hit = canvas._chartHit;
@@ -6711,15 +6707,13 @@ function handleBarHover(e) {
         '<div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:'+Math.round((a.value/maxVal)*100)+'%;background:rgba('+rgb+',0.8)"></div></div>' +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 80) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 80) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -6768,15 +6762,13 @@ function handleDonutHover(e) {
         othersHtml +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 100) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 100) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -6879,8 +6871,7 @@ function handleMultiLineHover(e) {
     '<div class="tt-divider"></div>' +
     seriesRows +
     '</div>';
-  tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-  tt.style.top = Math.max(e.clientY - 100, 10) + 'px';
+  _posTooltip(tt, e);
   tt.classList.add('visible');
 }
 
@@ -6925,15 +6916,13 @@ function handleHbarHover(e) {
         '<div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:'+Math.round((a.value/maxVal)*100)+'%;background:rgba('+rgb+',0.8)"></div></div>' +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 80) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 80) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -6981,16 +6970,14 @@ function handleStackedBarHover(e) {
           seriesRows +
           '</div>';
         tt.classList.add('visible');
-        tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-        tt.style.top = (e.clientY - 80) + 'px';
+        _posTooltip(tt, e);
       }
     } else {
       tt.classList.remove('visible');
     }
   } else if (foundBar >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 80) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -7023,15 +7010,13 @@ function handleScatterHover(e) {
         '<div class="tt-row"><span class="tt-row-label">' + yLabel + '</span><span class="tt-row-value">' + (typeof p.yVal === 'number' ? p.yVal.toLocaleString('en-US',{maximumFractionDigits:2}) : p.yVal) + '</span></div>' +
         '</div>';
       tt.classList.add('visible');
-      tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-      tt.style.top = (e.clientY - 60) + 'px';
+      _posTooltip(tt, e);
     } else {
       tt.classList.remove('visible');
     }
   } else if (found >= 0) {
     const tt = document.getElementById('chartTooltip');
-    tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 300) + 'px';
-    tt.style.top = (e.clientY - 60) + 'px';
+    _posTooltip(tt, e);
   }
 }
 
@@ -7061,6 +7046,26 @@ function clearCrossFilter() {
   refreshAllAnalyticsCharts();
 }
 
+function _updateChartInsight(chart, idx) {
+  const el = document.getElementById('aiCaption' + idx);
+  if (!el) return;
+  const labels = chart.labels || [];
+  const hasSeries = chart.series && chart.series.length > 0;
+  const totals = hasSeries
+    ? labels.map((_, i) => chart.series.reduce((s, sr) => s + (sr.data[i] || 0), 0))
+    : (chart.data || []);
+  if (!totals.length) { el.textContent = chart.desc || ''; return; }
+  const yLabel = (chart.yLabel || 'Value').replace(/_/g, ' ');
+  const isCurrency = /revenue|sales|cost|expense|price|profit|income/i.test(yLabel);
+  const fmt = (v) => (isCurrency ? '$' : '') + formatNumber(v, {abbreviate: true, decimals: 1});
+  let peakIdx = 0, lowIdx = 0;
+  totals.forEach((v, i) => { if (v > totals[peakIdx]) peakIdx = i; if (v < totals[lowIdx]) lowIdx = i; });
+  const trend = totals[totals.length - 1] >= totals[0] ? 'an upward' : 'a downward';
+  el.textContent = yLabel + ' peaked at ' + fmt(totals[peakIdx]) + ' in ' + labels[peakIdx] +
+    ', with a low of ' + fmt(totals[lowIdx]) + ' in ' + labels[lowIdx] +
+    ', showing ' + trend + ' trend overall.';
+}
+
 function refreshAllAnalyticsCharts() {
   if (App.currentPage !== 'analytics' || !App.hasExcelData) return;
   const ec = App.excelChartConfig;
@@ -7079,7 +7084,7 @@ function refreshAllAnalyticsCharts() {
     }
   }
 
-  // Re-aggregate and redraw each chart
+  // Re-aggregate and redraw each chart + update insights
   ec.chartPlan.forEach((chart, i) => {
     const canvas = document.getElementById('analyticsChart' + i);
     if (!canvas) return;
@@ -7087,6 +7092,8 @@ function refreshAllAnalyticsCharts() {
     canvas._hasChartEvents = false;
     canvas._chartHit = null;
     animateChartFromPlan(canvas, rebuilt, 0);
+    // Update insight caption from filtered data
+    _updateChartInsight(rebuilt, i);
   });
 
   // Redraw custom charts
@@ -7327,19 +7334,287 @@ function handleChartClick(e) {
 
   if (!clickedLabel || !clickedColumn) return;
 
-  // Check for drill state
-  const drillState = App.drillStates[chartIdx];
-  if (drillState && drillState.hierarchy.length > 1) {
-    const currentLevel = drillState.path.length;
-    const currentCol = drillState.hierarchy[currentLevel];
-    if (currentCol === clickedColumn && currentLevel < drillState.hierarchy.length - 1) {
-      drillDown(chartIdx, clickedColumn, clickedLabel);
-      return;
-    }
+  // Open explain-point drawer
+  openExplainDrawer(clickedColumn, clickedLabel, chartIdx);
+}
+
+function openExplainDrawer(column, value, chartIdx) {
+  const ec = App.excelChartConfig;
+  const chart = ec.chartPlan[chartIdx];
+  const yLabel = chart ? (chart._origYCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
+  const rows = getFilteredRows();
+
+  // Highlight the clicked bar by adding a colored border overlay
+  const canvas = document.getElementById('analyticsChart' + chartIdx);
+  App._explainHighlight = { chartIdx, column, value };
+  if (canvas) {
+    // Wait for animation to finish, then paint highlight directly
+    setTimeout(function() {
+      const hit = canvas._chartHit;
+      if (!hit) return;
+      const areas = hit.areas || [];
+      // Find all hit areas matching the clicked label
+      const matchAreas = areas.filter(a => a.label === value);
+      if (!matchAreas.length) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      matchAreas.forEach(a => {
+        // Draw a bright border around the bar
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 12;
+        ctx.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
+      });
+      ctx.restore();
+    }, 900); // after animation completes (700ms + buffer)
   }
 
-  // Cross-filter
-  setCrossFilter(clickedColumn, clickedLabel, chartIdx);
+  // Filter to clicked point
+  const pointRows = rows.filter(r => String(r[column] || '').trim() === value);
+  if (!pointRows.length) return;
+
+  // Find categorical columns for breakdown (exclude clicked col and measure)
+  const allHeaders = Object.keys(rows[0] || {});
+  const categoricals = allHeaders.filter(h => {
+    if (h === column || h === yLabel) return false;
+    const meta = ec.colMeta[h];
+    return meta && meta.isCategorical && meta.uniqueCount <= 30;
+  });
+
+  // Build breakdown data for top 3 categoricals
+  const breakdowns = [];
+  categoricals.slice(0, 3).forEach(cat => {
+    const groups = {};
+    pointRows.forEach(r => {
+      const key = String(r[cat] || '').trim();
+      if (!key) return;
+      groups[key] = (groups[key] || 0) + (parseFloat(r[yLabel]) || 0);
+    });
+    const entries = Object.entries(groups).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    if (entries.length >= 2) {
+      breakdowns.push({ dim: cat, entries });
+    }
+  });
+
+  // Compute influencers: compare point vs baseline
+  const baselineByDim = {};
+  const pointByDim = {};
+  const baselineTotal = rows.reduce((s, r) => s + (parseFloat(r[yLabel]) || 0), 0);
+  const pointTotal = pointRows.reduce((s, r) => s + (parseFloat(r[yLabel]) || 0), 0);
+
+  const influencers = [];
+  categoricals.slice(0, 5).forEach(cat => {
+    // Baseline distribution
+    const blGroups = {};
+    rows.forEach(r => { const k = String(r[cat] || '').trim(); if (k) blGroups[k] = (blGroups[k] || 0) + (parseFloat(r[yLabel]) || 0); });
+    // Point distribution
+    const ptGroups = {};
+    pointRows.forEach(r => { const k = String(r[cat] || '').trim(); if (k) ptGroups[k] = (ptGroups[k] || 0) + (parseFloat(r[yLabel]) || 0); });
+
+    const topVal = Object.entries(ptGroups).sort((a, b) => b[1] - a[1])[0];
+    if (!topVal) return;
+    const ptShare = pointTotal ? topVal[1] / pointTotal : 0;
+    const blShare = baselineTotal ? (blGroups[topVal[0]] || 0) / baselineTotal : 0;
+    const lift = blShare > 0 ? ptShare / blShare : 0;
+    influencers.push({ feature: cat, topValue: topVal[0], lift: Math.round(lift * 100) / 100, share: Math.round(ptShare * 1000) / 10 });
+  });
+  influencers.sort((a, b) => b.lift - a.lift);
+
+  // Build drawer HTML
+  const isCurrency = /revenue|sales|cost|expense|price|profit|income/i.test(yLabel);
+  const fmtVal = (v) => (isCurrency ? '$' : '') + formatNumber(v, { abbreviate: true, decimals: 1 });
+
+  let html = '<div style="padding:4px 0 16px">';
+
+  // Compute extra stats
+  const pointNums = pointRows.map(r => parseFloat(r[yLabel]) || 0).filter(v => v);
+  const ptMin = pointNums.length ? Math.min(...pointNums) : 0;
+  const ptMax = pointNums.length ? Math.max(...pointNums) : 0;
+  const ptAvg = pointNums.length ? pointNums.reduce((a, b) => a + b, 0) / pointNums.length : 0;
+  const baselineAvg = rows.length ? rows.reduce((s, r) => s + (parseFloat(r[yLabel]) || 0), 0) / rows.length : 0;
+  const vsAvgPct = baselineAvg ? Math.round((ptAvg - baselineAvg) / baselineAvg * 100) : 0;
+  const vsAvgColor = vsAvgPct >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+  const vsAvgSign = vsAvgPct >= 0 ? '+' : '';
+
+  // Rank among all values of this column
+  const allGroupTotals = {};
+  rows.forEach(r => { const k = String(r[column] || '').trim(); if (k) allGroupTotals[k] = (allGroupTotals[k] || 0) + (parseFloat(r[yLabel]) || 0); });
+  const sortedGroups = Object.entries(allGroupTotals).sort((a, b) => b[1] - a[1]);
+  const rank = sortedGroups.findIndex(g => g[0] === value) + 1;
+
+  // Summary card
+  html += '<div style="background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.15);border-radius:12px;padding:14px 16px;margin-bottom:20px">';
+  html += '<div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">You clicked</div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:10px">' + column.replace(/_/g, ' ') + ' = ' + value + '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Total</div><div style="font-size:18px;font-weight:700;color:var(--accent-cyan)">' + fmtVal(pointTotal) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Share</div><div style="font-size:18px;font-weight:700;color:var(--text-primary)">' + (baselineTotal ? Math.round(pointTotal / baselineTotal * 1000) / 10 : 0) + '%</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Rank</div><div style="font-size:18px;font-weight:700;color:var(--text-primary)">#' + rank + ' of ' + sortedGroups.length + '</div></div>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Avg</div><div style="font-size:13px;font-weight:600;color:var(--text-primary)">' + fmtVal(ptAvg) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Min</div><div style="font-size:13px;font-weight:600;color:var(--text-primary)">' + fmtVal(ptMin) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Max</div><div style="font-size:13px;font-weight:600;color:var(--text-primary)">' + fmtVal(ptMax) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">vs Avg</div><div style="font-size:13px;font-weight:700;color:' + vsAvgColor + '">' + vsAvgSign + vsAvgPct + '%</div></div>';
+  html += '</div>';
+  html += '<div style="font-size:11px;color:var(--text-tertiary);margin-top:8px">' + pointRows.length + ' records in this group</div>';
+  html += '</div>';
+
+  // Key Influencers section
+  if (influencers.length) {
+    html += '<div style="margin-bottom:20px">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px">Key Influencers</div>';
+    influencers.forEach(inf => {
+      const liftColor = inf.lift >= 1.2 ? 'var(--accent-emerald)' : inf.lift >= 0.8 ? 'var(--accent-cyan)' : 'var(--accent-rose)';
+      const barW = Math.min(inf.share, 100);
+      html += '<div style="margin-bottom:10px;padding:8px 12px;border-radius:8px;background:rgba(255,255,255,0.03);border:1px solid var(--glass-border)">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">';
+      html += '<span style="font-size:12px;font-weight:500;color:var(--text-secondary)">' + inf.feature.replace(/_/g, ' ') + '</span>';
+      html += '<span style="font-size:11px;font-weight:700;color:' + liftColor + '">' + inf.lift + 'x lift</span>';
+      html += '</div>';
+      html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:4px">' + inf.topValue + ' <span style="font-size:11px;font-weight:400;color:var(--text-tertiary)">' + inf.share + '% share</span></div>';
+      html += '<div style="height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden"><div style="height:100%;width:' + barW + '%;background:' + liftColor + ';border-radius:2px"></div></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Sunburst chart
+  if (breakdowns.length >= 1) {
+    html += '<div style="margin-bottom:20px">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px">Sunburst Breakdown</div>';
+    html += '<canvas id="explainSunburst" style="width:100%;height:260px"></canvas>';
+    html += '</div>';
+  }
+
+  // Breakdown charts
+  breakdowns.forEach((bd, bi) => {
+    html += '<div style="margin-bottom:20px">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px">Breakdown by ' + bd.dim.replace(/_/g, ' ') + '</div>';
+    const maxEntry = bd.entries[0][1];
+    bd.entries.forEach(([name, val]) => {
+      const pct = maxEntry > 0 ? Math.round(val / maxEntry * 100) : 0;
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+      html += '<div style="width:80px;font-size:11px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + name + '">' + name + '</div>';
+      html += '<div style="flex:1;height:16px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden">';
+      html += '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,rgba(0,229,255,0.7),rgba(0,229,255,0.3));border-radius:4px;transition:width .3s"></div>';
+      html += '</div>';
+      html += '<div style="width:60px;font-size:11px;font-weight:600;color:var(--text-primary);text-align:right">' + fmtVal(val) + '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '</div>';
+
+  // Open the slide panel
+  const panel = document.getElementById('slidePanel');
+  const title = document.getElementById('slidePanelTitle');
+  const body = document.getElementById('slidePanelBody');
+  if (!panel || !body) return;
+  title.textContent = 'Explain: ' + column.replace(/_/g, ' ') + ' = ' + value;
+  body.innerHTML = html;
+  panel.classList.add('open');
+
+  // Draw sunburst after DOM is ready
+  if (breakdowns.length >= 1) {
+    setTimeout(function() { _drawExplainSunburst(breakdowns, fmtVal); }, 100);
+  }
+}
+
+function _drawExplainSunburst(breakdowns, fmtVal) {
+  const canvas = document.getElementById('explainSunburst');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.getBoundingClientRect().width;
+  const h = 260;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const cx = w / 2, cy = h / 2;
+  const innerR = 40, midR = 85, outerR = 115;
+  const colors = [
+    'rgba(0,229,255,0.75)','rgba(179,136,255,0.75)','rgba(105,240,174,0.7)','rgba(255,215,64,0.7)',
+    'rgba(255,107,157,0.7)','rgba(96,165,250,0.7)','rgba(45,212,191,0.7)','rgba(251,146,60,0.7)'
+  ];
+
+  // Inner ring: first breakdown dimension
+  const bd1 = breakdowns[0];
+  const total1 = bd1.entries.reduce((s, e) => s + e[1], 0);
+  let angle = -Math.PI / 2;
+
+  // Center label
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = 'bold 14px Inter'; ctx.textAlign = 'center';
+  ctx.fillText(fmtVal(total1), cx, cy - 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.4)';
+  ctx.font = '10px Inter';
+  ctx.fillText('Total', cx, cy + 12);
+
+  bd1.entries.forEach(function(e, i) {
+    var slice = (e[1] / total1) * Math.PI * 2;
+    var endAngle = angle + slice;
+    ctx.beginPath();
+    ctx.arc(cx, cy, midR, angle, endAngle);
+    ctx.arc(cx, cy, innerR, endAngle, angle, true);
+    ctx.closePath();
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+
+    // Label if slice is big enough
+    if (slice > 0.3) {
+      var midAngle = angle + slice / 2;
+      var lx = cx + Math.cos(midAngle) * ((innerR + midR) / 2);
+      var ly = cy + Math.sin(midAngle) * ((innerR + midR) / 2);
+      ctx.fillStyle = '#fff'; ctx.font = '500 10px Inter'; ctx.textAlign = 'center';
+      ctx.fillText(e[0].length > 10 ? e[0].substring(0, 9) + '..' : e[0], lx, ly + 3);
+    }
+    angle = endAngle;
+  });
+
+  // Outer ring: second breakdown dimension (if available)
+  if (breakdowns.length >= 2) {
+    var bd2 = breakdowns[1];
+    var total2 = bd2.entries.reduce(function(s, e) { return s + e[1]; }, 0);
+    angle = -Math.PI / 2;
+    bd2.entries.forEach(function(e, i) {
+      var slice = (e[1] / total2) * Math.PI * 2;
+      var endAngle = angle + slice;
+      ctx.beginPath();
+      ctx.arc(cx, cy, outerR, angle, endAngle);
+      ctx.arc(cx, cy, midR + 2, endAngle, angle, true);
+      ctx.closePath();
+      ctx.fillStyle = colors[(i + 3) % colors.length].replace('0.7', '0.5').replace('0.75', '0.5');
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+      if (slice > 0.4) {
+        var midAngle = angle + slice / 2;
+        var lx = cx + Math.cos(midAngle) * ((midR + outerR) / 2 + 2);
+        var ly = cy + Math.sin(midAngle) * ((midR + outerR) / 2 + 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = '9px Inter'; ctx.textAlign = 'center';
+        ctx.fillText(e[0].length > 10 ? e[0].substring(0, 9) + '..' : e[0], lx, ly + 3);
+      }
+      angle = endAngle;
+    });
+  }
+
+  // Legend below
+  var legY = h - 12, legX = 10;
+  bd1.entries.slice(0, 6).forEach(function(e, i) {
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fillRect(legX, legY - 4, 8, 8);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.font = '9px Inter'; ctx.textAlign = 'left';
+    var label = e[0].length > 12 ? e[0].substring(0, 11) + '..' : e[0];
+    ctx.fillText(label, legX + 11, legY + 3);
+    legX += ctx.measureText(label).width + 24;
+  });
 }
 
 // ══════════════════════════════════════════════
@@ -7830,7 +8105,18 @@ function openPanel(type) {
   if(type === 'chartAssistant') setTimeout(() => { const msgs = $('#assistantMessages'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 50);
 }
 
-function closePanel() { $('#panelOverlay').classList.remove('open'); $('#slidePanel').classList.remove('open'); }
+function closePanel() {
+  $('#panelOverlay').classList.remove('open'); $('#slidePanel').classList.remove('open');
+  // Clear bar highlight
+  if (App._explainHighlight) {
+    const ci = App._explainHighlight.chartIdx;
+    const canvas = document.getElementById('analyticsChart' + ci);
+    if (canvas && App.excelChartConfig && App.excelChartConfig.chartPlan[ci]) {
+      animateChartFromPlan(canvas, App.excelChartConfig.chartPlan[ci], 0);
+    }
+    App._explainHighlight = null;
+  }
+}
 $('#panelOverlay').addEventListener('click', closePanel);
 $('#slidePanelClose').addEventListener('click', closePanel);
 $('#uploadModalOverlay').addEventListener('click', function(e) { if(e.target === this) closeUploadModal(); });
@@ -9737,6 +10023,10 @@ function applyChartModification(source, idx, aiResponse) {
   if (canvas) {
     canvas._hasChartEvents = false;
     canvas._chartHit = null;
+    canvas._lockedW = null;
+    canvas._lockedH = null;
+    canvas._lastHover = -1;
+    if (canvas._animFrame) { cancelAnimationFrame(canvas._animFrame); canvas._animFrame = null; }
     var tt = document.getElementById('chartTooltip');
     if (tt) tt.classList.remove('visible');
     animateChartFromPlan(canvas, chart, 0);
@@ -10414,6 +10704,7 @@ function autoMapExcelData(rows) {
         chartPlan.push({
           type: 'stacked', title: metricLabel + ' Trend by ' + lineCat.replace(/_/g, ' '),
           labels: allLabels, series, data: null, color: 'cyan', suffix: '',
+          xCol: dateCol, yCol: primaryMetric, groupCol: lineCat, aggFn: fn,
           xLabel: dateCol.replace(/_/g, ' '), yLabel: metricLabel,
           desc: insightText
         });
