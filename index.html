@@ -7289,17 +7289,6 @@ function openExplainDrawer(column, value, chartIdx) {
         ctx.shadowBlur = 12;
         ctx.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
       });
-      // Also draw a top indicator arrow
-      const topArea = matchAreas[matchAreas.length - 1]; // topmost segment
-      ctx.fillStyle = '#00e5ff';
-      const cx = topArea.x + topArea.w / 2;
-      const ty = topArea.y - 4;
-      ctx.beginPath();
-      ctx.moveTo(cx - 5, ty - 8);
-      ctx.lineTo(cx + 5, ty - 8);
-      ctx.lineTo(cx, ty);
-      ctx.closePath();
-      ctx.fill();
       ctx.restore();
     }, 900); // after animation completes (700ms + buffer)
   }
