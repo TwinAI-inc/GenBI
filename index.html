@@ -6589,11 +6589,11 @@ function animateSankeyChart(canvas, chart) {
 
 // ── CHART INTERACTIVITY HANDLERS ──
 function _posTooltip(tt, e) {
-  const card = e.currentTarget.closest('.glass-panel');
-  const cardRect = card ? card.getBoundingClientRect() : null;
   const ttH = tt.offsetHeight || 120;
+  const canvas = e.currentTarget;
+  const cRect = canvas.getBoundingClientRect();
   tt.style.left = Math.min(e.clientX + 14, window.innerWidth - 310) + 'px';
-  tt.style.top = (cardRect ? Math.max(cardRect.top - ttH - 8, 4) : Math.max(e.clientY - ttH - 20, 4)) + 'px';
+  tt.style.top = Math.max(cRect.top - ttH - 6, 4) + 'px';
 }
 function handleBarHover(e) {
   const canvas = e.currentTarget;
