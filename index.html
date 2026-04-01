@@ -7459,7 +7459,10 @@ function _drawExplainSunburst(breakdowns, fmtVal) {
 
   const cx = w / 2, cy = h / 2;
   const innerR = 40, midR = 85, outerR = 115;
-  const colors = ['#00e5ff','#a855f7','#10b981','#f59e0b','#f43f5e','#3b82f6','#ec4899','#14b8a6'];
+  const colors = [
+    'rgba(0,229,255,0.75)','rgba(179,136,255,0.75)','rgba(105,240,174,0.7)','rgba(255,215,64,0.7)',
+    'rgba(255,107,157,0.7)','rgba(96,165,250,0.7)','rgba(45,212,191,0.7)','rgba(251,146,60,0.7)'
+  ];
 
   // Inner ring: first breakdown dimension
   const bd1 = breakdowns[0];
@@ -7482,10 +7485,8 @@ function _drawExplainSunburst(breakdowns, fmtVal) {
     ctx.arc(cx, cy, innerR, endAngle, angle, true);
     ctx.closePath();
     ctx.fillStyle = colors[i % colors.length];
-    ctx.globalAlpha = 0.85;
     ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 1; ctx.stroke();
 
     // Label if slice is big enough
     if (slice > 0.3) {
@@ -7510,11 +7511,9 @@ function _drawExplainSunburst(breakdowns, fmtVal) {
       ctx.arc(cx, cy, outerR, angle, endAngle);
       ctx.arc(cx, cy, midR + 2, endAngle, angle, true);
       ctx.closePath();
-      ctx.fillStyle = colors[(i + 3) % colors.length];
-      ctx.globalAlpha = 0.6;
+      ctx.fillStyle = colors[(i + 3) % colors.length].replace('0.7', '0.5').replace('0.75', '0.5');
       ctx.fill();
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = 'rgba(0,0,0,0.2)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
 
       if (slice > 0.4) {
         var midAngle = angle + slice / 2;
@@ -7529,7 +7528,6 @@ function _drawExplainSunburst(breakdowns, fmtVal) {
 
   // Legend below
   var legY = h - 12, legX = 10;
-  ctx.globalAlpha = 1;
   bd1.entries.slice(0, 6).forEach(function(e, i) {
     ctx.fillStyle = colors[i % colors.length];
     ctx.fillRect(legX, legY - 4, 8, 8);
