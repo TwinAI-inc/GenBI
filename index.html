@@ -5617,7 +5617,7 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
       const x = startX + li * (barW + gap);
       const y = cumY - segH;
       const sRgb = getColorRgb(series.color);
-      const isHover = li === highlightIdx && si === highlightSeries;
+      const isHover = li === highlightIdx && (highlightSeries < 0 || si === highlightSeries);
       const dimmed = highlightIdx >= 0 && !isHover;
       const alpha = isHover ? 1 : (dimmed ? 0.3 : 0.8);
       const r = (si === seriesData.length - 1) ? Math.min(3, barW / 2) : 0;
@@ -7269,7 +7269,8 @@ function openExplainDrawer(column, value, chartIdx) {
   const canvas = document.getElementById('analyticsChart' + chartIdx);
   if (canvas && canvas._chartHit) {
     const hit = canvas._chartHit;
-    const idx = (hit.labels || []).indexOf(value);
+    const hitLabels = hit.labels || (hit.areas ? [...new Set(hit.areas.map(a => a.label))] : []);
+    const idx = hitLabels.indexOf(value);
     if (idx >= 0) {
       if (hit.type === 'bar') drawBarChart(canvas, hit.labels, hit.data, hit.colorName, { ...hit.opts, _highlightIdx: idx });
       else if (hit.type === 'stacked') drawStackedBarChart(canvas, hit.labels, hit.seriesData, { ...hit.opts, _highlightIdx: idx, _highlightSeries: -1 });
