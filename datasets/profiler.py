@@ -19,7 +19,7 @@ _DATE_PATTERNS = [
 ]
 
 _ID_NAME_PATTERNS = re.compile(
-    r'\b(id|uuid|guid|index|row|sr|sno|serial|code|sku|key)\b', re.I
+    r'(?:^|[_\s\-.])(id|uuid|guid|index|row|sr|sno|serial|code|sku|key)(?:$|[_\s\-.])', re.I
 )
 
 
@@ -123,11 +123,10 @@ def _infer_type(col_name, str_vals, non_null, cardinality, total_rows):
     # Check ID-like by name
     is_id_name = bool(_ID_NAME_PATTERNS.search(col_name))
 
-    # ID-like: high cardinality numeric/text with ID-ish name or >90% unique
-    if is_id_name and cardinality > total_rows * 0.85:
+    # ID-like: column name contains id/code/sku/key pattern → always id_like
+    if is_id_name:
         return 'id_like'
-    if is_numeric and is_id_name:
-        return 'id_like'
+    # High cardinality text without id name → still id_like
     if not is_numeric and cardinality > total_rows * 0.9 and total_rows > 10:
         return 'id_like'
 
