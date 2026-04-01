@@ -7265,18 +7265,21 @@ function openExplainDrawer(column, value, chartIdx) {
   const yLabel = chart ? (chart._origYCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
   const rows = getFilteredRows();
 
-  // Highlight the clicked bar on the chart
+  // Highlight the clicked bar on the chart (with delay to let animation finish)
   const canvas = document.getElementById('analyticsChart' + chartIdx);
-  if (canvas && canvas._chartHit) {
-    const hit = canvas._chartHit;
-    const hitLabels = hit.labels || (hit.areas ? [...new Set(hit.areas.map(a => a.label))] : []);
-    const idx = hitLabels.indexOf(value);
-    if (idx >= 0) {
-      if (hit.type === 'bar') drawBarChart(canvas, hit.labels, hit.data, hit.colorName, { ...hit.opts, _highlightIdx: idx });
-      else if (hit.type === 'stacked') drawStackedBarChart(canvas, hit.labels, hit.seriesData, { ...hit.opts, _highlightIdx: idx, _highlightSeries: -1 });
-    }
-  }
   App._explainHighlight = { chartIdx, column, value };
+  if (canvas) {
+    if (canvas._animFrame) { cancelAnimationFrame(canvas._animFrame); canvas._animFrame = null; }
+    setTimeout(function() {
+      const hit = canvas._chartHit;
+      if (!hit) return;
+      const hitLabels = hit.labels || [];
+      const idx = hitLabels.indexOf(value);
+      if (idx < 0) return;
+      if (hit.type === 'bar') drawBarChart(canvas, hitLabels, hit.data, hit.colorName, { ...hit.opts, _highlightIdx: idx });
+      else if (hit.type === 'stacked') drawStackedBarChart(canvas, hitLabels, hit.seriesData, { ...hit.opts, _highlightIdx: idx, _highlightSeries: -1 });
+    }, 50);
+  }
 
   // Filter to clicked point
   const pointRows = rows.filter(r => String(r[column] || '').trim() === value);
