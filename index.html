@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GenBI — Glass Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 :root {
@@ -790,6 +790,85 @@ body.theme-executive .data-table td.col-date { color: #d4a853; }
 body.theme-executive .data-table tbody tr:hover { background: hsla(43 60% 50% / 0.03); }
 body.theme-executive .data-table tbody tr:nth-child(even) { background: hsla(0 0% 100% / 0.01); }
 body.theme-executive .data-table th .col-type-icon { opacity: 0.6; color: #d4a853; }
+
+/* ══════ GENBI THEME — matches landing page ══════ */
+body.theme-genbi {
+  --glass-bg: rgba(10,10,12,0.88);
+  --glass-bg-hover: rgba(16,16,20,0.9);
+  --glass-border: rgba(6,182,212,0.1);
+  --glass-border-bright: rgba(6,182,212,0.22);
+  --glass-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(6,182,212,0.06);
+  --glass-blur: 20px;
+  --text-primary: rgba(255,255,255,0.85);
+  --text-secondary: rgba(255,255,255,0.5);
+  --text-tertiary: rgba(255,255,255,0.3);
+  --accent-cyan: #06b6d4;
+  --accent-violet: #0891b2;
+  --accent-rose: #f43f5e;
+  --accent-amber: #67e8f9;
+  --accent-emerald: #10b981;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  background: #000;
+  font-family: 'Outfit', 'Inter', system-ui, sans-serif;
+}
+body.theme-genbi .bg-canvas::before {
+  background: none; opacity: 0;
+}
+body.theme-genbi .bg-orb:nth-child(1) { background: rgba(6,182,212,0.06); display: block; filter: blur(120px); }
+body.theme-genbi .bg-orb:nth-child(2) { background: rgba(6,182,212,0.03); display: block; filter: blur(120px); }
+body.theme-genbi .bg-orb:nth-child(3) { display: none; }
+body.theme-genbi .bg-orb:nth-child(4) { display: none; }
+body.theme-genbi .noise-overlay { display: none; }
+body.theme-genbi .sidebar { background: rgba(5,5,8,0.92); border-right: 1px solid rgba(6,182,212,0.08); }
+body.theme-genbi .brand-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 12px rgba(6,182,212,0.25); }
+body.theme-genbi .brand-name { color: rgba(255,255,255,0.9); background: none; -webkit-background-clip: unset; -webkit-text-fill-color: unset; font-family: 'Outfit', sans-serif; font-weight: 600; letter-spacing: -0.03em; }
+body.theme-genbi .nav-item { color: rgba(255,255,255,0.4); }
+body.theme-genbi .nav-item:hover { background: rgba(6,182,212,0.04); color: rgba(255,255,255,0.8); }
+body.theme-genbi .nav-item.active { background: rgba(6,182,212,0.08); border: none; color: rgba(255,255,255,0.95); }
+body.theme-genbi .nav-item.active::before { background: #06b6d4; box-shadow: 0 0 8px rgba(6,182,212,0.4); }
+body.theme-genbi .nav-label { color: rgba(255,255,255,0.2); }
+body.theme-genbi .page-title { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; font-weight: 300; letter-spacing: -0.025em; }
+body.theme-genbi .page-subtitle { color: rgba(255,255,255,0.45); }
+body.theme-genbi .panel-title { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; }
+body.theme-genbi .glass-panel::before {
+  background: rgba(10,10,12,0.88) !important;
+  border: 1px solid rgba(6,182,212,0.1) !important;
+  border-radius: inherit;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(6,182,212,0.05) !important;
+}
+body.theme-genbi .btn-primary { background: rgba(255,255,255,0.9); color: #000; font-weight: 600; box-shadow: 0 0 20px rgba(6,182,212,0.1); border: none; border-radius: 5rem; }
+body.theme-genbi .btn-primary:hover { box-shadow: 0 0 30px rgba(6,182,212,0.2); }
+body.theme-genbi .btn-ghost { color: #06b6d4; border-color: rgba(6,182,212,0.2); border-radius: 5rem; }
+body.theme-genbi .btn-ghost:hover { background: rgba(6,182,212,0.06); }
+body.theme-genbi .stat-card::before { background: rgba(10,10,12,0.88); border: 1px solid rgba(6,182,212,0.1); border-radius: inherit; }
+body.theme-genbi .ve-pill { background: rgba(6,182,212,0.04); border-color: rgba(6,182,212,0.12); color: rgba(255,255,255,0.5); }
+body.theme-genbi .ve-pill.active { background: rgba(6,182,212,0.1); color: #06b6d4; border-color: rgba(6,182,212,0.25); }
+body.theme-genbi .ki-item { background: rgba(10,10,12,0.85); border-color: rgba(6,182,212,0.08); }
+body.theme-genbi .ki-item:hover { background: rgba(16,16,20,0.88); border-color: rgba(6,182,212,0.15); }
+body.theme-genbi .ki-item.selected { border-color: #06b6d4; background: rgba(6,182,212,0.04); }
+body.theme-genbi .form-input, body.theme-genbi .form-select { background: rgba(255,255,255,0.03); border-color: rgba(6,182,212,0.12); color: rgba(255,255,255,0.85); border-radius: 0.6rem; }
+body.theme-genbi .form-input:focus, body.theme-genbi .form-select:focus { border-color: rgba(6,182,212,0.4); box-shadow: 0 0 0 3px rgba(6,182,212,0.08); }
+body.theme-genbi .toast { background: rgba(10,10,12,0.92); border-color: rgba(6,182,212,0.12); }
+body.theme-genbi .slide-panel { background: rgba(5,5,8,0.95); border-left-color: rgba(6,182,212,0.08); }
+body.theme-genbi .chart-tooltip { background: rgba(10,10,12,0.95); border-color: rgba(6,182,212,0.12); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+body.theme-genbi .profile-avatar { background: linear-gradient(135deg, #06b6d4, #0891b2); color: #000; }
+body.theme-genbi .cross-filter-bar { background: rgba(6,182,212,0.03); border-color: rgba(6,182,212,0.1); }
+body.theme-genbi .upload-modal { background: rgba(5,5,8,0.95); border-color: rgba(6,182,212,0.12); }
+body.theme-genbi .data-table-wrap { border-color: rgba(6,182,212,0.08); }
+body.theme-genbi .data-table th { background: rgba(10,10,12,0.9); color: #06b6d4; border-bottom-color: rgba(6,182,212,0.1); font-family: 'Outfit', sans-serif; }
+body.theme-genbi .data-table td { color: rgba(255,255,255,0.6); border-bottom-color: rgba(6,182,212,0.04); }
+body.theme-genbi .data-table td.col-numeric { color: rgba(255,255,255,0.8); }
+body.theme-genbi .data-table td.col-date { color: #06b6d4; }
+body.theme-genbi .data-table tbody tr:hover { background: rgba(6,182,212,0.03); }
+body.theme-genbi .data-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.01); }
+body.theme-genbi .data-table th .col-type-icon { opacity: 0.5; color: #06b6d4; }
+body.theme-genbi .ki-toggle-btn { background: rgba(6,182,212,0.04); color: rgba(255,255,255,0.4); }
+body.theme-genbi .ki-toggle-btn.active { background: #06b6d4; color: #000; }
+body.theme-genbi .ki-chart-tab { background: rgba(6,182,212,0.04); border-color: rgba(6,182,212,0.08); color: rgba(255,255,255,0.4); }
+body.theme-genbi .ki-chart-tab.active { background: #06b6d4; color: #000; border-color: transparent; }
+body.theme-genbi .auth-bar { background: rgba(5,5,8,0.9); border-bottom-color: rgba(6,182,212,0.06); }
 
 *{margin:0;padding:0;box-sizing:border-box;}
 html{overflow-x:hidden;}
@@ -3015,8 +3094,8 @@ async function loadSubscriptionPlans() {
 }
 
 function renderSettings() {
-  const themes = ['Modern', 'Liquid Glass', 'Pastel', 'Executive', 'Light', 'Midnight', 'Aurora'];
-  const current = App.theme || 'Modern';
+  const themes = ['GenBI', 'Modern', 'Liquid Glass', 'Pastel', 'Executive', 'Light', 'Midnight', 'Aurora'];
+  const current = App.theme || 'GenBI';
   return `<div class="page-header"><div><h1 class="page-title">Settings</h1><p class="page-subtitle">Configure your dashboard preferences.</p></div></div>
 
   <div class="glass-panel" style="max-width:640px"><h2 class="panel-title" style="margin-bottom:24px">Profile Settings</h2>
@@ -8089,8 +8168,9 @@ function generateReport() {
 function applyTheme(name) {
   // Backward-compat: map old name
   if (name === 'Dark Glass') name = 'Modern';
-  document.body.classList.remove('theme-midnight', 'theme-aurora', 'theme-light', 'theme-liquid-glass', 'theme-executive', 'theme-pastel');
-  if (name === 'Midnight') document.body.classList.add('theme-midnight');
+  document.body.classList.remove('theme-midnight', 'theme-aurora', 'theme-light', 'theme-liquid-glass', 'theme-executive', 'theme-pastel', 'theme-genbi');
+  if (name === 'GenBI') document.body.classList.add('theme-genbi');
+  else if (name === 'Midnight') document.body.classList.add('theme-midnight');
   else if (name === 'Aurora') document.body.classList.add('theme-aurora');
   else if (name === 'Light') document.body.classList.add('theme-light');
   else if (name === 'Liquid Glass') document.body.classList.add('theme-liquid-glass');
@@ -8099,6 +8179,7 @@ function applyTheme(name) {
   App.theme = name;
   // Update colorRgba for chart rendering
   const themeColors = {
+    'GenBI':        { cyan:'6,182,212', violet:'8,145,178', emerald:'16,185,129', amber:'103,232,249', rose:'244,63,94' },
     'Midnight':     { cyan:'92,124,250', violet:'121,80,242', emerald:'81,207,102', amber:'252,196,25', rose:'230,73,128' },
     'Aurora':       { cyan:'32,201,151', violet:'240,101,149', emerald:'81,207,102', amber:'255,212,59', rose:'255,135,135' },
     'Light':        { cyan:'8,145,178', violet:'124,58,237', emerald:'5,150,105', amber:'217,119,6', rose:'225,29,72' },
@@ -8113,10 +8194,23 @@ function applyTheme(name) {
   if (App.currentPage) navigate(App.currentPage);
 }
 
+function isGenBI() { return document.body.classList.contains('theme-genbi'); }
 function isLiquidGlass() { return document.body.classList.contains('theme-liquid-glass'); }
 function isExecutive() { return document.body.classList.contains('theme-executive'); }
 function isPastel() { return document.body.classList.contains('theme-pastel'); }
 function getThemeChartOpts() {
+  if (isGenBI()) return {
+    style: 'genbi',
+    gridColor: 'rgba(6,182,212,0.04)', gridDash: [], gridWidth: 0.5,
+    gridVertical: false, textAlpha: 0.4, bgFrost: false,
+    lineWidth: 2.5, lineGlow: 8, lineCap: 'round', lineSmooth: true,
+    dotRadius: 4, dotHalo: true, dotHaloRadius: 10, dotHaloAlpha: 0.15, dotShape: 'circle', dotAlways: true,
+    barRadius: 6, barBorder: false, barGradient: true, barGlow: 6,
+    donutInnerRatio: 0.62, donutGap: 2, donutGlow: 8, donutBorder: false,
+    tooltipBlur: 16, tooltipBorder: 'rgba(6,182,212,0.12)', tooltipBg: 'rgba(10,10,12,0.92)',
+    legendDot: 'circle', legendSize: 7,
+    animDuration: 700, animEasing: 'cubic-bezier(0.22,1,0.36,1)',
+  };
   if (isLiquidGlass()) return {
     style: 'liquid',
     // Grid: very subtle warm lines
@@ -10716,7 +10810,7 @@ document.addEventListener('input', e => {
 });
 
 // Restore saved theme
-try { const saved = localStorage.getItem('genbi-theme'); if (saved) applyTheme(saved); } catch(e) {}
+try { const saved = localStorage.getItem('genbi-theme'); applyTheme(saved || 'GenBI'); } catch(e) { applyTheme('GenBI'); }
 
 // ── Auth helpers ──
 function isLoggedIn() {
