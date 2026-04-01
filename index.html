@@ -6967,6 +6967,26 @@ function clearCrossFilter() {
   refreshAllAnalyticsCharts();
 }
 
+function _updateChartInsight(chart, idx) {
+  const el = document.getElementById('aiCaption' + idx);
+  if (!el) return;
+  const labels = chart.labels || [];
+  const hasSeries = chart.series && chart.series.length > 0;
+  const totals = hasSeries
+    ? labels.map((_, i) => chart.series.reduce((s, sr) => s + (sr.data[i] || 0), 0))
+    : (chart.data || []);
+  if (!totals.length) { el.textContent = chart.desc || ''; return; }
+  const yLabel = (chart.yLabel || 'Value').replace(/_/g, ' ');
+  const isCurrency = /revenue|sales|cost|expense|price|profit|income/i.test(yLabel);
+  const fmt = (v) => (isCurrency ? '$' : '') + formatNumber(v, {abbreviate: true, decimals: 1});
+  let peakIdx = 0, lowIdx = 0;
+  totals.forEach((v, i) => { if (v > totals[peakIdx]) peakIdx = i; if (v < totals[lowIdx]) lowIdx = i; });
+  const trend = totals[totals.length - 1] >= totals[0] ? 'an upward' : 'a downward';
+  el.textContent = yLabel + ' peaked at ' + fmt(totals[peakIdx]) + ' in ' + labels[peakIdx] +
+    ', with a low of ' + fmt(totals[lowIdx]) + ' in ' + labels[lowIdx] +
+    ', showing ' + trend + ' trend overall.';
+}
+
 function refreshAllAnalyticsCharts() {
   if (App.currentPage !== 'analytics' || !App.hasExcelData) return;
   const ec = App.excelChartConfig;
@@ -6985,7 +7005,7 @@ function refreshAllAnalyticsCharts() {
     }
   }
 
-  // Re-aggregate and redraw each chart
+  // Re-aggregate and redraw each chart + update insights
   ec.chartPlan.forEach((chart, i) => {
     const canvas = document.getElementById('analyticsChart' + i);
     if (!canvas) return;
@@ -6993,6 +7013,8 @@ function refreshAllAnalyticsCharts() {
     canvas._hasChartEvents = false;
     canvas._chartHit = null;
     animateChartFromPlan(canvas, rebuilt, 0);
+    // Update insight caption from filtered data
+    _updateChartInsight(rebuilt, i);
   });
 
   // Redraw custom charts

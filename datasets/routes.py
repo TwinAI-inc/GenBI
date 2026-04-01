@@ -152,6 +152,41 @@ def drilldown_endpoint():
     return jsonify(result)
 
 
+@datasets_bp.route('/explain-point', methods=['POST'])
+@auth_required
+def explain_point():
+    """
+    Explain a clicked data point: sunburst drilldown + key influencers.
+
+    Body: {
+        "dataset_id": "...",
+        "measure": "Revenue",
+        "clicked": {"Month": "2024-06", "Channel": "Enterprise"},
+        "filters": [{"column": "...", "value": "..."}],
+        "max_levels": 3,
+        "max_children_per_level": 12
+    }
+    """
+    data = request.get_json(silent=True) or {}
+    dataset_id = data.get('dataset_id')
+    measure = data.get('measure')
+    clicked = data.get('clicked', {})
+    filters = data.get('filters', [])
+    max_levels = min(data.get('max_levels', 3), 4)
+    max_children = min(data.get('max_children_per_level', 12), 20)
+
+    if not dataset_id or not measure:
+        return jsonify({'error': 'dataset_id and measure are required.'}), 422
+
+    ds = Dataset.query.filter_by(id=dataset_id, owner_id=request.current_user.id).first()
+    if not ds:
+        return jsonify({'error': 'Dataset not found.'}), 404
+
+    from .aggregator import explain_point as _explain
+    result = _explain(dataset_id, measure, clicked, filters, max_levels, max_children)
+    return jsonify(result)
+
+
 @datasets_bp.route('/list', methods=['GET'])
 @auth_required
 def list_datasets():

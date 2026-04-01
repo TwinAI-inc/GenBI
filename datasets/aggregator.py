@@ -292,3 +292,154 @@ def _build_sunburst(rows, dims, metric_col, agg_fn):
         'name': 'All',
         'children': children[:10],
     }
+
+
+def explain_point(dataset_id, measure, clicked, filters, max_levels=3, max_children=12):
+    """
+    Explain a clicked data point: sunburst drilldown + key influencers.
+
+    Args:
+        dataset_id: dataset ID
+        measure: numeric column name (e.g., "Revenue")
+        clicked: dict of dimension=value for the clicked point
+        filters: list of filter dicts
+        max_levels: max sunburst depth
+        max_children: max children per level
+    """
+    # Build filter list from clicked dims + existing filters
+    point_filters = list(filters or [])
+    for col, val in (clicked or {}).items():
+        point_filters.append({'column': col, 'value': val, 'op': 'eq'})
+
+    all_rows = _load_rows(dataset_id, filters)  # baseline (before click)
+    point_rows = _load_rows(dataset_id, point_filters)  # subset (after click)
+
+    if not all_rows:
+        return {'summary': {}, 'sunburst': None, 'influencers': []}
+
+    # Summary
+    point_total = _agg_values([r.get(measure) for r in point_rows], 'sum')
+    baseline_total = _agg_values([r.get(measure) for r in all_rows], 'sum')
+    summary = {
+        'clicked': clicked,
+        'measure': measure,
+        'point_value': point_total,
+        'baseline_value': baseline_total,
+        'point_rows': len(point_rows),
+        'baseline_rows': len(all_rows),
+        'share': round(point_total / baseline_total, 4) if baseline_total else 0,
+    }
+
+    # Find candidate dimensions for drilldown (categorical, not already clicked)
+    col_profiles = DatasetColumn.query.filter_by(dataset_id=dataset_id).all()
+    clicked_cols = set(clicked.keys()) if clicked else set()
+    candidates = [
+        c for c in col_profiles
+        if c.inferred_type == 'categorical'
+        and c.name not in clicked_cols
+        and c.name != measure
+        and c.cardinality <= 50
+    ]
+
+    # Rank candidates by "explain power" (entropy-like: prefer moderate cardinality)
+    def _explain_power(col_profile):
+        card = col_profile.cardinality
+        if card < 2:
+            return 0
+        # Sweet spot: 3-15 categories
+        if 3 <= card <= 15:
+            return 100 - card
+        return max(0, 50 - abs(card - 10))
+
+    candidates.sort(key=_explain_power, reverse=True)
+    dim_names = [c.name for c in candidates[:max_levels]]
+
+    # Build sunburst
+    sunburst = None
+    if len(dim_names) >= 2:
+        sunburst = _build_sunburst_multi(point_rows, dim_names[:max_levels], measure, 'sum', max_children)
+    elif len(dim_names) == 1:
+        # Single-level breakdown
+        groups = defaultdict(list)
+        for r in point_rows:
+            key = str(r.get(dim_names[0], '')).strip()
+            if key:
+                groups[key].append(r.get(measure))
+        children = [
+            {'name': k, 'value': _agg_values(v, 'sum')}
+            for k, v in groups.items()
+        ]
+        children.sort(key=lambda x: x['value'], reverse=True)
+        sunburst = {'name': 'All', 'children': children[:max_children]}
+
+    # Key influencers: compare point subset vs baseline
+    influencers = _compute_influencers(all_rows, point_rows, measure, candidates)
+
+    return {
+        'summary': summary,
+        'sunburst': sunburst,
+        'influencers': influencers,
+    }
+
+
+def _build_sunburst_multi(rows, dims, measure, agg_fn, max_children):
+    """Build multi-level sunburst from N dimensions."""
+    if len(dims) < 2:
+        return None
+    # Use first 2 dims (can extend to 3 later)
+    return _build_sunburst(rows, dims[:2], measure, agg_fn)
+
+
+def _compute_influencers(baseline_rows, subset_rows, measure, candidates):
+    """
+    Compute key influencers by comparing subset vs baseline.
+    For each categorical column, find which values are over-represented.
+    """
+    if not baseline_rows or not subset_rows:
+        return []
+
+    baseline_total = _agg_values([r.get(measure) for r in baseline_rows], 'sum')
+    subset_total = _agg_values([r.get(measure) for r in subset_rows], 'sum')
+    if not baseline_total:
+        return []
+
+    influencers = []
+
+    for col_prof in candidates[:8]:
+        col = col_prof.name
+
+        # Baseline distribution
+        bl_groups = defaultdict(float)
+        for r in baseline_rows:
+            key = str(r.get(col, '')).strip()
+            if key:
+                bl_groups[key] += _parse_num(r.get(measure))
+
+        # Subset distribution
+        sub_groups = defaultdict(float)
+        for r in subset_rows:
+            key = str(r.get(col, '')).strip()
+            if key:
+                sub_groups[key] += _parse_num(r.get(measure))
+
+        if not sub_groups:
+            continue
+
+        # Find the top value in subset
+        top_val = max(sub_groups, key=sub_groups.get)
+        sub_share = sub_groups[top_val] / subset_total if subset_total else 0
+        bl_share = bl_groups.get(top_val, 0) / baseline_total if baseline_total else 0
+
+        lift = round(sub_share / bl_share, 2) if bl_share > 0 else 0
+
+        influencers.append({
+            'feature': col,
+            'top_value': top_val,
+            'lift': lift,
+            'share': round(sub_share, 4),
+            'baseline_share': round(bl_share, 4),
+        })
+
+    # Sort by lift descending
+    influencers.sort(key=lambda x: x['lift'], reverse=True)
+    return influencers[:5]

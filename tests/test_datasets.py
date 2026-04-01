@@ -205,3 +205,31 @@ class TestInsightComputation:
         assert labels[peak_idx] is not None
         assert labels[low_idx] is not None
         assert data[peak_idx] >= data[low_idx]
+
+
+class TestInfluencers:
+    def test_compute_influencers(self):
+        """Influencers should identify over-represented categories."""
+        from datasets.aggregator import _compute_influencers
+        from unittest.mock import MagicMock
+
+        baseline = [
+            {'Channel': 'Online', 'Revenue': 100},
+            {'Channel': 'Enterprise', 'Revenue': 500},
+            {'Channel': 'Online', 'Revenue': 100},
+            {'Channel': 'Enterprise', 'Revenue': 400},
+        ]
+        subset = [
+            {'Channel': 'Enterprise', 'Revenue': 500},
+            {'Channel': 'Enterprise', 'Revenue': 400},
+        ]
+        col = MagicMock()
+        col.name = 'Channel'
+        col.inferred_type = 'categorical'
+        col.cardinality = 2
+
+        result = _compute_influencers(baseline, subset, 'Revenue', [col])
+        assert len(result) >= 1
+        assert result[0]['feature'] == 'Channel'
+        assert result[0]['top_value'] == 'Enterprise'
+        assert result[0]['lift'] >= 1.0  # Enterprise is over-represented
