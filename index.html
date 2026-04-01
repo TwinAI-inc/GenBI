@@ -2765,19 +2765,8 @@ function renderKPICards(kpis) {
 }
 
 function chartWidthClass(chart, idx, total) {
-  const type = chart._userType || chart.type;
-  if (chart._width) return 'chart-cell-' + chart._width;
-  // Smart layout: for 3-4 charts, make top row 2 halves, bottom row adapts
-  if (total <= 4) {
-    if (['line', 'area', 'heatmap', 'sankey', 'candlestick'].includes(type)) return 'chart-cell-full';
-    if (total === 3 && idx === 2) return 'chart-cell-full'; // last chart spans full if 3 total
-    return 'chart-cell-half';
-  }
-  // Fallback for larger plans
-  if (['line', 'area', 'heatmap', 'sankey'].includes(type)) return 'chart-cell-full';
-  if (['bar', 'waterfall', 'stacked', 'hbar', 'scatter', 'bubble', 'boxplot', 'candlestick'].includes(type)) return 'chart-cell-two-thirds';
-  if (['donut', 'gauge', 'funnel', 'radar', 'treemap'].includes(type)) return 'chart-cell-one-third';
-  return 'chart-cell-half';
+  if (chart._width === 'half') return 'chart-cell-half';
+  return 'chart-cell-full';
 }
 
 function renderAnalytics() {
