@@ -7265,6 +7265,18 @@ function openExplainDrawer(column, value, chartIdx) {
   const yLabel = chart ? (chart._origYCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
   const rows = getFilteredRows();
 
+  // Highlight the clicked bar on the chart
+  const canvas = document.getElementById('analyticsChart' + chartIdx);
+  if (canvas && canvas._chartHit) {
+    const hit = canvas._chartHit;
+    const idx = (hit.labels || []).indexOf(value);
+    if (idx >= 0) {
+      if (hit.type === 'bar') drawBarChart(canvas, hit.labels, hit.data, hit.colorName, { ...hit.opts, _highlightIdx: idx });
+      else if (hit.type === 'stacked') drawStackedBarChart(canvas, hit.labels, hit.seriesData, { ...hit.opts, _highlightIdx: idx, _highlightSeries: -1 });
+    }
+  }
+  App._explainHighlight = { chartIdx, column, value };
+
   // Filter to clicked point
   const pointRows = rows.filter(r => String(r[column] || '').trim() === value);
   if (!pointRows.length) return;
@@ -7322,15 +7334,39 @@ function openExplainDrawer(column, value, chartIdx) {
 
   let html = '<div style="padding:4px 0 16px">';
 
+  // Compute extra stats
+  const pointNums = pointRows.map(r => parseFloat(r[yLabel]) || 0).filter(v => v);
+  const ptMin = pointNums.length ? Math.min(...pointNums) : 0;
+  const ptMax = pointNums.length ? Math.max(...pointNums) : 0;
+  const ptAvg = pointNums.length ? pointNums.reduce((a, b) => a + b, 0) / pointNums.length : 0;
+  const baselineAvg = rows.length ? rows.reduce((s, r) => s + (parseFloat(r[yLabel]) || 0), 0) / rows.length : 0;
+  const vsAvgPct = baselineAvg ? Math.round((ptAvg - baselineAvg) / baselineAvg * 100) : 0;
+  const vsAvgColor = vsAvgPct >= 0 ? 'var(--accent-emerald)' : 'var(--accent-rose)';
+  const vsAvgSign = vsAvgPct >= 0 ? '+' : '';
+
+  // Rank among all values of this column
+  const allGroupTotals = {};
+  rows.forEach(r => { const k = String(r[column] || '').trim(); if (k) allGroupTotals[k] = (allGroupTotals[k] || 0) + (parseFloat(r[yLabel]) || 0); });
+  const sortedGroups = Object.entries(allGroupTotals).sort((a, b) => b[1] - a[1]);
+  const rank = sortedGroups.findIndex(g => g[0] === value) + 1;
+
   // Summary card
   html += '<div style="background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.15);border-radius:12px;padding:14px 16px;margin-bottom:20px">';
-  html += '<div style="font-size:11px;color:var(--text-tertiary);margin-bottom:6px">You clicked</div>';
-  html += '<div style="font-size:15px;font-weight:600;color:var(--text-primary)">' + column.replace(/_/g, ' ') + ' = ' + value + '</div>';
-  html += '<div style="display:flex;gap:20px;margin-top:10px">';
-  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Value</div><div style="font-size:18px;font-weight:700;color:var(--accent-cyan)">' + fmtVal(pointTotal) + '</div></div>';
-  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Share of Total</div><div style="font-size:18px;font-weight:700;color:var(--text-primary)">' + (baselineTotal ? Math.round(pointTotal / baselineTotal * 1000) / 10 : 0) + '%</div></div>';
-  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Rows</div><div style="font-size:18px;font-weight:700;color:var(--text-primary)">' + pointRows.length + '</div></div>';
-  html += '</div></div>';
+  html += '<div style="font-size:11px;color:var(--text-tertiary);margin-bottom:4px">You clicked</div>';
+  html += '<div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:10px">' + column.replace(/_/g, ' ') + ' = ' + value + '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Total</div><div style="font-size:18px;font-weight:700;color:var(--accent-cyan)">' + fmtVal(pointTotal) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Share</div><div style="font-size:18px;font-weight:700;color:var(--text-primary)">' + (baselineTotal ? Math.round(pointTotal / baselineTotal * 1000) / 10 : 0) + '%</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Rank</div><div style="font-size:18px;font-weight:700;color:var(--text-primary)">#' + rank + ' of ' + sortedGroups.length + '</div></div>';
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06)">';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Avg</div><div style="font-size:13px;font-weight:600;color:var(--text-primary)">' + fmtVal(ptAvg) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Min</div><div style="font-size:13px;font-weight:600;color:var(--text-primary)">' + fmtVal(ptMin) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">Max</div><div style="font-size:13px;font-weight:600;color:var(--text-primary)">' + fmtVal(ptMax) + '</div></div>';
+  html += '<div><div style="font-size:10px;color:var(--text-tertiary)">vs Avg</div><div style="font-size:13px;font-weight:700;color:' + vsAvgColor + '">' + vsAvgSign + vsAvgPct + '%</div></div>';
+  html += '</div>';
+  html += '<div style="font-size:11px;color:var(--text-tertiary);margin-top:8px">' + pointRows.length + ' records in this group</div>';
+  html += '</div>';
 
   // Key Influencers section
   if (influencers.length) {
@@ -7869,7 +7905,18 @@ function openPanel(type) {
   if(type === 'chartAssistant') setTimeout(() => { const msgs = $('#assistantMessages'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 50);
 }
 
-function closePanel() { $('#panelOverlay').classList.remove('open'); $('#slidePanel').classList.remove('open'); }
+function closePanel() {
+  $('#panelOverlay').classList.remove('open'); $('#slidePanel').classList.remove('open');
+  // Clear bar highlight
+  if (App._explainHighlight) {
+    const ci = App._explainHighlight.chartIdx;
+    const canvas = document.getElementById('analyticsChart' + ci);
+    if (canvas && App.excelChartConfig && App.excelChartConfig.chartPlan[ci]) {
+      animateChartFromPlan(canvas, App.excelChartConfig.chartPlan[ci], 0);
+    }
+    App._explainHighlight = null;
+  }
+}
 $('#panelOverlay').addEventListener('click', closePanel);
 $('#slidePanelClose').addEventListener('click', closePanel);
 $('#uploadModalOverlay').addEventListener('click', function(e) { if(e.target === this) closeUploadModal(); });
