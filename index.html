@@ -7265,20 +7265,43 @@ function openExplainDrawer(column, value, chartIdx) {
   const yLabel = chart ? (chart._origYCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
   const rows = getFilteredRows();
 
-  // Highlight the clicked bar on the chart (with delay to let animation finish)
+  // Highlight the clicked bar by adding a colored border overlay
   const canvas = document.getElementById('analyticsChart' + chartIdx);
   App._explainHighlight = { chartIdx, column, value };
   if (canvas) {
-    if (canvas._animFrame) { cancelAnimationFrame(canvas._animFrame); canvas._animFrame = null; }
+    // Wait for animation to finish, then paint highlight directly
     setTimeout(function() {
       const hit = canvas._chartHit;
       if (!hit) return;
-      const hitLabels = hit.labels || [];
-      const idx = hitLabels.indexOf(value);
-      if (idx < 0) return;
-      if (hit.type === 'bar') drawBarChart(canvas, hitLabels, hit.data, hit.colorName, { ...hit.opts, _highlightIdx: idx });
-      else if (hit.type === 'stacked') drawStackedBarChart(canvas, hitLabels, hit.seriesData, { ...hit.opts, _highlightIdx: idx, _highlightSeries: -1 });
-    }, 50);
+      const areas = hit.areas || [];
+      // Find all hit areas matching the clicked label
+      const matchAreas = areas.filter(a => a.label === value);
+      if (!matchAreas.length) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      matchAreas.forEach(a => {
+        // Draw a bright border around the bar
+        ctx.strokeStyle = '#00e5ff';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#00e5ff';
+        ctx.shadowBlur = 12;
+        ctx.strokeRect(a.x + 1, a.y + 1, a.w - 2, a.h - 2);
+      });
+      // Also draw a top indicator arrow
+      const topArea = matchAreas[matchAreas.length - 1]; // topmost segment
+      ctx.fillStyle = '#00e5ff';
+      const cx = topArea.x + topArea.w / 2;
+      const ty = topArea.y - 4;
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, ty - 8);
+      ctx.lineTo(cx + 5, ty - 8);
+      ctx.lineTo(cx, ty);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }, 900); // after animation completes (700ms + buffer)
   }
 
   // Filter to clicked point
