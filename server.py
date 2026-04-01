@@ -111,8 +111,8 @@ def create_app():
     # ── Page routes ──────────────────────────────────────────────────────
 
     @app.route('/')
-    def index():
-        return send_from_directory('.', 'index.html', max_age=0)
+    def landing():
+        return send_from_directory('.', 'landing.html', max_age=0)
 
     @app.route('/dashboard')
     def dashboard_page():
