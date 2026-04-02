@@ -9132,8 +9132,8 @@ function applyTheme(name) {
   document.body.classList.remove('theme-midnight', 'theme-aurora', 'theme-light', 'theme-liquid-glass', 'theme-executive', 'theme-pastel', 'theme-genbi');
   if (name === 'GenBI') {
     document.body.classList.add('theme-genbi');
-    // Random dashboard background from 3 options
-    const genBgs = ['public/images/bg-option-1.png','public/images/bg-option-2.png','public/images/dashboard-bg.png'];
+    // Random dashboard background from 2 B&W options
+    const genBgs = ['public/images/bg-bw-2.png','public/images/bg-bw-3.png'];
     document.body.style.setProperty('--genbi-dash-bg', 'url(' + genBgs[Math.floor(Math.random() * genBgs.length)] + ')');
   }
   else if (name === 'Midnight') document.body.classList.add('theme-midnight');
