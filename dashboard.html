@@ -11686,14 +11686,14 @@ function autoMapExcelData(rows) {
     }
   }
 
-  // ── CHART 2: BAR — Primary or secondary metric by a good category ──
+  // ── CHART 2: HBAR — Primary metric by category (horizontal for readability) ──
   if (chartPlan.length < maxCharts && primaryMetric) {
     // Try nameCol first (e.g. "Top Products by Revenue"), then other categoricals
     const barInfo = bestBarCat(primaryMetric);
     if (barInfo && !usedCombos.has(barInfo.col + '|' + primaryMetric)) {
       const isRate = /score|rate|compliance|avg|percent/i.test(primaryMetric);
       const agg = barInfo.agg.slice(0, 10);
-      chartPlan.push({ type: 'bar',
+      chartPlan.push({ type: 'hbar',
         title: (nameCol && barInfo.col === nameCol ? 'Top ' : '') + primaryMetric.replace(/_/g, ' ') + ' by ' + barInfo.col.replace(/_/g, ' '),
         labels: agg.map(a => a.label), data: agg.map(a => a.value), color: 'cyan', suffix: '',
         xLabel: barInfo.col.replace(/_/g, ' '), yLabel: primaryMetric.replace(/_/g, ' '),
@@ -11887,20 +11887,45 @@ function autoMapExcelData(rows) {
     }
   }
 
+  // CANDIDATE: Treemap — share of metric by category
+  if (categoricals.length > 0 && primaryMetric) {
+    const tmCat = categoricals.find(c => colMeta[c].uniqueCount >= 3 && colMeta[c].uniqueCount <= 12 && !usedCombos.has(c + '|tm'));
+    if (tmCat) {
+      const agg = aggByCategory(tmCat, primaryMetric, /score|rate|percent/i.test(primaryMetric) ? 'avg' : 'sum').filter(a => a.value > 0).slice(0, 10);
+      if (agg.length >= 3) {
+        candidates.push({ type: 'treemap', insight: 5, title: primaryMetric.replace(/_/g,' ') + ' Treemap by ' + tmCat.replace(/_/g,' '),
+          labels: agg.map(a => a.label), data: agg.map(a => a.value),
+          desc: 'Treemap showing relative size of ' + primaryMetric.replace(/_/g,' ').toLowerCase() + ' across ' + tmCat.replace(/_/g,' ').toLowerCase() + '.' });
+      }
+    }
+  }
+
+  // CANDIDATE: Bar — secondary metric (since chart 2 is hbar)
+  if (secondaryMetric) {
+    const barInfo2 = bestBarCat(secondaryMetric);
+    if (barInfo2 && !usedCombos.has(barInfo2.col + '|' + secondaryMetric)) {
+      const agg = barInfo2.agg.slice(0, 10);
+      candidates.push({ type: 'bar', insight: 6, title: secondaryMetric.replace(/_/g, ' ') + ' by ' + barInfo2.col.replace(/_/g, ' '),
+        labels: agg.map(a => a.label), data: agg.map(a => a.value), color: 'teal', suffix: '',
+        xLabel: barInfo2.col.replace(/_/g, ' '), yLabel: secondaryMetric.replace(/_/g, ' '),
+        desc: 'Compares ' + secondaryMetric.replace(/_/g, ' ').toLowerCase() + ' across ' + barInfo2.col.replace(/_/g, ' ').toLowerCase() + '.' });
+    }
+  }
+
   // ── RANK & PICK: Sort candidates by insight score, ensure type variety, pick best to add after core 3 ──
   candidates.sort((a, b) => b.insight - a.insight);
   const usedChartTypes = new Set(chartPlan.map(c => c.type));
   let added = 0;
   for (const cand of candidates) {
-    if (chartPlan.length >= 4) break;
+    if (chartPlan.length >= 6) break;
     if (usedChartTypes.has(cand.type)) continue; // ensure variety
     chartPlan.push(cand);
     usedChartTypes.add(cand.type);
     added++;
   }
 
-  // Hard limit: 4 charts max for clean dashboard
-  chartPlan.splice(4);
+  // Hard limit: 6 charts for diverse dashboard
+  chartPlan.splice(6);
 
   // Store original column references for cross-filter rebuilds
   chartPlan.forEach(chart => {
