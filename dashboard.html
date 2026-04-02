@@ -8646,23 +8646,41 @@ function downloadProjectToDevice(name, meta) {
   if (!contentEl) { toast('Nothing to export.', 'error'); return; }
   toast('Generating PDF...', 'info');
   html2canvas(contentEl, {
-    scale: 2,
+    scale: 1.5,
     useCORS: true,
     backgroundColor: getComputedStyle(document.body).backgroundColor || '#0a0a0a',
-    logging: false,
-    windowWidth: contentEl.scrollWidth,
-    windowHeight: contentEl.scrollHeight
+    logging: false
   }).then(function(canvas) {
     try {
       var jsPDF = window.jspdf.jsPDF;
-      var imgWidth = canvas.width;
-      var imgHeight = canvas.height;
-      var orientation = imgWidth > imgHeight ? 'l' : 'p';
-      var pdf = new jsPDF(orientation, 'px', [imgWidth, imgHeight]);
-      var imgData = canvas.toDataURL('image/png');
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      pdf.save(name.replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.pdf');
-      toast('PDF saved!', 'success');
+      var pdf = new jsPDF('p', 'mm', 'a4');
+      var pageWidth = pdf.internal.pageSize.getWidth();
+      var pageHeight = pdf.internal.pageSize.getHeight();
+      var imgData = canvas.toDataURL('image/jpeg', 0.85);
+      var canvasAspect = canvas.width / canvas.height;
+      var imgW = pageWidth;
+      var imgH = imgW / canvasAspect;
+      var heightLeft = imgH;
+      var position = 0;
+      pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
+      heightLeft -= pageHeight;
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
+        heightLeft -= pageHeight;
+      }
+      var fileName = name.replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.pdf';
+      var pdfBlob = pdf.output('blob');
+      var url = URL.createObjectURL(pdfBlob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+      toast('PDF downloaded!', 'success');
     } catch(e) {
       console.error('PDF generation failed:', e);
       toast('PDF generation failed.', 'error');
