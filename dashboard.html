@@ -11417,28 +11417,6 @@ function autoMapExcelData(rows) {
   // ── SMART CHART SELECTION: Build candidate pool, rank by insight value, pick best 3-4 ──
   const candidates = [];
 
-  // CANDIDATE: Heatmap — 2 categoricals cross-tab (high insight density)
-  if (categoricals.length >= 2 && primaryMetric) {
-    const hmX = dates[0] || categoricals.find(c => colMeta[c].uniqueCount >= 3 && colMeta[c].uniqueCount <= 12);
-    const hmY = categoricals.find(c => c !== hmX && colMeta[c].uniqueCount >= 2 && colMeta[c].uniqueCount <= 8);
-    if (hmX && hmY) {
-      const xLabels = [...new Set(rows.map(r => String(r[hmX]||'').trim()))].filter(Boolean).sort();
-      const yLabels = [...new Set(rows.map(r => String(r[hmY]||'').trim()))].filter(Boolean).sort();
-      if (xLabels.length >= 3 && yLabels.length >= 2) {
-        const matrix = yLabels.map(yl => xLabels.map(xl => {
-          const matched = rows.filter(r => String(r[hmX]||'').trim() === xl && String(r[hmY]||'').trim() === yl);
-          if (!matched.length) return 0;
-          const isRate = /score|rate|avg|percent/i.test(primaryMetric);
-          const vals = matched.map(r => parseFloat(r[primaryMetric]) || 0);
-          return isRate ? vals.reduce((a,b)=>a+b,0)/vals.length : vals.reduce((a,b)=>a+b,0);
-        }));
-        candidates.push({ type: 'heatmap', insight: 9, title: primaryMetric.replace(/_/g,' ') + ': ' + hmY.replace(/_/g,' ') + ' × ' + hmX.replace(/_/g,' '),
-          labels: xLabels, yLabels, matrix, color: 'cyan',
-          desc: 'Heatmap showing ' + primaryMetric.replace(/_/g,' ').toLowerCase() + ' intensity across ' + hmY.replace(/_/g,' ').toLowerCase() + ' and ' + hmX.replace(/_/g,' ').toLowerCase() + '.' });
-      }
-    }
-  }
-
   // CANDIDATE: Scatter — correlation between 2 metrics
   if (metrics.length >= 2) {
     const scX = primaryMetric;
