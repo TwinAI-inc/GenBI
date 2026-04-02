@@ -214,14 +214,26 @@
     return out;
   }
 
-  /** Build a lookup from name/id → normalised entry */
+  /** Build a lookup from name/id → normalised entry. Handles multiple formats:
+   *  "California", "CA", "ca", "Calif.", "california" etc. */
   function buildLookup(regions, normMap) {
+    // Build a flexible key map: lowercase name, lowercase id, common abbreviations
+    const flexMap = {};
+    for (const [k, v] of Object.entries(normMap)) {
+      flexMap[k] = v;
+      flexMap[k.toLowerCase()] = v;
+      flexMap[k.toUpperCase()] = v;
+      // strip trailing dots: "Mass." → "Mass"
+      flexMap[k.replace(/\.$/, '').toLowerCase()] = v;
+    }
     const lk = {};
     for (const r of regions) {
       const key =
-        normMap[r.name] !== undefined ? r.name :
-        normMap[r.id]   !== undefined ? r.id   : null;
-      if (key !== null) lk[r.id] = normMap[key];
+        flexMap[r.name] !== undefined ? r.name :
+        flexMap[r.id]   !== undefined ? r.id   :
+        flexMap[r.name.toLowerCase()] !== undefined ? r.name.toLowerCase() :
+        flexMap[r.id.toLowerCase()]   !== undefined ? r.id.toLowerCase()   : null;
+      if (key !== null) lk[r.id] = flexMap[key];
     }
     return lk;
   }
