@@ -7337,15 +7337,18 @@ function handleMultiLineHover(e) {
   let idx = Math.round((mx - padL) / step);
   idx = Math.max(0, Math.min(nLabels - 1, idx));
 
-  // Redraw chart with crosshair
+  // Redraw chart with crosshair — preserve area vs line type
+  const isArea = hit.chartType === 'area';
   const datasets = chart.series.map(s => {
     const clr = getColorRgb(s.color);
     return { data: s.data, stroke: 'rgba('+clr+',0.9)', lineWidth: 2,
-      fillTop: 'rgba('+clr+',0.06)', fillBot: 'rgba('+clr+',0)',
+      fillTop: isArea ? 'rgba('+clr+',0.35)' : 'rgba('+clr+',0.06)',
+      fillBot: isArea ? 'rgba('+clr+',0.03)' : 'rgba('+clr+',0)',
       dotColor: 'rgba('+clr+',1)', dotGlow: 'rgba('+clr+',0.15)' };
   });
   const opts = { suffix: chart.suffix||'', xLabel: chart.xLabel||'', yLabel: chart.yLabel||'', _crosshairIdx: idx };
-  drawChart(canvas, datasets, chart.labels, opts);
+  if (isArea) drawAreaChart(canvas, datasets, chart.labels, opts);
+  else drawChart(canvas, datasets, chart.labels, opts);
 
   // Draw vertical crosshair line
   const ctx = canvas.getContext('2d');
@@ -8279,7 +8282,7 @@ function animateAreaChart(canvas, chart) {
     else {
       canvas._animFrame = null;
       if (isSeries) {
-        canvas._chartHit = { type: 'multiline', chart: chart, labels: chart.labels };
+        canvas._chartHit = { type: 'multiline', chartType: 'area', chart: chart, labels: chart.labels };
         if (!canvas._hasChartEvents) {
           canvas._hasChartEvents = true;
           canvas.addEventListener('mousemove', handleMultiLineHover);
