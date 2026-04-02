@@ -9657,7 +9657,28 @@ async function handleAskData() {
       html += '<div style="margin-top:10px"><button class="action-chip" onclick="applyAIFilter(\'' + (data.filter.column || '').replace(/'/g, "\\'") + '\',\'' + (data.filter.value || '').replace(/'/g, "\\'") + '\')">Apply Filter: ' + (data.filter.column || '') + ' = ' + (data.filter.value || '') + '</button></div>';
     }
     answerEl.innerHTML = html;
-    if (data.chart && data.chart.type !== 'stats') initAskChart(data.chart);
+    if (data.chart && data.chart.type !== 'stats') {
+      initAskChart(data.chart);
+      // Add to custom charts grid
+      if (data.chart.labels && data.chart.values && data.chart.labels.length > 0) {
+        var askCustomChart = {
+          type: data.chart.type === 'doughnut' || data.chart.type === 'pie' ? 'donut' : data.chart.type,
+          title: question,
+          labels: data.chart.labels,
+          data: data.chart.values,
+          color: 'cyan',
+          desc: data.answer || ''
+        };
+        var isDup = App.customCharts.some(function(c) {
+          return c.title === askCustomChart.title && c.type === askCustomChart.type;
+        });
+        if (!isDup) {
+          App.customCharts.unshift(askCustomChart);
+          navigate('analytics');
+          setTimeout(function() { drawCustomCharts(); }, 200);
+        }
+      }
+    }
   } catch(e) {
     if (e.message === 'NO_KEY') answerEl.innerHTML = aiNoAuthHTML();
     else answerEl.innerHTML = '<span style="color:var(--accent-rose);font-size:12px">' + friendlyAIError(e.message) + '</span>';
