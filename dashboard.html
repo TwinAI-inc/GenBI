@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <style>
 :root {
   --glass-bg: hsla(0 0% 6% / 0.65);
@@ -8640,20 +8642,35 @@ function restoreProjectData(data) {
 }
 
 function downloadProjectToDevice(name, meta) {
-  try {
-    var payload = { meta: meta, data: serializeProjectData() };
-    var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = name.replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.genbi.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  } catch(e) {
-    console.error('Download to device failed:', e);
-  }
+  var contentEl = document.getElementById('mainContent');
+  if (!contentEl) { toast('Nothing to export.', 'error'); return; }
+  toast('Generating PDF...', 'info');
+  html2canvas(contentEl, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: getComputedStyle(document.body).backgroundColor || '#0a0a0a',
+    logging: false,
+    windowWidth: contentEl.scrollWidth,
+    windowHeight: contentEl.scrollHeight
+  }).then(function(canvas) {
+    try {
+      var jsPDF = window.jspdf.jsPDF;
+      var imgWidth = canvas.width;
+      var imgHeight = canvas.height;
+      var orientation = imgWidth > imgHeight ? 'l' : 'p';
+      var pdf = new jsPDF(orientation, 'px', [imgWidth, imgHeight]);
+      var imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(name.replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.pdf');
+      toast('PDF saved!', 'success');
+    } catch(e) {
+      console.error('PDF generation failed:', e);
+      toast('PDF generation failed.', 'error');
+    }
+  }).catch(function(e) {
+    console.error('Screenshot capture failed:', e);
+    toast('Failed to capture dashboard.', 'error');
+  });
 }
 
 function saveProject(name) {
