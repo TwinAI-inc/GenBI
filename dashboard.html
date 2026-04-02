@@ -7,8 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root {
   --glass-bg: hsla(0 0% 6% / 0.65);
@@ -6703,11 +6701,13 @@ function drawHeatmapChart(canvas, chart, opts = {}) {
   const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width * dpr; canvas.height = rect.height * dpr;
-  canvas.style.width = rect.width + 'px'; canvas.style.height = rect.height + 'px';
+  const w = canvas._lockedW || canvas.parentElement.getBoundingClientRect().width;
+  const h = canvas._lockedH || canvas.parentElement.getBoundingClientRect().height;
+  if (!w || !h) return;
+  canvas._lockedW = w; canvas._lockedH = h;
+  canvas.width = w * dpr; canvas.height = h * dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  const w = rect.width, h = rect.height;
   ctx.clearRect(0, 0, w, h);
   const xLabels = chart.labels || [];
   const yLabels = chart.yLabels || [];
@@ -8718,53 +8718,20 @@ function restoreProjectData(data) {
 }
 
 function downloadProjectToDevice(name, meta) {
-  var contentEl = document.getElementById('mainContent');
-  if (!contentEl) { toast('Nothing to export.', 'error'); return; }
-  toast('Generating PDF...', 'info');
-  html2canvas(contentEl, {
-    scale: 1.5,
-    useCORS: true,
-    backgroundColor: getComputedStyle(document.body).backgroundColor || '#0a0a0a',
-    logging: false
-  }).then(function(canvas) {
-    try {
-      var jsPDF = window.jspdf.jsPDF;
-      var pdf = new jsPDF('p', 'mm', 'a4');
-      var pageWidth = pdf.internal.pageSize.getWidth();
-      var pageHeight = pdf.internal.pageSize.getHeight();
-      var imgData = canvas.toDataURL('image/jpeg', 0.85);
-      var canvasAspect = canvas.width / canvas.height;
-      var imgW = pageWidth;
-      var imgH = imgW / canvasAspect;
-      var heightLeft = imgH;
-      var position = 0;
-      pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
-      heightLeft -= pageHeight;
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgW, imgH);
-        heightLeft -= pageHeight;
-      }
-      var fileName = name.replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.pdf';
-      var pdfBlob = pdf.output('blob');
-      var url = URL.createObjectURL(pdfBlob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
-      toast('PDF downloaded!', 'success');
-    } catch(e) {
-      console.error('PDF generation failed:', e);
-      toast('PDF generation failed.', 'error');
-    }
-  }).catch(function(e) {
-    console.error('Screenshot capture failed:', e);
-    toast('Failed to capture dashboard.', 'error');
-  });
+  try {
+    var payload = { meta: meta, data: serializeProjectData() };
+    var blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name.replace(/[^a-zA-Z0-9_\- ]/g, '_') + '.genbi.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    console.error('Download to device failed:', e);
+  }
 }
 
 function saveProject(name) {
