@@ -11188,51 +11188,132 @@ function showUploadSuccess(rowCount, fileName) {
   }, 400);
 }
 
-function loadSampleDataset() {
-  const months = ['2024-01','2024-02','2024-03','2024-04','2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12'];
-  const channels = ['Direct Sales','Online','Partner','Enterprise'];
-  const segments = ['Small Business','Mid-Market','Enterprise','Startup'];
-  const reps = ['Sarah Chen','James Rivera','Priya Patel','Marcus Johnson','Elena Voss','David Kim'];
-  const rows = [];
-  // Growth curve: revenue trends up through the year
-  months.forEach((month, mi) => {
-    channels.forEach(channel => {
-      segments.forEach(segment => {
-        // Realistic base: Enterprise/Direct = high, Startup/Online = lower
-        const chBase = { 'Direct Sales': 85000, 'Online': 42000, 'Partner': 58000, 'Enterprise': 120000 }[channel];
-        const segMult = { 'Small Business': 0.5, 'Mid-Market': 0.8, 'Enterprise': 1.6, 'Startup': 0.35 }[segment];
-        const seasonality = 1 + 0.15 * Math.sin((mi - 2) * Math.PI / 6); // peak in Q2/Q4
-        const growth = 1 + mi * 0.025; // 2.5% monthly growth
-        const revenue = Math.round(chBase * segMult * seasonality * growth * (0.85 + Math.random() * 0.3));
-        const deals = Math.round(3 + Math.random() * 12);
-        const avgDealSize = Math.round(revenue / deals);
-        const winRate = Math.round((35 + Math.random() * 45) * 10) / 10;
-        const customerCount = Math.round(deals * winRate / 100 * (1 + Math.random()));
-        const churnRate = Math.round((2 + Math.random() * 8) * 10) / 10;
-        const rep = reps[Math.floor(Math.random() * reps.length)];
-        rows.push({
-          Month: month,
-          Channel: channel,
-          Segment: segment,
-          Sales_Rep: rep,
-          Revenue: revenue,
-          Deals_Closed: deals,
-          Avg_Deal_Size: avgDealSize,
-          Win_Rate_Pct: winRate,
-          New_Customers: customerCount,
-          Churn_Rate_Pct: churnRate,
-          Cost_of_Sales: Math.round(revenue * (0.2 + Math.random() * 0.15)),
-          Profit: Math.round(revenue * (0.55 + Math.random() * 0.2))
+function loadSampleDataset(which) {
+  if (!which) {
+    // Show picker popup
+    const overlay = document.createElement('div');
+    overlay.className = 'panel-overlay'; overlay.style.display = 'block'; overlay.onclick = () => overlay.remove();
+    const popup = document.createElement('div');
+    popup.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:101;width:520px;background:rgba(0,0,0,0.95);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:24px;font-family:Outfit,sans-serif;';
+    popup.innerHTML = '<div style="font-size:15px;font-weight:400;color:rgba(255,255,255,0.90);margin-bottom:16px">Choose a Sample Dataset</div>' +
+      '<div style="display:flex;flex-direction:column;gap:10px">' +
+      '<div class="sample-pick" onclick="document.querySelector(\'.panel-overlay\').remove();loadSampleDataset(\'pharma\')" style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all 0.2s"><div style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.85)">Pharma Product Development & Risk</div><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Drug pipeline, clinical trials, risk scores, regulatory status, R&D costs. 360 rows, 14 columns.</div></div>' +
+      '<div class="sample-pick" onclick="document.querySelector(\'.panel-overlay\').remove();loadSampleDataset(\'sales\')" style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all 0.2s"><div style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.85)">Global Sales Performance</div><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Multi-channel revenue by region, segment, rep. Win rates, churn, profitability. 576 rows, 14 columns.</div></div>' +
+      '<div class="sample-pick" onclick="document.querySelector(\'.panel-overlay\').remove();loadSampleDataset(\'operations\')" style="padding:14px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all 0.2s"><div style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.85)">Supply Chain & Operations</div><div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:4px">Facilities, suppliers, lead times, defect rates, inventory, shipping. 480 rows, 15 columns.</div></div>' +
+      '</div>';
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    return;
+  }
+
+  let rows, fileName;
+
+  if (which === 'pharma') {
+    // ── Pharma Product Development & Risk Analysis ──
+    const phases = ['Discovery','Preclinical','Phase I','Phase II','Phase III','FDA Review','Approved'];
+    const areas = ['Oncology','Cardiology','Neurology','Immunology','Rare Disease'];
+    const molecules = ['ABX-101','ABX-202','CRD-330','NEU-415','IMM-508','RDS-612','ONC-720','CRD-815','NEU-903','IMM-110'];
+    const sites = ['Boston','San Diego','Basel','Singapore','London','Tokyo'];
+    const statuses = ['On Track','At Risk','Delayed','Completed','Discontinued'];
+    rows = [];
+    const quarters = ['2023-Q1','2023-Q2','2023-Q3','2023-Q4','2024-Q1','2024-Q2','2024-Q3','2024-Q4','2025-Q1','2025-Q2','2025-Q3','2025-Q4'];
+    quarters.forEach((q, qi) => {
+      molecules.forEach(mol => {
+        const area = areas[molecules.indexOf(mol) % areas.length];
+        const site = sites[Math.floor(Math.random() * sites.length)];
+        const phaseIdx = Math.min(phases.length - 1, Math.floor(qi / 2 + Math.random() * 1.5));
+        const phase = phases[phaseIdx];
+        const riskScore = Math.round((phase === 'Discovery' ? 85 : phase === 'Phase III' ? 35 : 50 + Math.random() * 30) * 10) / 10;
+        const enrollmentTarget = phase.includes('Phase') ? Math.round(50 + Math.random() * 500) : 0;
+        const enrolled = Math.round(enrollmentTarget * (0.4 + Math.random() * 0.6));
+        const rdCost = Math.round((phase === 'Discovery' ? 2 : phase === 'Phase III' ? 45 : 8 + phaseIdx * 7) * (0.8 + Math.random() * 0.4) * 1000000);
+        const efficacy = phase === 'Discovery' ? null : Math.round((40 + Math.random() * 50) * 10) / 10;
+        const safetyEvents = phase === 'Discovery' ? 0 : Math.round(Math.random() * (phaseIdx * 3));
+        const status = Math.random() > 0.85 ? 'At Risk' : (Math.random() > 0.9 ? 'Delayed' : (phaseIdx >= 6 ? 'Completed' : 'On Track'));
+        const patentYears = Math.round(5 + Math.random() * 12);
+        const marketSize = Math.round((500 + Math.random() * 4500) * 1000000);
+        rows.push({ Quarter: q, Molecule: mol, Therapeutic_Area: area, Phase: phase, Site: site, Status: status,
+          Risk_Score: riskScore, Enrollment_Target: enrollmentTarget, Enrolled: enrolled, RD_Cost_USD: rdCost,
+          Efficacy_Pct: efficacy, Safety_Events: safetyEvents, Patent_Years_Left: patentYears, Market_Size_USD: marketSize });
+      });
+    });
+    fileName = 'pharma_pipeline_2023_2025.csv';
+  }
+
+  else if (which === 'sales') {
+    // ── Global Sales Performance ──
+    const months = ['2024-01','2024-02','2024-03','2024-04','2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12'];
+    const channels = ['Direct Sales','Online','Partner','Enterprise'];
+    const segments = ['Small Business','Mid-Market','Enterprise','Startup'];
+    const regions = ['North America','Europe','Asia Pacific','Latin America'];
+    const reps = ['Sarah Chen','James Rivera','Priya Patel','Marcus Johnson','Elena Voss','David Kim'];
+    rows = [];
+    months.forEach((month, mi) => {
+      channels.forEach(channel => {
+        segments.forEach(segment => {
+          const region = regions[Math.floor(Math.random() * regions.length)];
+          const chBase = { 'Direct Sales': 85000, 'Online': 42000, 'Partner': 58000, 'Enterprise': 120000 }[channel];
+          const segMult = { 'Small Business': 0.5, 'Mid-Market': 0.8, 'Enterprise': 1.6, 'Startup': 0.35 }[segment];
+          const regMult = { 'North America': 1.2, 'Europe': 1.0, 'Asia Pacific': 0.8, 'Latin America': 0.6 }[region];
+          const seasonality = 1 + 0.15 * Math.sin((mi - 2) * Math.PI / 6);
+          const growth = 1 + mi * 0.025;
+          const revenue = Math.round(chBase * segMult * regMult * seasonality * growth * (0.85 + Math.random() * 0.3));
+          const deals = Math.round(3 + Math.random() * 12);
+          const winRate = Math.round((35 + Math.random() * 45) * 10) / 10;
+          const customerCount = Math.round(deals * winRate / 100 * (1 + Math.random()));
+          const churnRate = Math.round((2 + Math.random() * 8) * 10) / 10;
+          const nps = Math.round(20 + Math.random() * 70);
+          rows.push({ Month: month, Region: region, Channel: channel, Segment: segment, Sales_Rep: reps[Math.floor(Math.random() * reps.length)],
+            Revenue: revenue, Deals_Closed: deals, Avg_Deal_Size: Math.round(revenue / deals), Win_Rate_Pct: winRate,
+            New_Customers: customerCount, Churn_Rate_Pct: churnRate, Cost_of_Sales: Math.round(revenue * (0.2 + Math.random() * 0.15)),
+            Profit: Math.round(revenue * (0.55 + Math.random() * 0.2)), NPS_Score: nps });
         });
       });
     });
-  });
+    fileName = 'global_sales_2024.csv';
+  }
+
+  else if (which === 'operations') {
+    // ── Supply Chain & Operations ──
+    const months = ['2024-01','2024-02','2024-03','2024-04','2024-05','2024-06','2024-07','2024-08','2024-09','2024-10','2024-11','2024-12'];
+    const facilities = ['Detroit Plant','Shenzhen Factory','Munich Assembly','Guadalajara Hub','Chennai Center'];
+    const suppliers = ['AlphaComponents','BetaSteel','GammaPoly','DeltaChip','EpsilonParts','ZetaRaw','EtaLogistics','ThetaPack'];
+    const products = ['Widget-A','Widget-B','Module-X','Module-Y','Assembly-Z'];
+    rows = [];
+    months.forEach((month, mi) => {
+      facilities.forEach(facility => {
+        products.forEach(product => {
+          const supplier = suppliers[Math.floor(Math.random() * suppliers.length)];
+          const baseOutput = { 'Detroit Plant': 5000, 'Shenzhen Factory': 12000, 'Munich Assembly': 3500, 'Guadalajara Hub': 7000, 'Chennai Center': 9000 }[facility];
+          const prodMult = { 'Widget-A': 1.0, 'Widget-B': 0.8, 'Module-X': 0.5, 'Module-Y': 0.6, 'Assembly-Z': 0.3 }[product];
+          const seasonal = 1 + 0.1 * Math.cos(mi * Math.PI / 6);
+          const unitsProduced = Math.round(baseOutput * prodMult * seasonal * (0.9 + Math.random() * 0.2));
+          const defectRate = Math.round((0.5 + Math.random() * 4) * 100) / 100;
+          const leadTimeDays = Math.round(5 + Math.random() * 25);
+          const onTimeDelivery = Math.round((75 + Math.random() * 24) * 10) / 10;
+          const inventoryDays = Math.round(10 + Math.random() * 40);
+          const costPerUnit = Math.round((8 + Math.random() * 22) * 100) / 100;
+          const shippingCost = Math.round(unitsProduced * costPerUnit * (0.03 + Math.random() * 0.05));
+          const downtime = Math.round(Math.random() * 48 * 10) / 10;
+          const energyKwh = Math.round(unitsProduced * (2 + Math.random() * 3));
+          const co2Tons = Math.round(energyKwh * 0.0004 * 100) / 100;
+          rows.push({ Month: month, Facility: facility, Product: product, Supplier: supplier,
+            Units_Produced: unitsProduced, Defect_Rate_Pct: defectRate, Lead_Time_Days: leadTimeDays,
+            On_Time_Delivery_Pct: onTimeDelivery, Inventory_Days: inventoryDays, Cost_Per_Unit: costPerUnit,
+            Shipping_Cost: shippingCost, Downtime_Hours: downtime, Energy_KWH: energyKwh, CO2_Tons: co2Tons,
+            Supplier_Rating: Math.round((3 + Math.random() * 2) * 10) / 10 });
+        });
+      });
+    });
+    fileName = 'supply_chain_operations_2024.csv';
+  }
+
   App.excelData = { headers: Object.keys(rows[0]), rows: rows };
   App.hasExcelData = true;
-  App.uploadedFiles.push({ name: 'acme_corp_sales_2024.csv', size: rows.length * 120, type: 'text/csv' });
+  App.uploadedFiles.push({ name: fileName, size: rows.length * 150, type: 'text/csv' });
   autoMapExcelData(rows);
   navigate('analytics');
-  toast('Loaded Acme Corp Sales 2024 — ' + rows.length + ' rows, 12 columns', 'success');
+  toast('Loaded ' + fileName + ' — ' + rows.length + ' rows, ' + Object.keys(rows[0]).length + ' columns', 'success');
 }
 
 function handleFiles(files) {
