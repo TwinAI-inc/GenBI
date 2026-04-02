@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GenBI — Hero Image Picker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --black-100: #000;
+      --white-100: #fff;
+      --white-90: #ffffffe6;
+      --white-80: #fffc;
+      --white-60: #fff9;
+      --white-40: #ffffff99;
+      --white-30: #ffffff73;
+      --white-20: #ffffff4d;
+      --white-10: #ffffff1a;
+      --white-8: #ffffff14;
+      --white-6: #ffffff0f;
+      --white-3: #ffffff08;
+      --brand-cyan: #06b6d4;
+      --brand-light: #67e8f9;
+      --text-primary: var(--white-80);
+      --text-white: var(--white-90);
+      --text-secondary: var(--white-60);
+    }
+    html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+    body { font-family: 'Outfit', sans-serif; background: #000; color: var(--text-primary); overflow-x: hidden; }
+
+    /* ── PICKER ── */
+    .picker-panel {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      background: rgba(0,0,0,0.92); backdrop-filter: blur(30px);
+      border-bottom: 1px solid var(--white-10);
+      padding: 1rem 2rem; display: flex; align-items: center; gap: 1.5rem;
+    }
+    .picker-label { font-size: 0.8rem; font-weight: 400; color: var(--white-40); text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+    .picker-thumbs { display: flex; gap: 0.75rem; overflow-x: auto; flex: 1; }
+    .picker-thumb {
+      width: 110px; height: 62px; border-radius: 0.5rem; overflow: hidden;
+      border: 2px solid transparent; cursor: pointer; flex-shrink: 0;
+      transition: all 0.25s; position: relative;
+    }
+    .picker-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .picker-thumb:hover { border-color: var(--white-30); }
+    .picker-thumb.active { border-color: var(--brand-cyan); box-shadow: 0 0 20px rgba(6,182,212,0.3); }
+    .picker-thumb .thumb-label {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,0.75); font-size: 0.55rem; font-weight: 400;
+      color: var(--white-60); text-align: center; padding: 2px 0;
+    }
+    .picker-thumb.active .thumb-label { color: var(--brand-cyan); }
+
+    /* ── HERO ── */
+    .preview { margin-top: 85px; }
+    .hero {
+      position: relative; width: 100%; height: 100vh; height: 100dvh;
+      overflow: hidden; display: flex; align-items: center; justify-content: center;
+    }
+    .hero-bg { position: absolute; inset: 0; z-index: 0; }
+    .hero-bg img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.5s; }
+    .hero-bg::after {
+      content: ''; position: absolute; inset: 0; z-index: 1;
+      background:
+        linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.2) 12%, transparent 25%),
+        linear-gradient(to top, #000 0%, rgba(0,0,0,0.85) 8%, rgba(0,0,0,0.3) 25%, transparent 45%),
+        linear-gradient(to right, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 10%, transparent 22%),
+        linear-gradient(to left, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 10%, transparent 22%),
+        radial-gradient(ellipse 70% 65% at 50% 45%, transparent 40%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.9) 100%);
+    }
+    .hero-reveal {
+      position: absolute; inset: 0; z-index: 20;
+      background: radial-gradient(50% 60% at 50% 45%, rgba(6,40,55,0.9), rgba(0,0,0,0.95));
+      animation: heroReveal 900ms cubic-bezier(0.22, 1, 0.36, 1) 300ms forwards;
+      pointer-events: none;
+    }
+    @keyframes heroReveal { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+
+    /* NAV */
+    .nav-left { position: absolute; top: 1.5rem; left: 2rem; z-index: 15; display: flex; flex-direction: column; }
+    .nav-label { font-size: 0.875rem; font-weight: 300; color: var(--text-secondary); line-height: 1.55; cursor: pointer; background: none; border: none; font-family: inherit; text-decoration: none; transition: color 0.25s; }
+    .nav-label:hover { color: var(--text-white); }
+    .nav-logo { position: absolute; top: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 15; font-size: 1.6rem; font-weight: 600; color: var(--white-100); letter-spacing: -0.03em; text-decoration: none; }
+    .nav-logo .logo-accent { font-weight: 300; color: var(--brand-cyan); }
+    .nav-cta { position: absolute; top: 1.5rem; right: 2rem; z-index: 15; font-size: 0.875rem; font-weight: 400; color: var(--white-100); padding: 0.5rem 1.25rem; border: 1px solid var(--white-20); border-radius: 5rem; transition: all 0.3s; text-decoration: none; }
+    .nav-cta:hover { background: var(--white-6); border-color: var(--white-30); }
+
+    /* HERO CONTENT */
+    .hero-content { position: relative; z-index: 10; text-align: center; display: flex; flex-direction: column; align-items: center; max-width: 54rem; padding: 0 2rem; }
+    .hero-content::before {
+      content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 130%; height: 200%;
+      background: radial-gradient(ellipse 50% 40% at 50% 50%, rgba(6,182,212,0.12) 0%, rgba(6,182,212,0.06) 25%, rgba(6,100,140,0.03) 45%, transparent 70%);
+      pointer-events: none; z-index: -1;
+    }
+    .hero-headline { font-size: 5rem; font-weight: 300; line-height: 1.1; letter-spacing: -0.03em; color: var(--white-100); text-shadow: 0 2px 40px rgba(6,182,212,0.15), 0 4px 60px rgba(0,0,0,0.5); opacity: 0; transform: translateY(30px); animation: fadeUp 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.8s forwards; }
+    .genbi-accent { font-weight: 500; font-style: italic; background: linear-gradient(135deg, #a5f3fc 0%, #06b6d4 50%, #0891b2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero-sub { font-size: 1.05rem; font-weight: 300; color: var(--white-60); margin-top: 1.5rem; max-width: 500px; line-height: 1.7; text-shadow: 0 2px 20px rgba(0,0,0,0.6); opacity: 0; transform: translateY(20px); animation: fadeUp 1s cubic-bezier(0.22, 1, 0.36, 1) 1s forwards; }
+    .hero-cta { display: inline-flex; align-items: center; gap: 0.6rem; margin-top: 2.5rem; font-size: 1.05rem; font-weight: 600; color: var(--black-100); background: var(--white-90); padding: 0.55rem 1.5rem 0.55rem 0.55rem; border-radius: 5rem; transition: all 0.3s; text-decoration: none; opacity: 0; transform: translateY(20px); animation: fadeUp 1s cubic-bezier(0.22, 1, 0.36, 1) 1.2s forwards; }
+    .hero-cta:hover { box-shadow: 0 0 40px rgba(6,182,212,0.2), 0 8px 30px rgba(0,0,0,0.3); }
+    .cta-circle { width: 2.25rem; height: 2.25rem; background: var(--black-100); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+    .cta-circle svg { width: 0.85rem; height: 0.85rem; fill: white; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* NAV PILL */
+    .nav-pill { position: fixed; top: 1rem; left: 50%; z-index: 200; transform: translateX(-50%) translateY(-80px); display: flex; align-items: center; gap: 1.5rem; padding: 0.5rem 0.6rem 0.5rem 1.25rem; background: rgba(0,0,0,0.75); backdrop-filter: blur(25px); border: 1px solid var(--white-10); border-radius: 5rem; transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+    .nav-pill.visible { transform: translateX(-50%) translateY(0); }
+    .nav-pill-logo { font-size: 1.3rem; font-weight: 600; color: white; letter-spacing: -0.03em; white-space: nowrap; }
+    .nav-pill-logo .logo-accent { font-weight: 300; color: var(--brand-cyan); }
+    .nav-pill-links { display: flex; gap: 1.25rem; }
+    .nav-pill-links a { font-size: 0.82rem; font-weight: 300; color: var(--text-secondary); transition: color 0.25s; white-space: nowrap; text-decoration: none; }
+    .nav-pill-links a:hover { color: var(--text-white); }
+    .nav-pill-cta { font-size: 0.82rem; font-weight: 500; color: var(--black-100); background: var(--white-90); padding: 0.4rem 1rem; border-radius: 5rem; white-space: nowrap; text-decoration: none; }
+
+    /* ══════════════════════════════════════════════
+       CAPABILITIES — micro1 government-grade style
+       ══════════════════════════════════════════════ */
+    .capabilities {
+      position: relative;
+      padding: 8rem 2rem 4rem;
+      text-align: center;
+      background: #000;
+      overflow: hidden;
+    }
+    .cap-wave-bg {
+      position: absolute;
+      bottom: -5%; left: -5%;
+      width: 45%; height: auto;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .cap-heading {
+      position: relative; z-index: 1;
+      font-size: 2.75rem; font-weight: 300; letter-spacing: -0.025em;
+      line-height: 1.25; color: var(--white-100); margin-bottom: 1.25rem;
+      opacity: 0; transform: translateY(30px);
+      transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .cap-heading.visible { opacity: 1; transform: none; }
+    .cap-sub {
+      position: relative; z-index: 1;
+      font-size: 0.95rem; font-weight: 300; color: var(--white-40);
+      max-width: 600px; margin: 0 auto 5rem; line-height: 1.7;
+      opacity: 0; transform: translateY(20px);
+      transition: all 1s cubic-bezier(0.22, 1, 0.36, 1) 0.15s;
+    }
+    .cap-sub.visible { opacity: 1; transform: none; }
+
+    /* Card grid: 3 top, 2 bottom centered */
+    .cap-grid {
+      position: relative; z-index: 1;
+      display: flex; flex-wrap: wrap; justify-content: center;
+      gap: 3rem 4.5rem; max-width: 1100px; margin: 0 auto;
+    }
+    .cap-card {
+      width: 280px; text-align: center;
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .cap-card.visible { opacity: 1; transform: none; }
+    .cap-card:nth-child(2) { transition-delay: 0.08s; }
+    .cap-card:nth-child(3) { transition-delay: 0.16s; }
+    .cap-card:nth-child(4) { transition-delay: 0.24s; }
+    .cap-card:nth-child(5) { transition-delay: 0.32s; }
+
+    .cap-icon {
+      width: 5rem; height: 5rem; margin: 0 auto 1.5rem;
+      border-radius: 1rem;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.06);
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .cap-card:hover .cap-icon {
+      background: rgba(6,182,212,0.06);
+      border-color: rgba(6,182,212,0.15);
+    }
+    .cap-icon svg {
+      width: 2rem; height: 2rem;
+      stroke: var(--white-30); fill: none;
+      stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round;
+      transition: stroke 0.3s;
+    }
+    .cap-card:hover .cap-icon svg { stroke: var(--brand-cyan); }
+
+    .cap-title {
+      font-size: 1rem; font-weight: 400; color: var(--white-90);
+      margin-bottom: 0.5rem; letter-spacing: -0.01em;
+    }
+    .cap-desc {
+      font-size: 0.8rem; font-weight: 300; color: var(--white-30);
+      line-height: 1.6;
+    }
+
+    /* ── CTA ── */
+    .cta-section { position: relative; max-width: 1100px; margin: 4rem auto 0; min-height: 420px; border-radius: 1.25rem; overflow: hidden; opacity: 0; transform: translateY(30px); transition: all 1s cubic-bezier(0.22, 1, 0.36, 1); }
+    .cta-section.visible { opacity: 1; transform: none; }
+    .cta-bg { position: absolute; inset: 0; }
+    .cta-bg img { position: absolute; top: 0; right: 0; width: 55%; height: 100%; object-fit: cover; }
+    .cta-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to right, #000 30%, rgba(0,0,0,0.7) 55%, rgba(0,0,0,0.2) 80%, transparent 100%); }
+    .cta-content { position: relative; z-index: 1; display: flex; flex-direction: column; justify-content: center; padding: 5rem 4rem; max-width: 55%; min-height: 420px; }
+    .cta-section h2 { font-size: 2.75rem; font-weight: 300; letter-spacing: -0.025em; line-height: 1.3; max-width: 500px; margin-bottom: 2.5rem; color: var(--white-100); }
+    .cta-section h2 em { font-style: italic; font-weight: 400; background: linear-gradient(135deg, #a5f3fc 30%, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .cta-btn { display: inline-flex; align-items: center; gap: 0.6rem; font-size: 1.05rem; font-weight: 600; color: var(--black-100); background: var(--white-90); padding: 0.55rem 1.5rem 0.55rem 0.55rem; border-radius: 5rem; transition: all 0.3s; width: fit-content; text-decoration: none; }
+    .cta-btn:hover { box-shadow: 0 8px 30px rgba(255,255,255,0.1); }
+
+    /* ── NEWSLETTER ── */
+    .newsletter { background: #000; border-top: 1px solid var(--white-3); padding: 4rem; text-align: center; }
+    .newsletter h3 { font-size: 1.5rem; font-weight: 300; color: var(--white-100); margin-bottom: 0.5rem; }
+    .newsletter p { font-size: 0.85rem; font-weight: 300; color: var(--white-40); margin-bottom: 1.5rem; }
+    .newsletter-form { display: flex; gap: 0.5rem; max-width: 420px; margin: 0 auto; }
+    .newsletter-form input { flex: 1; padding: 0.6rem 1rem; font-size: 0.85rem; font-family: inherit; font-weight: 300; background: var(--white-3); border: 1px solid var(--white-10); border-radius: 5rem; color: var(--white-80); outline: none; }
+    .newsletter-form input::placeholder { color: var(--white-30); }
+    .newsletter-form input:focus { border-color: var(--white-30); }
+    .newsletter-form button { padding: 0.6rem 1.5rem; font-size: 0.85rem; font-family: inherit; font-weight: 500; background: var(--white-90); color: var(--black-100); border: none; border-radius: 5rem; cursor: pointer; }
+
+    /* ── FOOTER ── */
+    .footer { background: #000; border-top: 1px solid var(--white-3); padding: 3rem 4rem 2.5rem; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 2.5rem; }
+    .footer-logo { font-size: 1.15rem; font-weight: 600; color: var(--white-100); letter-spacing: -0.03em; margin-bottom: 1rem; }
+    .footer-logo .logo-accent { font-weight: 300; color: var(--brand-cyan); }
+    .footer-address { font-size: 0.75rem; font-weight: 300; color: var(--white-30); line-height: 1.6; }
+    .footer-col h5 { font-size: 0.65rem; font-weight: 400; text-transform: uppercase; letter-spacing: 0.1em; color: var(--white-20); margin-bottom: 0.75rem; }
+    .footer-col a { display: block; font-size: 0.8rem; font-weight: 300; color: var(--white-40); margin-bottom: 0.5rem; transition: color 0.2s; text-decoration: none; }
+    .footer-col a:hover { color: var(--white-100); }
+    .footer-bottom { background: #000; border-top: 1px solid var(--white-3); padding: 1.25rem 4rem; font-size: 0.75rem; color: var(--white-20); font-weight: 300; }
+
+    /* ══════════════════════════════════════════════
+       LOGO PICKER — 10 designs
+       ══════════════════════════════════════════════ */
+    .logo-showcase {
+      background: #000; border-top: 1px solid var(--white-6);
+      padding: 6rem 2rem;
+    }
+    .logo-showcase-title {
+      text-align: center; font-size: 2rem; font-weight: 300; color: var(--white-100);
+      margin-bottom: 0.5rem; letter-spacing: -0.02em;
+    }
+    .logo-showcase-sub {
+      text-align: center; font-size: 0.85rem; font-weight: 300; color: var(--white-30);
+      margin-bottom: 4rem;
+    }
+    .logo-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.5rem;
+      max-width: 1200px; margin: 0 auto;
+    }
+    .logo-card {
+      background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 1rem; padding: 2rem 1.5rem 1.5rem; text-align: center;
+      cursor: pointer; transition: all 0.3s;
+    }
+    .logo-card:hover { background: rgba(6,182,212,0.04); border-color: rgba(6,182,212,0.15); }
+    .logo-card.selected { background: rgba(6,182,212,0.06); border-color: rgba(6,182,212,0.3); box-shadow: 0 0 30px rgba(6,182,212,0.1); }
+
+    .logo-preview { height: 60px; display: flex; align-items: center; justify-content: center; margin-bottom: 1.25rem; }
+    .logo-card-num { font-size: 0.6rem; font-weight: 400; color: var(--white-20); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.5rem; }
+    .logo-card-name { font-size: 0.85rem; font-weight: 400; color: var(--white-80); margin-bottom: 0.35rem; }
+    .logo-card-desc { font-size: 0.65rem; font-weight: 300; color: var(--white-30); line-height: 1.5; }
+
+    .logo-item { display: flex; align-items: center; gap: 0.5rem; }
+    .logo-item svg { flex-shrink: 0; }
+    .logo-item-text { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 500; color: #fff; letter-spacing: -0.02em; }
+
+    /* RESPONSIVE */
+    @media (max-width: 992px) {
+      .hero-headline { font-size: 10vw; }
+      .cap-grid { gap: 2rem 3rem; }
+      .cap-card { width: 240px; }
+      .footer { grid-template-columns: 1fr; padding: 3rem 2rem; }
+      .nav-pill-links { display: none; }
+      .logo-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 767px) {
+      .hero-headline { font-size: 9vw; }
+      .quote-text { font-size: 1.2rem; }
+      .cap-heading { font-size: 2rem; }
+      .logo-grid { grid-template-columns: 1fr; }
+      .cta-bg img { width: 100%; height: 50%; top: auto; bottom: 0; }
+      .cta-bg::after { background: linear-gradient(to bottom, #000 20%, rgba(0,0,0,0.5) 60%, transparent 100%); }
+      .cta-content { max-width: 100%; min-height: 500px; padding: 3rem 2rem; }
+      .cta-section h2 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── PICKER ── -->
+  <div class="picker-panel">
+    <div class="picker-label">Pick Hero</div>
+    <div class="picker-thumbs">
+      <div class="picker-thumb active" onclick="pickHero('hero-new-2', this)">
+        <img src="public/images/hero-new-2.png" alt="">
+        <div class="thumb-label">Desert Stars</div>
+      </div>
+      <div class="picker-thumb" onclick="pickHero('hero-option-8', this)">
+        <img src="public/images/hero-option-8.png" alt="">
+        <div class="thumb-label">Aurora</div>
+      </div>
+      <div class="picker-thumb" onclick="pickHero('hero-option-1', this)">
+        <img src="public/images/hero-option-1.png" alt="">
+        <div class="thumb-label">Command Center</div>
+      </div>
+      <div class="picker-thumb" onclick="pickHero('hero-new-1', this)">
+        <img src="public/images/hero-new-1.png" alt="">
+        <div class="thumb-label">Ocean Waves</div>
+      </div>
+      <div class="picker-thumb" onclick="pickHero('hero-new-3', this)">
+        <img src="public/images/hero-new-3.png" alt="">
+        <div class="thumb-label">Light Break</div>
+      </div>
+      <div class="picker-thumb" onclick="pickHero('hero-new-4', this)">
+        <img src="public/images/hero-new-4.png" alt="">
+        <div class="thumb-label">Ice Crystals</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LANDING PAGE ── -->
+  <div class="preview">
+
+    <section class="hero">
+      <div class="hero-reveal"></div>
+      <div class="hero-bg"><img src="public/images/hero-new-2.png" alt="" id="heroImg"></div>
+      <nav class="nav-left">
+        <a href="#capabilities" class="nav-label">Features</a>
+        <a href="#" class="nav-label">Pricing</a>
+        <a href="#" class="nav-label">About</a>
+      </nav>
+      <a href="#" class="nav-logo" id="navLogoMain">Gen<span class="logo-accent">BI</span></a>
+      <a href="/dashboard" class="nav-cta">Start free</a>
+      <div class="hero-content">
+        <h1 class="hero-headline">Your data deserves<br>a <span class="genbi-accent">smarter</span> story</h1>
+        <p class="hero-sub">AI-powered business intelligence. Upload your data, ask questions in plain English, and get beautiful charts and insights in seconds.</p>
+        <a href="/dashboard" class="hero-cta">
+          <span class="cta-circle"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+          Try GenBI free
+        </a>
+      </div>
+    </section>
+
+    <div class="nav-pill" id="navPill">
+      <span class="nav-pill-logo">Gen<span class="logo-accent">BI</span></span>
+      <div class="nav-pill-links">
+        <a href="#capabilities">Features</a>
+        <a href="#capabilities">About</a>
+        <a href="#contact">Pricing</a>
+      </div>
+      <a href="/dashboard" class="nav-pill-cta">Start free</a>
+    </div>
+
+    <!-- ══ CAPABILITIES — micro1 icon-card layout ══ -->
+    <section class="capabilities" id="capabilities">
+      <!-- Wave mesh background — bottom-left corner like micro1 -->
+      <img src="public/images/wave-mesh.png" alt="" class="cap-wave-bg">
+      <h2 class="cap-heading">AI-native business<br>intelligence platform</h2>
+      <p class="cap-sub">We built GenBI so anyone can go from raw data to beautiful, interactive dashboards — no code, no training, no waiting.</p>
+
+      <div class="cap-grid">
+        <!-- Row 1: 3 cards -->
+        <div class="cap-card">
+          <div class="cap-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>
+          <div class="cap-title">Natural language queries</div>
+          <div class="cap-desc">Ask questions in plain English. GenBI translates intent into the right chart, every time.</div>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+          <div class="cap-title">19 chart types, 4 themes</div>
+          <div class="cap-desc">Bar, line, scatter, heatmap, waterfall, Sankey, radar — auto-styled to look publication-ready.</div>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+          </div>
+          <div class="cap-title">Cross-filter dashboards</div>
+          <div class="cap-desc">Click any data point to filter every chart on the page. True interactive BI, zero configuration.</div>
+        </div>
+        <!-- Row 2: 2 cards centered -->
+        <div class="cap-card">
+          <div class="cap-icon">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8M16 17H8M10 9H8"/></svg>
+          </div>
+          <div class="cap-title">Excel to insight in seconds</div>
+          <div class="cap-desc">Drag, drop, done. Upload any spreadsheet and GenBI auto-detects columns, types, and relationships.</div>
+        </div>
+        <div class="cap-card">
+          <div class="cap-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <div class="cap-title">Enterprise-grade security</div>
+          <div class="cap-desc">Your data stays yours. SOC 2-aligned, encrypted at rest and in transit, hosted on Azure.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+      <div class="cta-bg"><img src="public/images/cta-genbi.png" alt=""></div>
+      <div class="cta-content">
+        <h2>Stop wrestling with spreadsheets.<br>Start making <em>decisions</em></h2>
+        <a href="/dashboard" class="cta-btn">
+          <span class="cta-circle"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+          Get started free
+        </a>
+      </div>
+    </section>
+
+    <!-- NEWSLETTER -->
+    <section class="newsletter" id="contact">
+      <h3>Stay in the loop</h3>
+      <p>Get product updates and data tips. No spam, unsubscribe anytime.</p>
+      <form class="newsletter-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='Subscribed!'">
+        <input type="email" placeholder="you@company.com">
+        <button type="submit">Subscribe</button>
+      </form>
+    </section>
+
+    <!-- ══ LOGO PICKER — 10 designs ══ -->
+    <section class="logo-showcase">
+      <div class="logo-showcase-title">Pick your logo</div>
+      <div class="logo-showcase-sub">Click any design to preview it in the nav above</div>
+
+      <div class="logo-grid">
+
+        <!-- 1: Pulse Ring — data radiating outward like a signal -->
+        <div class="logo-card selected" onclick="pickLogo(1, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="6" fill="#06b6d4"/>
+              <circle cx="20" cy="20" r="12" stroke="#06b6d4" stroke-width="1.5" opacity="0.5"/>
+              <circle cx="20" cy="20" r="18" stroke="#06b6d4" stroke-width="1" opacity="0.2"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 01</div>
+          <div class="logo-card-name">Pulse Ring</div>
+          <div class="logo-card-desc">Concentric rings radiate from a data point — insight rippling outward.</div>
+        </div>
+
+        <!-- 2: Prism — light splitting into data streams -->
+        <div class="logo-card" onclick="pickLogo(2, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <polygon points="20,4 36,34 4,34" stroke="#06b6d4" stroke-width="1.5" fill="none"/>
+              <line x1="20" y1="18" x2="10" y2="34" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+              <line x1="20" y1="18" x2="20" y2="34" stroke="#06b6d4" stroke-width="1" opacity="0.6"/>
+              <line x1="20" y1="18" x2="30" y2="34" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+              <circle cx="20" cy="18" r="2.5" fill="#06b6d4"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 02</div>
+          <div class="logo-card-name">Prism</div>
+          <div class="logo-card-desc">Raw data enters, splits into clear insights — like light through a prism.</div>
+        </div>
+
+        <!-- 3: Rising Chart — clean upward trend in a rounded frame -->
+        <div class="logo-card" onclick="pickLogo(3, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect x="3" y="3" width="34" height="34" rx="8" stroke="#06b6d4" stroke-width="1.5"/>
+              <polyline points="10,28 16,22 22,25 30,13" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="30" cy="13" r="2.5" fill="#06b6d4"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 03</div>
+          <div class="logo-card-name">Rising Chart</div>
+          <div class="logo-card-desc">A trend line climbing inside a rounded frame. Clean, direct, unmistakable BI.</div>
+        </div>
+
+        <!-- 4: Neural Node — connected dots forming insight -->
+        <div class="logo-card" onclick="pickLogo(4, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="10" r="3" fill="#06b6d4"/>
+              <circle cx="10" cy="28" r="3" fill="#06b6d4" opacity="0.6"/>
+              <circle cx="30" cy="28" r="3" fill="#06b6d4" opacity="0.6"/>
+              <circle cx="20" cy="22" r="2" fill="#06b6d4" opacity="0.4"/>
+              <line x1="20" y1="13" x2="20" y2="20" stroke="#06b6d4" stroke-width="1.2"/>
+              <line x1="20" y1="22" x2="12" y2="26" stroke="#06b6d4" stroke-width="1" opacity="0.5"/>
+              <line x1="20" y1="22" x2="28" y2="26" stroke="#06b6d4" stroke-width="1" opacity="0.5"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 04</div>
+          <div class="logo-card-name">Neural Node</div>
+          <div class="logo-card-desc">Connected nodes — AI processing data into branching insights.</div>
+        </div>
+
+        <!-- 5: Stacked Bars — ascending columns -->
+        <div class="logo-card" onclick="pickLogo(5, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/>
+              <rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/>
+              <rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/>
+              <rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 05</div>
+          <div class="logo-card-name">Growth Bars</div>
+          <div class="logo-card-desc">Four ascending bars with increasing opacity — growth, clarity, momentum.</div>
+        </div>
+
+        <!-- 6: Lens — magnifying insight -->
+        <div class="logo-card" onclick="pickLogo(6, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="18" cy="18" r="10" stroke="#06b6d4" stroke-width="1.5"/>
+              <line x1="25.5" y1="25.5" x2="34" y2="34" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/>
+              <polyline points="12,20 16,16 20,19 24,14" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 06</div>
+          <div class="logo-card-name">Data Lens</div>
+          <div class="logo-card-desc">A magnifying glass reveals a chart — finding the story inside your data.</div>
+        </div>
+
+        <!-- 7: Spark — bolt of generative intelligence -->
+        <div class="logo-card" onclick="pickLogo(7, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <path d="M22 4 L14 20 L22 20 L18 36 L30 16 L22 16 Z" fill="#06b6d4"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 07</div>
+          <div class="logo-card-name">Spark</div>
+          <div class="logo-card-desc">Lightning bolt — the generative spark that turns raw data into instant insight.</div>
+        </div>
+
+        <!-- 8: Pie Slice — a piece of the data story -->
+        <div class="logo-card" onclick="pickLogo(8, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="15" stroke="#06b6d4" stroke-width="1.5" opacity="0.3"/>
+              <path d="M20 5 A15 15 0 0 1 33.5 27 L20 20 Z" fill="#06b6d4" opacity="0.8"/>
+              <circle cx="20" cy="20" r="4" fill="none" stroke="#06b6d4" stroke-width="1"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 08</div>
+          <div class="logo-card-name">Pie Slice</div>
+          <div class="logo-card-desc">A highlighted slice from a donut chart — focus on what matters most.</div>
+        </div>
+
+        <!-- 9: Diamond — precision-cut data -->
+        <div class="logo-card" onclick="pickLogo(9, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <polygon points="20,3 37,15 20,37 3,15" stroke="#06b6d4" stroke-width="1.5" fill="none"/>
+              <line x1="3" y1="15" x2="37" y2="15" stroke="#06b6d4" stroke-width="1" opacity="0.4"/>
+              <line x1="20" y1="3" x2="12" y2="15" stroke="#06b6d4" stroke-width="1" opacity="0.3"/>
+              <line x1="20" y1="3" x2="28" y2="15" stroke="#06b6d4" stroke-width="1" opacity="0.3"/>
+              <line x1="12" y1="15" x2="20" y2="37" stroke="#06b6d4" stroke-width="1" opacity="0.3"/>
+              <line x1="28" y1="15" x2="20" y2="37" stroke="#06b6d4" stroke-width="1" opacity="0.3"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 09</div>
+          <div class="logo-card-name">Diamond</div>
+          <div class="logo-card-desc">A precision-cut gem — your raw data refined into something brilliant.</div>
+        </div>
+
+        <!-- 10: Orbit — data points circling intelligence -->
+        <div class="logo-card" onclick="pickLogo(10, this)">
+          <div class="logo-preview"><div class="logo-item">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="5" fill="#06b6d4"/>
+              <ellipse cx="20" cy="20" rx="17" ry="8" stroke="#06b6d4" stroke-width="1" opacity="0.3" transform="rotate(-30 20 20)"/>
+              <ellipse cx="20" cy="20" rx="17" ry="8" stroke="#06b6d4" stroke-width="1" opacity="0.3" transform="rotate(30 20 20)"/>
+              <circle cx="34" cy="12" r="2" fill="#06b6d4" opacity="0.6"/>
+              <circle cx="8" cy="14" r="1.5" fill="#06b6d4" opacity="0.4"/>
+              <circle cx="32" cy="29" r="1.5" fill="#06b6d4" opacity="0.5"/>
+            </svg>
+            <span class="logo-item-text">GenBI</span>
+          </div></div>
+          <div class="logo-card-num">Logo 10</div>
+          <div class="logo-card-name">Orbit</div>
+          <div class="logo-card-desc">Data points orbiting a core — everything revolves around intelligence.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+      <div>
+        <div class="footer-logo">Gen<span class="logo-accent">BI</span></div>
+        <div class="footer-address">AI-Powered Business Intelligence<br>by TwinAI Inc.</div>
+      </div>
+      <div class="footer-col"><h5>Product</h5><a href="#">Features</a><a href="#">Pricing</a><a href="#">Changelog</a></div>
+      <div class="footer-col"><h5>Resources</h5><a href="#">Documentation</a><a href="#">API</a><a href="#">Blog</a></div>
+      <div class="footer-col"><h5>Company</h5><a href="https://twinai.net">TwinAI</a><a href="#">Contact</a><a href="#">Privacy</a></div>
+    </footer>
+    <div class="footer-bottom">&copy; 2026 TwinAI Inc. All rights reserved.</div>
+
+  </div>
+
+  <script>
+    // Hero picker
+    function pickHero(name, el) {
+      document.querySelectorAll('.picker-thumb').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      const img = document.getElementById('heroImg');
+      img.style.opacity = '0';
+      setTimeout(() => {
+        img.src = 'public/images/' + name + '.png';
+        img.onload = () => { img.style.opacity = '1'; };
+      }, 350);
+    }
+    document.getElementById('heroImg').style.transition = 'opacity 0.4s';
+
+    // Logo picker — updates nav logo live
+    const svgIcons = {
+      1: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="6" fill="#06b6d4"/><circle cx="20" cy="20" r="12" stroke="#06b6d4" stroke-width="1.5" opacity="0.5"/><circle cx="20" cy="20" r="18" stroke="#06b6d4" stroke-width="1" opacity="0.2"/></svg>',
+      2: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><polygon points="20,4 36,34 4,34" stroke="#06b6d4" stroke-width="1.5" fill="none"/><line x1="20" y1="18" x2="10" y2="34" stroke="#06b6d4" stroke-width="1" opacity="0.4"/><line x1="20" y1="18" x2="20" y2="34" stroke="#06b6d4" stroke-width="1" opacity="0.6"/><line x1="20" y1="18" x2="30" y2="34" stroke="#06b6d4" stroke-width="1" opacity="0.4"/><circle cx="20" cy="18" r="2.5" fill="#06b6d4"/></svg>',
+      3: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><rect x="3" y="3" width="34" height="34" rx="8" stroke="#06b6d4" stroke-width="1.5"/><polyline points="10,28 16,22 22,25 30,13" stroke="#06b6d4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="30" cy="13" r="2.5" fill="#06b6d4"/></svg>',
+      4: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="10" r="3" fill="#06b6d4"/><circle cx="10" cy="28" r="3" fill="#06b6d4" opacity="0.6"/><circle cx="30" cy="28" r="3" fill="#06b6d4" opacity="0.6"/><circle cx="20" cy="22" r="2" fill="#06b6d4" opacity="0.4"/><line x1="20" y1="13" x2="20" y2="20" stroke="#06b6d4" stroke-width="1.2"/><line x1="20" y1="22" x2="12" y2="26" stroke="#06b6d4" stroke-width="1" opacity="0.5"/><line x1="20" y1="22" x2="28" y2="26" stroke="#06b6d4" stroke-width="1" opacity="0.5"/></svg>',
+      5: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/><rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/><rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/><rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/></svg>',
+      6: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><circle cx="18" cy="18" r="10" stroke="#06b6d4" stroke-width="1.5"/><line x1="25.5" y1="25.5" x2="34" y2="34" stroke="#06b6d4" stroke-width="2" stroke-linecap="round"/><polyline points="12,20 16,16 20,19 24,14" stroke="#06b6d4" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+      7: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><path d="M22 4 L14 20 L22 20 L18 36 L30 16 L22 16 Z" fill="#06b6d4"/></svg>',
+      8: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="15" stroke="#06b6d4" stroke-width="1.5" opacity="0.3"/><path d="M20 5 A15 15 0 0 1 33.5 27 L20 20 Z" fill="#06b6d4" opacity="0.8"/><circle cx="20" cy="20" r="4" fill="none" stroke="#06b6d4" stroke-width="1"/></svg>',
+      9: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><polygon points="20,3 37,15 20,37 3,15" stroke="#06b6d4" stroke-width="1.5" fill="none"/><line x1="3" y1="15" x2="37" y2="15" stroke="#06b6d4" stroke-width="1" opacity="0.4"/><line x1="20" y1="3" x2="12" y2="15" stroke="#06b6d4" stroke-width="1" opacity="0.3"/><line x1="20" y1="3" x2="28" y2="15" stroke="#06b6d4" stroke-width="1" opacity="0.3"/><line x1="12" y1="15" x2="20" y2="37" stroke="#06b6d4" stroke-width="1" opacity="0.3"/><line x1="28" y1="15" x2="20" y2="37" stroke="#06b6d4" stroke-width="1" opacity="0.3"/></svg>',
+      10: '<svg width="24" height="24" viewBox="0 0 40 40" fill="none"><circle cx="20" cy="20" r="5" fill="#06b6d4"/><ellipse cx="20" cy="20" rx="17" ry="8" stroke="#06b6d4" stroke-width="1" opacity="0.3" transform="rotate(-30 20 20)"/><ellipse cx="20" cy="20" rx="17" ry="8" stroke="#06b6d4" stroke-width="1" opacity="0.3" transform="rotate(30 20 20)"/><circle cx="34" cy="12" r="2" fill="#06b6d4" opacity="0.6"/><circle cx="8" cy="14" r="1.5" fill="#06b6d4" opacity="0.4"/></svg>'
+    };
+    const logoHTML = {};
+    for (let i = 1; i <= 10; i++) {
+      logoHTML[i] = '<span style="display:inline-flex;align-items:center;gap:0.35rem">' + svgIcons[i] + 'GenBI</span>';
+    }
+    function pickLogo(n, el) {
+      document.querySelectorAll('.logo-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('navLogoMain').innerHTML = logoHTML[n];
+      document.querySelector('.nav-pill-logo').innerHTML = logoHTML[n];
+      document.querySelector('.footer-logo').innerHTML = logoHTML[n];
+    }
+
+    // Nav pill
+    new IntersectionObserver(([e]) => {
+      document.getElementById('navPill').classList.toggle('visible', !e.isIntersecting);
+    }, { threshold: 0.15 }).observe(document.querySelector('.hero'));
+
+    // Scroll reveals
+    document.querySelectorAll('.cap-heading, .cap-sub, .cap-card, .cta-section').forEach(el => {
+      new IntersectionObserver(([e]) => { if (e.isIntersecting) el.classList.add('visible'); }, { threshold: 0.15 }).observe(el);
+    });
+  </script>
+
+</body>
+</html>

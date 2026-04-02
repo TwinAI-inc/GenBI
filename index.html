@@ -721,6 +721,34 @@ body.theme-pastel .ki-toggle-btn { background: rgba(92,107,192,0.04); color: #8e
 body.theme-pastel .ki-toggle-btn.active { background: #5c6bc0; color: #fff; }
 body.theme-pastel .ki-chart-tab { background: rgba(92,107,192,0.04); border-color: rgba(92,107,192,0.08); color: #8e92a4; }
 body.theme-pastel .ki-chart-tab.active { background: #5c6bc0; color: #fff; border-color: transparent; }
+/* Pastel – ask bar, insights, chat, and misc light-bg fixes */
+body.theme-pastel .ask-bar { background: rgba(255,255,255,0.85); border-color: rgba(92,107,192,0.12); }
+body.theme-pastel .ask-bar input { color: #2d3142; }
+body.theme-pastel .ask-bar input::placeholder { color: #b5b8c8; }
+body.theme-pastel .ask-bar button { background: #5c6bc0; color: #fff; }
+body.theme-pastel .ask-answer-card { background: rgba(92,107,192,0.06); border-color: rgba(92,107,192,0.12); color: #2d3142; }
+body.theme-pastel .ai-insights-card { background: rgba(255,255,255,0.85); border-color: rgba(92,107,192,0.08); }
+body.theme-pastel .ai-insights-card .ai-card-header { color: #2d3142; }
+body.theme-pastel .ai-insights-card p, body.theme-pastel .ai-insights-card li, body.theme-pastel .ai-insights-card span { color: #555770; }
+body.theme-pastel .kpi-card-v2 .kpi-value { color: #2d3142; }
+body.theme-pastel .kpi-card-v2 .kpi-label { color: #8e92a4; }
+body.theme-pastel .kpi-card-v2 .kpi-delta { color: #555770; }
+body.theme-pastel .ask-suggestions { color: #555770; }
+body.theme-pastel .ask-suggestions button { color: #5c6bc0; background: rgba(92,107,192,0.06); border-color: rgba(92,107,192,0.1); }
+body.theme-pastel .chat-message { color: #2d3142; }
+body.theme-pastel .chat-bubble { background: rgba(255,255,255,0.92); color: #2d3142; border-color: rgba(92,107,192,0.08); }
+body.theme-pastel .chat-bubble.ai { background: rgba(92,107,192,0.06); color: #2d3142; }
+body.theme-pastel .slide-panel-title { color: #2d3142; }
+body.theme-pastel .slide-panel label, body.theme-pastel .slide-panel .form-label { color: #8e92a4; }
+body.theme-pastel .auth-bar { background: rgba(255,255,255,0.92); border-bottom-color: rgba(92,107,192,0.08); }
+body.theme-pastel .auth-bar span, body.theme-pastel .auth-bar a { color: #555770; }
+body.theme-pastel .header-actions .btn { color: #555770; border-color: rgba(92,107,192,0.15); }
+body.theme-pastel .header-actions .btn:hover { color: #5c6bc0; }
+body.theme-pastel .empty-state h3 { color: #2d3142; }
+body.theme-pastel .empty-state p { color: #8e92a4; }
+body.theme-pastel .onboarding-card { background: rgba(255,255,255,0.92); border-color: rgba(92,107,192,0.08); }
+body.theme-pastel .onboarding-card h3 { color: #2d3142; }
+body.theme-pastel .onboarding-card p { color: #8e92a4; }
 
 /* ══════ EXECUTIVE THEME ══════ */
 body.theme-executive {
@@ -822,7 +850,7 @@ body.theme-genbi .bg-orb:nth-child(3) { display: none; }
 body.theme-genbi .bg-orb:nth-child(4) { display: none; }
 body.theme-genbi .noise-overlay { display: none; }
 body.theme-genbi .sidebar { background: rgba(5,5,8,0.92); border-right: 1px solid rgba(6,182,212,0.08); }
-body.theme-genbi .brand-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); box-shadow: 0 4px 12px rgba(6,182,212,0.25); }
+body.theme-genbi .brand-icon { background: transparent; box-shadow: none; }
 body.theme-genbi .brand-name { color: rgba(255,255,255,0.9); background: none; -webkit-background-clip: unset; -webkit-text-fill-color: unset; font-family: 'Outfit', sans-serif; font-weight: 600; letter-spacing: -0.03em; }
 body.theme-genbi .nav-item { color: rgba(255,255,255,0.4); }
 body.theme-genbi .nav-item:hover { background: rgba(6,182,212,0.04); color: rgba(255,255,255,0.8); }
@@ -869,6 +897,21 @@ body.theme-genbi .ki-toggle-btn.active { background: #06b6d4; color: #000; }
 body.theme-genbi .ki-chart-tab { background: rgba(6,182,212,0.04); border-color: rgba(6,182,212,0.08); color: rgba(255,255,255,0.4); }
 body.theme-genbi .ki-chart-tab.active { background: #06b6d4; color: #000; border-color: transparent; }
 body.theme-genbi .auth-bar { background: rgba(5,5,8,0.9); border-bottom-color: rgba(6,182,212,0.06); }
+body.theme-genbi .kpi-card-v2 { background: rgba(10,10,12,0.85); border: 1px solid rgba(6,182,212,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(6,182,212,0.04); }
+body.theme-genbi .kpi-card-v2 .kpi-value { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; font-weight: 300; letter-spacing: -0.02em; }
+body.theme-genbi .kpi-card-v2 .kpi-label { color: rgba(6,182,212,0.6); font-family: 'Outfit', sans-serif; text-transform: uppercase; letter-spacing: 0.08em; }
+body.theme-genbi .stat-value { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; font-weight: 300; }
+body.theme-genbi .stat-label { color: rgba(255,255,255,0.35); font-family: 'Outfit', sans-serif; }
+body.theme-genbi .ask-bar { background: rgba(10,10,12,0.85); border-color: rgba(6,182,212,0.1); }
+body.theme-genbi .ask-bar input { font-family: 'Outfit', sans-serif; color: rgba(255,255,255,0.85); }
+body.theme-genbi .ask-bar button { background: #06b6d4; color: #000; font-family: 'Outfit', sans-serif; font-weight: 600; border-radius: 5rem; }
+body.theme-genbi .ask-answer-card { background: rgba(6,182,212,0.04); border-color: rgba(6,182,212,0.1); }
+body.theme-genbi .ai-insights-card { background: rgba(10,10,12,0.85); border-color: rgba(6,182,212,0.08); }
+body.theme-genbi .ai-insights-card .ai-card-header { font-family: 'Outfit', sans-serif; }
+body.theme-genbi .chart-actions-menu { background: rgba(5,5,8,0.95); border-color: rgba(6,182,212,0.1); }
+body.theme-genbi .chart-bolt-btn { color: #06b6d4; border-color: rgba(6,182,212,0.2); background: rgba(6,182,212,0.06); box-shadow: 0 0 8px rgba(6,182,212,0.15); }
+body.theme-genbi .chart-bolt-btn:hover { background: rgba(6,182,212,0.12); box-shadow: 0 0 18px rgba(6,182,212,0.3); }
+body.theme-genbi .chart-action-item:hover { background: rgba(6,182,212,0.06); }
 
 *{margin:0;padding:0;box-sizing:border-box;}
 html{overflow-x:hidden;}
@@ -1388,6 +1431,16 @@ body.theme-liquid-glass .style-pill:hover { border-color: rgba(255,255,255,0.15)
 /* Executive theme overrides for inactive pills */
 body.theme-executive .style-pill { background: hsla(220,20%,8%,0.7); border-color: hsla(43,60%,50%,0.1); }
 body.theme-executive .style-pill:hover { border-color: hsla(43,60%,50%,0.25); color: hsl(40,20%,85%); }
+/* GenBI active */
+.style-pill[data-style="genbi"].active {
+  background: linear-gradient(135deg, rgba(6,182,212,0.14), rgba(8,145,178,0.08));
+  border-color: rgba(6,182,212,0.35); color: #06b6d4;
+  box-shadow: 0 0 20px rgba(6,182,212,0.12), 0 4px 16px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.style-pill[data-style="genbi"].active svg { stroke: #06b6d4; filter: drop-shadow(0 0 4px rgba(6,182,212,0.4)); }
+/* GenBI theme overrides for inactive pills */
+body.theme-genbi .style-pill { background: rgba(6,182,212,0.04); border-color: rgba(6,182,212,0.08); color: rgba(255,255,255,0.4); font-family: 'Outfit', sans-serif; }
+body.theme-genbi .style-pill:hover { border-color: rgba(6,182,212,0.2); color: rgba(255,255,255,0.8); }
 
 /* ══════ KPI CARDS V2 ══════ */
 .kpi-row-v2 { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -2071,7 +2124,7 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
   </button>
   <div class="sidebar-brand" style="cursor:pointer" onclick="navigate('dashboard')">
-    <div class="brand-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(0 0% 2%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+    <div class="brand-icon"><svg width="18" height="18" viewBox="0 0 40 40" fill="none"><rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/><rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/><rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/><rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/></svg></div>
     <span class="brand-name">GenBI</span>
   </div>
   <div class="nav-section">
@@ -2533,7 +2586,7 @@ function renderDashboard() {
   return `
   <nav class="hp-nav" id="hpNav">
     <a class="hp-nav-brand" href="/">
-      <div class="hp-nav-brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <div class="hp-nav-brand-icon"><svg viewBox="0 0 40 40" fill="none"><rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/><rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/><rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/><rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/></svg></div>
       <span>GenBI</span>
     </a>
     <div class="hp-nav-actions" id="hpNavActions">
@@ -2659,7 +2712,7 @@ function renderDashboard() {
 
   <footer class="hp-footer">
     <div class="hp-footer-brand">
-      <div class="hp-footer-brand-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+      <div class="hp-footer-brand-icon"><svg viewBox="0 0 40 40" fill="none"><rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/><rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/><rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/><rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/></svg></div>
       <span>GenBI</span>
     </div>
     <p>AI-powered analytics for any dataset. Upload, visualize, discover.</p>
@@ -2946,8 +2999,16 @@ function renderAnalytics() {
   const briefingHTML = hasData ? `<div class="ai-insights-card" id="aiBriefingCard"></div>` : '';
   const suggestionsHTML = hasData ? `<div id="aiSuggestionsCard" style="margin-bottom:20px"></div>` : '';
 
-  const curTheme = App.theme || 'Modern';
+  const curTheme = App.theme || 'GenBI';
   const stylePickerHTML = hasData ? `<div class="dashboard-style-picker" style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+    <button class="style-pill${curTheme==='GenBI'?' active':''}" data-style="genbi" onclick="applyTheme('GenBI')">
+      <svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="0">
+        <rect x="6" y="26" width="6" height="10" rx="1.5" fill="currentColor" opacity="0.3"/>
+        <rect x="14" y="20" width="6" height="16" rx="1.5" fill="currentColor" opacity="0.5"/>
+        <rect x="22" y="14" width="6" height="22" rx="1.5" fill="currentColor" opacity="0.7"/>
+        <rect x="30" y="6" width="6" height="30" rx="1.5" fill="currentColor"/>
+      </svg>GenBI
+    </button>
     <button class="style-pill${curTheme==='Modern'?' active':''}" data-style="modern" onclick="applyTheme('Modern')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/>
@@ -5151,29 +5212,55 @@ function drawChart(canvas, datasets, labels, opts = {}) {
     ctx.lineTo(pts[pts.length-1].x, padT+ch); ctx.lineTo(pts[0].x, padT+ch); ctx.closePath();
     ctx.fillStyle = grad; ctx.fill();
 
-    // Line stroke — Liquid Glass: double-stroke glow; Executive: crisp thin; Modern: clean medium
-    if (th.lineGlow > 0) {
+    // Line stroke — GenBI: triple glow bloom; Liquid Glass: double-stroke; Executive: crisp thin; Modern: clean medium
+    if (th.style === 'genbi') {
+      // GenBI: wide outer bloom
+      ctx.beginPath(); drawPath(ctx, pts);
+      ctx.strokeStyle = 'rgba(' + baseRgb + ',0.06)'; ctx.lineWidth = th.lineWidth + 14; ctx.lineCap = 'round'; ctx.stroke();
+      // Mid glow
+      ctx.beginPath(); drawPath(ctx, pts);
+      ctx.strokeStyle = 'rgba(' + baseRgb + ',0.12)'; ctx.lineWidth = th.lineWidth + 6; ctx.lineCap = 'round'; ctx.stroke();
+      // Core line with shadow glow
+      ctx.beginPath(); drawPath(ctx, pts);
+      ctx.strokeStyle = strokeClr; ctx.lineWidth = th.lineWidth; ctx.lineCap = 'round';
+      ctx.save(); ctx.shadowColor = 'rgba(' + baseRgb + ',0.6)'; ctx.shadowBlur = th.lineGlow; ctx.stroke(); ctx.restore();
+    } else if (th.lineGlow > 0) {
       // Outer glow stroke
       ctx.beginPath(); drawPath(ctx, pts);
       ctx.strokeStyle = 'rgba(' + baseRgb + ',0.15)'; ctx.lineWidth = th.lineWidth + 6; ctx.lineCap = th.lineCap; ctx.stroke();
+      ctx.beginPath(); drawPath(ctx, pts);
+      ctx.strokeStyle = strokeClr; ctx.lineWidth = th.lineWidth; ctx.lineCap = th.lineCap;
+      ctx.save(); ctx.shadowColor = 'rgba(' + baseRgb + ',0.5)'; ctx.shadowBlur = th.lineGlow; ctx.stroke(); ctx.restore();
+    } else {
+      ctx.beginPath(); drawPath(ctx, pts);
+      ctx.strokeStyle = strokeClr; ctx.lineWidth = th.lineWidth; ctx.lineCap = th.lineCap;
+      ctx.stroke();
     }
-    ctx.beginPath(); drawPath(ctx, pts);
-    ctx.strokeStyle = strokeClr; ctx.lineWidth = th.lineWidth; ctx.lineCap = th.lineCap;
-    if (th.lineGlow > 0) { ctx.save(); ctx.shadowColor = 'rgba(' + baseRgb + ',0.5)'; ctx.shadowBlur = th.lineGlow; ctx.stroke(); ctx.restore(); }
-    else { ctx.stroke(); }
 
     // Dots
     const showDots = th.dotAlways || (datasets.length <= 1 && pts.length <= 12);
     if (showDots && th.dotRadius > 0) {
       pts.forEach((p, pi) => {
-        // Halo (Liquid Glass)
+        // Halo
         if (th.dotHalo) {
           ctx.beginPath(); ctx.arc(p.x, p.y, th.dotHaloRadius, 0, Math.PI*2);
           ctx.fillStyle = 'rgba(' + baseRgb + ',' + th.dotHaloAlpha + ')'; ctx.fill();
         }
-        // Dot
-        ctx.beginPath(); ctx.arc(p.x, p.y, th.dotRadius, 0, Math.PI*2);
-        ctx.fillStyle = ds.dotColor || strokeClr; ctx.fill();
+        if (th.dotShape === 'ring') {
+          // GenBI: ring dot — outer stroke circle with dark inner fill
+          ctx.beginPath(); ctx.arc(p.x, p.y, th.dotRadius, 0, Math.PI*2);
+          ctx.fillStyle = th.dotInnerFill || 'rgba(5,5,8,1)'; ctx.fill();
+          ctx.strokeStyle = ds.dotColor || strokeClr; ctx.lineWidth = th.dotRingWidth || 1.5; ctx.stroke();
+          // Glow on ring
+          ctx.save(); ctx.shadowColor = 'rgba(' + baseRgb + ',0.5)'; ctx.shadowBlur = 6;
+          ctx.beginPath(); ctx.arc(p.x, p.y, th.dotRadius, 0, Math.PI*2);
+          ctx.strokeStyle = ds.dotColor || strokeClr; ctx.lineWidth = th.dotRingWidth || 1.5; ctx.stroke();
+          ctx.restore();
+        } else {
+          // Default filled dot
+          ctx.beginPath(); ctx.arc(p.x, p.y, th.dotRadius, 0, Math.PI*2);
+          ctx.fillStyle = ds.dotColor || strokeClr; ctx.fill();
+        }
         // Liquid Glass: white ring on dot
         if (th.style === 'liquid') {
           ctx.beginPath(); ctx.arc(p.x, p.y, th.dotRadius + 1, 0, Math.PI*2);
@@ -5275,6 +5362,30 @@ function drawBarChart(canvas, labels, data, colorName, opts = {}) {
       if (isHover) {
         ctx.save(); ctx.shadowColor = 'rgba(' + barRgb + ',0.4)'; ctx.shadowBlur = 16;
         ctx.fillStyle = 'rgba(' + barRgb + ',0.15)'; ctx.fill(); ctx.restore();
+      }
+    } else if (th.style === 'genbi') {
+      // GenBI: pill-shaped bars with vertical gradient + cyan bloom glow
+      const r = Math.min(barW / 2, 50);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+      ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+      ctx.lineTo(x + barW, padT + ch); ctx.lineTo(x, padT + ch);
+      ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+      // Gradient: vivid at top, fading to near-transparent at base
+      const grad = ctx.createLinearGradient(0, y, 0, padT + ch);
+      grad.addColorStop(0, 'rgba(' + barRgb + ',' + alpha + ')');
+      grad.addColorStop(0.4, 'rgba(' + barRgb + ',' + (alpha * 0.65) + ')');
+      grad.addColorStop(1, 'rgba(' + barRgb + ',' + (alpha * 0.06) + ')');
+      ctx.fillStyle = grad; ctx.fill();
+      // Bloom glow
+      ctx.save(); ctx.shadowColor = 'rgba(' + barRgb + ',0.25)'; ctx.shadowBlur = th.barGlow; ctx.fill(); ctx.restore();
+      // Top highlight line
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+      ctx.strokeStyle = 'rgba(' + barRgb + ',0.5)'; ctx.lineWidth = 1; ctx.lineCap = 'round'; ctx.stroke();
+      if (isHover) {
+        ctx.save(); ctx.shadowColor = 'rgba(' + barRgb + ',0.5)'; ctx.shadowBlur = 24;
+        ctx.fillStyle = 'rgba(' + barRgb + ',0.1)'; ctx.fill(); ctx.restore();
       }
     } else if (th.style === 'pastel') {
       // Pastel: clean rounded bars, flat solid fills, no shadow
@@ -5393,7 +5504,17 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     { fill: 'rgba(255,145,0,0.7)', rgb: '255,145,0' },
     { fill: 'rgba(156,204,101,0.7)', rgb: '156,204,101' },
   ];
-  let segColors = defaultColors;
+  const genbiColors = [
+    { fill: 'rgba(6,182,212,0.85)', rgb: '6,182,212' },
+    { fill: 'rgba(8,145,178,0.8)', rgb: '8,145,178' },
+    { fill: 'rgba(103,232,249,0.8)', rgb: '103,232,249' },
+    { fill: 'rgba(16,185,129,0.8)', rgb: '16,185,129' },
+    { fill: 'rgba(165,243,252,0.75)', rgb: '165,243,252' },
+    { fill: 'rgba(244,63,94,0.8)', rgb: '244,63,94' },
+    { fill: 'rgba(34,211,238,0.7)', rgb: '34,211,238' },
+    { fill: 'rgba(20,184,166,0.75)', rgb: '20,184,166' },
+  ];
+  let segColors = (th.style === 'genbi' && !isPBI) ? genbiColors : defaultColors;
   if (opts.paletteColors) {
     segColors = opts.paletteColors.map(hex => {
       const rgb = hexToRgb(hex);
@@ -5435,8 +5556,18 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     ctx.arc(cx, cy, outerR, angle, angle + slice);
     ctx.arc(cx, cy, innerR, angle + slice, angle, true);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(' + c.rgb + ',' + dimAlpha + ')'; ctx.fill();
-    if (isHover || th.donutGlow) { ctx.shadowColor = 'rgba(' + c.rgb + ',' + (isHover ? 0.5 : 0.2) + ')'; ctx.shadowBlur = isHover ? 20 : (th.donutGlow ? 10 : 0); ctx.fill(); }
+    if (th.style === 'genbi') {
+      // GenBI: radial gradient per segment with bloom glow
+      const segGrad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+      segGrad.addColorStop(0, 'rgba(' + c.rgb + ',' + (dimAlpha * 0.5) + ')');
+      segGrad.addColorStop(1, 'rgba(' + c.rgb + ',' + dimAlpha + ')');
+      ctx.fillStyle = segGrad; ctx.fill();
+      ctx.shadowColor = 'rgba(' + c.rgb + ',' + (isHover ? 0.6 : 0.25) + ')';
+      ctx.shadowBlur = isHover ? 24 : th.donutGlow; ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(' + c.rgb + ',' + dimAlpha + ')'; ctx.fill();
+      if (isHover || th.donutGlow) { ctx.shadowColor = 'rgba(' + c.rgb + ',' + (isHover ? 0.5 : 0.2) + ')'; ctx.shadowBlur = isHover ? 20 : (th.donutGlow ? 10 : 0); ctx.fill(); }
+    }
     ctx.restore();
     // Segment gap — themed
     ctx.beginPath();
@@ -8487,15 +8618,31 @@ function isPastel() { return document.body.classList.contains('theme-pastel'); }
 function getThemeChartOpts() {
   if (isGenBI()) return {
     style: 'genbi',
-    gridColor: 'rgba(6,182,212,0.04)', gridDash: [], gridWidth: 0.5,
-    gridVertical: false, textAlpha: 0.4, bgFrost: false,
-    lineWidth: 2.5, lineGlow: 8, lineCap: 'round', lineSmooth: true,
-    dotRadius: 4, dotHalo: true, dotHaloRadius: 10, dotHaloAlpha: 0.15, dotShape: 'circle', dotAlways: true,
-    barRadius: 6, barBorder: false, barGradient: true, barGlow: 6,
-    donutInnerRatio: 0.62, donutGap: 2, donutGlow: 8, donutBorder: false,
-    tooltipBlur: 16, tooltipBorder: 'rgba(6,182,212,0.12)', tooltipBg: 'rgba(10,10,12,0.92)',
-    legendDot: 'circle', legendSize: 7,
-    animDuration: 700, animEasing: 'cubic-bezier(0.22,1,0.36,1)',
+    // Grid: ultra-minimal, just faint horizontal guides
+    gridColor: 'rgba(6,182,212,0.03)', gridDash: [], gridWidth: 0.4,
+    gridVertical: false, textAlpha: 0.35, bgFrost: false,
+    // Lines: smooth curves with double-glow (outer bloom + inner crisp)
+    lineWidth: 2.8, lineGlow: 12, lineCap: 'round', lineSmooth: true,
+    lineOuterGlow: 20, lineOuterGlowAlpha: 0.08,
+    // Dots: ring-style with soft halo bloom
+    dotRadius: 4.5, dotHalo: true, dotHaloRadius: 14, dotHaloAlpha: 0.12,
+    dotShape: 'ring', dotRingWidth: 1.5, dotAlways: true, dotInnerFill: 'rgba(5,5,8,1)',
+    // Bars: pill-shaped with vertical gradient and soft cyan bloom
+    barRadius: 50, barAlpha: 0.85, barGlow: 14, barGradientShift: 0.08,
+    barBorder: false, barBloom: true,
+    // Donut: thin elegant ring with glow
+    donutInnerRatio: 0.68, donutGap: 3, donutGlow: 12, donutBorder: false,
+    // Typography: Outfit font, light weight — matches landing page
+    fontFamily: "'Outfit', sans-serif",
+    labelFont: "11px 'Outfit', sans-serif",
+    valueFont: "500 11px 'Outfit', sans-serif",
+    labelSpacing: '0.04em',
+    // Area fill: deep gradient from vivid to void
+    areaGradientTop: 0.2, areaGradientBot: 0.0,
+    // Tooltip: frosted dark glass
+    tooltipBlur: 20, tooltipBorder: 'rgba(6,182,212,0.15)', tooltipBg: 'rgba(5,5,8,0.94)',
+    legendDot: 'ring', legendSize: 7,
+    animDuration: 800, animEasing: 'cubic-bezier(0.22,1,0.36,1)',
   };
   if (isLiquidGlass()) return {
     style: 'liquid',
