@@ -878,11 +878,14 @@ body.theme-genbi .icon-btn:hover { background: rgba(255,255,255,0.06); color: rg
 /* ── GenBI: Glass panels & cards ── */
 body.theme-genbi .glass-panel::before { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.2); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
 body.theme-genbi .stat-card::before { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: inherit; }
-body.theme-genbi .kpi-card-v2 { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.15); transition: all 0.3s cubic-bezier(0.22,1,0.36,1); }
+body.theme-genbi .kpi-card-v2 { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.15); transition: all 0.3s cubic-bezier(0.22,1,0.36,1); padding: 16px 18px; position: relative; overflow: hidden; }
 body.theme-genbi .kpi-card-v2:hover { border-color: rgba(255,255,255,0.15); }
-body.theme-genbi .kpi-card-v2 .kpi-value { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; font-weight: 300; letter-spacing: -0.02em; font-size: 26px; }
-body.theme-genbi .kpi-card-v2 .kpi-label { color: rgba(255,255,255,0.40); font-family: 'Outfit', sans-serif; font-weight: 400; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.6rem; }
-body.theme-genbi .kpi-card-v2 .kpi-icon { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+body.theme-genbi .kpi-card-v2 .kpi-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+body.theme-genbi .kpi-card-v2 .kpi-value { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; font-weight: 300; letter-spacing: -0.02em; font-size: 22px; margin-bottom: 2px; }
+body.theme-genbi .kpi-card-v2 .kpi-label { color: rgba(255,255,255,0.35); font-family: 'Outfit', sans-serif; font-weight: 300; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.58rem; }
+body.theme-genbi .kpi-card-v2 .kpi-icon { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); width: 28px; height: 28px; border-radius: 8px; }
+body.theme-genbi .kpi-card-v2 .kpi-trend { font-size: 0.65rem; font-weight: 400; font-family: 'Outfit', sans-serif; }
+body.theme-genbi .kpi-card-v2 .kpi-spark { width: 100%; height: 28px; display: block; margin-top: 8px; }
 body.theme-genbi .action-card { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
 body.theme-genbi .action-card:hover { background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.2); }
 
@@ -1714,6 +1717,13 @@ body.theme-executive .kpi-card-v2 { background: hsla(220 20% 6% / 0.85); border-
 .chart-grid-v2 > * { display: flex; }
 .chart-grid-v2 > * > .glass-panel { flex: 1; display: flex; flex-direction: column; }
 .chart-grid-v2 .chart-container { flex: 1; min-height: 220px; max-height: 300px; }
+/* GenBI compact grid */
+body.theme-genbi .chart-grid-v2 { gap: 14px; margin-bottom: 16px; }
+body.theme-genbi .chart-grid-v2 .glass-panel { padding: 14px; }
+body.theme-genbi .chart-grid-v2 .panel-title { font-size: 12px; font-weight: 400; }
+body.theme-genbi .chart-grid-v2 .chart-container { min-height: 180px; }
+body.theme-genbi .kpi-row-v2 { gap: 12px; margin-bottom: 16px; }
+body.theme-genbi .stats-grid { gap: 12px; margin-bottom: 16px; }
 .chart-cell-full { grid-column: span 12; }
 .chart-cell-two-thirds { grid-column: span 8; }
 .chart-cell-half { grid-column: span 6; }
@@ -3133,20 +3143,29 @@ function autoGenerateKPIs(ec) {
 }
 
 function renderKPICards(kpis) {
-  return '<div class="kpi-row-v2">' + kpis.map(k => {
+  return '<div class="kpi-row-v2">' + kpis.map((k, ki) => {
     const iconSvg = KPI_ICONS[k.icon] || KPI_ICONS['bar-chart'];
     const accentVar = colorMap[k.color] || '--accent-cyan';
+    const rgb = colorRgba[k.color] || '0,229,255';
+    const trendUp = k.trend >= 0;
+    const trendStr = k.trend != null ? ((trendUp ? '+' : '') + k.trend.toFixed(1) + '%') : '';
+    const trendColor = trendUp ? 'var(--accent-emerald)' : 'var(--accent-rose)';
     return `<div class="kpi-card-v2">
-      <div class="kpi-icon" style="background:rgba(${colorRgba[k.color] || '0,229,255'},0.1);color:var(${accentVar})">${iconSvg}</div>
+      <div class="kpi-top-row">
+        <div class="kpi-icon" style="background:rgba(${rgb},0.08);color:var(${accentVar})">${iconSvg}</div>
+        ${trendStr ? '<span class="kpi-trend" style="color:' + trendColor + '">' + (trendUp ? '&#9650;' : '&#9660;') + ' ' + trendStr + '</span>' : ''}
+      </div>
+      <div class="kpi-value">${formatNumber(k.value, {...k.format, abbreviate: true})}</div>
       <div class="kpi-label">${k.aggType ? k.aggType + ' ' : ''}${k.label}</div>
-      <div class="kpi-value" style="color:var(${accentVar})">${formatNumber(k.value, {...k.format, abbreviate: true})}</div>
+      <canvas class="kpi-spark" id="kpiSpark${ki}" data-rgb="${rgb}"></canvas>
     </div>`;
   }).join('') + '</div>';
 }
 
 function chartWidthClass(chart, idx, total) {
-  if (chart._width === 'half') return 'chart-cell-half';
-  return 'chart-cell-full';
+  // GenBI: compact grid — default to half width (2-column)
+  if (chart._width === 'full') return 'chart-cell-full';
+  return 'chart-cell-half';
 }
 
 function renderAnalytics() {
@@ -3213,7 +3232,7 @@ function renderAnalytics() {
           '<div class="anomaly-detail" id="anomalyDetail'+i+'"></div>' +
           '<div class="chart-info-bar visible" id="chartInfo'+i+'">' + desc + '</div>' +
           '<div class="drill-breadcrumb" id="drillBreadcrumb'+i+'"></div>' +
-          '<div class="chart-container" style="height:240px"><canvas id="analyticsChart'+i+'"></canvas></div>' +
+          '<div class="chart-container" style="height:200px"><canvas id="analyticsChart'+i+'"></canvas></div>' +
           (chart.series && chart.series.length > 0 ? '<div class="chart-legend">' + chart.series.map(function(s) {
             return '<span class="legend-item"><span class="legend-dot" style="background:'+getColorHex(s.color)+'"></span>'+s.name+'</span>';
           }).join('') + '</div>' : '') +
@@ -3236,7 +3255,7 @@ function renderAnalytics() {
       '</div>' +
       '</div></div>' +
       '<div class="chart-info-bar visible" id="customInfo'+i+'">' + desc + '</div>' +
-      '<div class="chart-container" style="height:240px"><canvas id="customChart'+i+'"></canvas></div>' +
+      '<div class="chart-container" style="height:200px"><canvas id="customChart'+i+'"></canvas></div>' +
       (c.series && c.series.length > 0 ? '<div class="chart-legend">' + c.series.map(s => {
         return '<span class="legend-item"><span class="legend-dot" style="background:'+getColorHex(s.color)+'"></span>'+s.name+'</span>';
       }).join('') + '</div>' : '') +
@@ -5338,7 +5357,7 @@ function navigate(page) {
       const isLanding = document.body.classList.contains('landing-mode');
       ab.style.display = isLanding ? 'none' : '';
     }
-    if (page === 'analytics') { if (App.excelData) { requestAnimationFrame(() => { initAnalyticsCharts(); generateAskSuggestions(); setTimeout(() => { loadBriefingCard(); loadAnomalyBadges(); loadNarrativeCaptions(); loadSuggestedActions(); }, 200); }); } else { setTimeout(initDropZone, 50); } }
+    if (page === 'analytics') { if (App.excelData) { requestAnimationFrame(() => { initAnalyticsCharts(); initKPISparklines(); generateAskSuggestions(); setTimeout(() => { loadBriefingCard(); loadAnomalyBadges(); loadNarrativeCaptions(); loadSuggestedActions(); }, 200); }); } else { setTimeout(initDropZone, 50); } }
     if (page === 'documents' && !App.excelData) { setTimeout(initDropZone, 50); }
     if (page === 'pricing') setTimeout(loadPricingData, 0);
     if (page === 'subscription') setTimeout(loadSubscriptionPage, 0);
@@ -8572,6 +8591,43 @@ function startLiveUpdates() {
       if(key) el.textContent = formatValue(App.stats[key].value, fmt);
     });
   }, 3000);
+}
+
+function initKPISparklines() {
+  document.querySelectorAll('.kpi-spark').forEach(cv => {
+    const rgb = cv.dataset.rgb || '6,182,212';
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    cv.width = w * dpr; cv.height = h * dpr;
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    // Generate a smooth random sparkline
+    const n = 12;
+    const data = [];
+    let v = 40 + Math.random() * 30;
+    for (let i = 0; i < n; i++) { v += (Math.random() - 0.45) * 15; v = Math.max(10, Math.min(90, v)); data.push(v); }
+    const max = Math.max(...data) * 1.1, min = Math.min(...data) * 0.9;
+    const range = (max - min) || 1;
+    const pad = 2, cw = w - pad * 2, ch = h - pad * 2;
+    const step = cw / (n - 1);
+    const pts = data.map((d, i) => ({ x: pad + step * i, y: pad + ch - ((d - min) / range) * ch }));
+    // Area
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) { const cp = (pts[i-1].x + pts[i].x) / 2; ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y); }
+    ctx.lineTo(pts[n-1].x, pad + ch); ctx.lineTo(pts[0].x, pad + ch); ctx.closePath();
+    const g = ctx.createLinearGradient(0, pad, 0, pad + ch);
+    g.addColorStop(0, 'rgba(' + rgb + ',0.12)'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+    ctx.fillStyle = g; ctx.fill();
+    // Line
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) { const cp = (pts[i-1].x + pts[i].x) / 2; ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y); }
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.5)'; ctx.lineWidth = 1.2; ctx.lineCap = 'round'; ctx.stroke();
+    // End dot
+    const last = pts[n-1];
+    ctx.beginPath(); ctx.arc(last.x, last.y, 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(' + rgb + ',0.8)'; ctx.fill();
+  });
 }
 
 function initAnalyticsCharts() {
