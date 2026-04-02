@@ -1108,7 +1108,14 @@ body.theme-genbi .usage-meter-bar { background: rgba(255,255,255,0.06); }
 body.theme-genbi .panel-tabs { font-family: 'Outfit', sans-serif; }
 body.theme-genbi .panel-tab { background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.30); }
 body.theme-genbi .panel-tab.active { background: rgba(255,255,255,0.90); color: #000; }
-body.theme-genbi .stepper-step-num { background: rgba(255,255,255,0.06); font-family: 'Outfit', sans-serif; }
+body.theme-genbi .onboarding-stepper { margin-bottom: 24px; }
+body.theme-genbi .stepper-step { font-size: 11px; font-weight: 300; font-family: 'Outfit', sans-serif; color: rgba(255,255,255,0.25); gap: 6px; }
+body.theme-genbi .stepper-step.active { color: rgba(255,255,255,0.80); }
+body.theme-genbi .stepper-step-num { width: 22px; height: 22px; font-size: 0; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.06); }
+body.theme-genbi .stepper-step-num::after { content: ''; width: 5px; height: 5px; border-radius: 50%; background: rgba(255,255,255,0.25); display: block; }
+body.theme-genbi .stepper-step.active .stepper-step-num { background: rgba(6,182,212,0.10); border-color: rgba(6,182,212,0.20); box-shadow: 0 0 10px rgba(6,182,212,0.15); }
+body.theme-genbi .stepper-step.active .stepper-step-num::after { display: none; }
+body.theme-genbi .stepper-connector { width: 32px; height: 1px; background: rgba(255,255,255,0.06); margin: 0 8px; }
 
 /* ── GenBI: Misc components ── */
 body.theme-genbi .empty-state h3 { font-family: 'Outfit', sans-serif; font-weight: 300; color: rgba(255,255,255,0.90); }
@@ -2971,7 +2978,7 @@ function renderOnboardingUpload(opts) {
     <div class="onboarding-stepper">
       ${opts.steps.map((s, i) => `
         ${i > 0 ? '<div class="stepper-connector"></div>' : ''}
-        <div class="stepper-step${s.active ? ' active' : ''}"><span class="stepper-step-num">${i+1}</span> ${s.label}</div>
+        <div class="stepper-step${s.active ? ' active' : ''}"><span class="stepper-step-num">${s.active && isGenBI() ? '<svg width="10" height="10" viewBox="0 0 40 40" fill="none"><rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.4"/><rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.6"/><rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.8"/><rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/></svg>' : (i+1)}</span> ${s.label}</div>
       `).join('')}
     </div>` : '';
 
