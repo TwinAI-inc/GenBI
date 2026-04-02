@@ -249,13 +249,13 @@ function hideTTDemo() { document.getElementById('ttDemo').style.display = 'none'
 <!-- ══ CHART HOVER TOOLTIP DEMO ══ -->
 <div class="header" style="padding-top:1rem;">
   <h1>Chart Hover Tooltips</h1>
-  <p>Hover over the chart elements to see the GenBI tooltip design</p>
+  <p>Hover over the chart elements — AI-selected mini-charts appear inside tooltips</p>
 </div>
 
 <div class="grid">
-  <div class="card"><div class="card-title">Bar Chart — Hover Demo</div><canvas id="bar-hover"></canvas></div>
-  <div class="card"><div class="card-title">Donut Chart — Hover Demo</div><canvas id="donut-hover"></canvas></div>
-  <div class="card"><div class="card-title">Line Chart — Hover Demo</div><canvas id="line-hover"></canvas></div>
+  <div class="card"><div class="card-title">Bar Chart — Sparkline Tooltip</div><canvas id="bar-hover"></canvas></div>
+  <div class="card"><div class="card-title">Donut Chart — Mini Bars Tooltip</div><canvas id="donut-hover"></canvas></div>
+  <div class="card"><div class="card-title">Line Chart — Dot Distribution Tooltip</div><canvas id="line-hover"></canvas></div>
 </div>
 
 <div id="hoverTT" style="position:fixed; z-index:700; pointer-events:none; background:rgba(0,0,0,0.88); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:0; opacity:0; transition:opacity 0.12s; max-width:240px; overflow:hidden; font-family:'Outfit',sans-serif;">
@@ -279,9 +279,9 @@ function showHoverTT(e, header, title, rows, opts) {
     html += title + '</div>';
     if (opts.subtitle) html += '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px;">' + opts.subtitle + '</div>';
   }
-  // Divider before rows if title present
   if (title && rows.length) html += '<div style="height:1px;background:rgba(255,255,255,0.04);margin:6px 0 8px;"></div>';
   html += rows.map(r => {
+    if (r.spacer) return '<div style="height:1px;background:rgba(255,255,255,0.04);margin:6px 0;"></div>';
     const opac = r.dimmed ? 'opacity:0.4;' : '';
     return '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:2px 0;' + opac + '">' +
     '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.45);font-weight:300;">' +
@@ -289,13 +289,24 @@ function showHoverTT(e, header, title, rows, opts) {
     r.label + '</span>' +
     '<span style="font-size:11px;font-weight:400;color:' + (r.valueColor || 'rgba(255,255,255,0.90)') + ';">' + r.value + '</span></div>';
   }).join('');
-  // Mini bar
-  if (opts.barPct !== undefined) {
-    html += '<div style="height:2px;border-radius:1px;margin-top:8px;background:rgba(255,255,255,0.04);overflow:hidden;"><div style="height:100%;width:' + opts.barPct + '%;background:' + (opts.barColor || 'rgba(6,182,212,0.6)') + ';border-radius:1px;"></div></div>';
+
+  // ── Embedded Mini-Chart (AI picks the type) ──
+  if (opts.miniChart) {
+    const mc = opts.miniChart;
+    html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.04);">';
+    html += '<canvas id="miniChartCanvas" width="' + (mc.width || 180) + '" height="' + (mc.height || 40) + '" style="width:100%;height:' + (mc.height || 40) + 'px;display:block;"></canvas>';
+    html += '</div>';
   }
+
   hTTB.innerHTML = html;
+
+  // Draw mini-chart after DOM insert
+  if (opts.miniChart) {
+    requestAnimationFrame(() => drawMiniChart(opts.miniChart));
+  }
+
   requestAnimationFrame(() => {
-    const ttW = hTT.offsetWidth || 200, ttH = hTT.offsetHeight || 80;
+    const ttW = hTT.offsetWidth || 220, ttH = hTT.offsetHeight || 80;
     let x = e.clientX + 14, y = e.clientY - ttH - 12;
     if (x + ttW > window.innerWidth - 8) x = e.clientX - ttW - 14;
     if (y < 4) y = e.clientY + 18;
@@ -304,6 +315,161 @@ function showHoverTT(e, header, title, rows, opts) {
   });
 }
 function hideHoverTT() { hTT.style.opacity = '0'; }
+
+// ══════════════════════════════════════
+// Mini-Chart Renderers (3 types, AI picks)
+// ══════════════════════════════════════
+
+function drawMiniChart(mc) {
+  const el = document.getElementById('miniChartCanvas');
+  if (!el) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = el.clientWidth, h = el.clientHeight;
+  el.width = w * dpr; el.height = h * dpr;
+  const ctx = el.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  if (mc.type === 'sparkline') drawMiniSparkline(ctx, w, h, mc);
+  else if (mc.type === 'minibars') drawMiniBars(ctx, w, h, mc);
+  else if (mc.type === 'dotdist') drawMiniDotDist(ctx, w, h, mc);
+}
+
+// ── Type 1: Sparkline (trend) ──
+function drawMiniSparkline(ctx, w, h, mc) {
+  const data = mc.data;
+  const highlightIdx = mc.highlightIdx;
+  const max = Math.max(...data) * 1.1;
+  const min = Math.min(...data) * 0.9;
+  const range = (max - min) || 1;
+  const pad = 4;
+  const cw = w - pad * 2, ch = h - pad * 2;
+  const step = cw / (data.length - 1);
+  const rgb = mc.color || '6,182,212';
+
+  const pts = data.map((v, i) => ({
+    x: pad + step * i,
+    y: pad + ch - ((v - min) / range) * ch
+  }));
+
+  // Area fill
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const cp = (pts[i-1].x + pts[i].x) / 2;
+    ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+  }
+  ctx.lineTo(pts[pts.length-1].x, pad + ch); ctx.lineTo(pts[0].x, pad + ch); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, pad, 0, pad + ch);
+  grad.addColorStop(0, 'rgba(' + rgb + ',0.15)');
+  grad.addColorStop(1, 'rgba(' + rgb + ',0.0)');
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const cp = (pts[i-1].x + pts[i].x) / 2;
+    ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+  }
+  ctx.strokeStyle = 'rgba(' + rgb + ',0.7)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.stroke();
+
+  // Highlight dot
+  if (highlightIdx !== undefined && pts[highlightIdx]) {
+    const p = pts[highlightIdx];
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.strokeStyle = 'rgba(' + rgb + ',1)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.5)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.restore();
+  }
+
+  // Min/Max labels
+  ctx.font = "300 8px 'Outfit', sans-serif"; ctx.fillStyle = 'rgba(255,255,255,0.20)';
+  const maxIdx = data.indexOf(Math.max(...data));
+  const minIdx = data.indexOf(Math.min(...data));
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.round(data[maxIdx]), pts[maxIdx].x, pts[maxIdx].y - 5);
+  ctx.fillText(Math.round(data[minIdx]), pts[minIdx].x, pts[minIdx].y + 10);
+}
+
+// ── Type 2: Mini Bars (comparison) ──
+function drawMiniBars(ctx, w, h, mc) {
+  const items = mc.items; // [{label, value, color, active}]
+  const max = Math.max(...items.map(i => i.value));
+  const barH = Math.min(6, (h - 4) / items.length - 2);
+  const gap = 2;
+  const labelW = 36;
+  const barArea = w - labelW - 8;
+
+  items.forEach((item, i) => {
+    const y = i * (barH + gap);
+    const bw = (item.value / max) * barArea;
+    const rgb = item.color || '6,182,212';
+    const alpha = item.active ? 0.85 : 0.25;
+
+    // Label
+    ctx.font = (item.active ? '400 ' : '300 ') + "8px 'Outfit', sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,' + (item.active ? 0.70 : 0.25) + ')';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(item.label.length > 5 ? item.label.substring(0,5) : item.label, labelW, y + barH / 2);
+
+    // Bar (pill)
+    const r = barH / 2;
+    ctx.beginPath();
+    ctx.moveTo(labelW + 6, y); ctx.lineTo(labelW + 6 + bw - r, y);
+    ctx.quadraticCurveTo(labelW + 6 + bw, y, labelW + 6 + bw, y + r);
+    ctx.quadraticCurveTo(labelW + 6 + bw, y + barH, labelW + 6 + bw - r, y + barH);
+    ctx.lineTo(labelW + 6, y + barH); ctx.closePath();
+    ctx.fillStyle = 'rgba(' + rgb + ',' + alpha + ')'; ctx.fill();
+
+    if (item.active) {
+      ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 4; ctx.fill(); ctx.restore();
+    }
+  });
+}
+
+// ── Type 3: Dot Distribution (value in population) ──
+function drawMiniDotDist(ctx, w, h, mc) {
+  const values = mc.values; // all values in population
+  const current = mc.current; // current value
+  const rgb = mc.color || '6,182,212';
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = (max - min) || 1;
+  const pad = 8;
+  const cw = w - pad * 2;
+  const midY = h / 2;
+
+  // Track line
+  ctx.beginPath(); ctx.moveTo(pad, midY); ctx.lineTo(pad + cw, midY);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.stroke();
+
+  // All value dots (dim)
+  values.forEach(v => {
+    const x = pad + ((v - min) / range) * cw;
+    ctx.beginPath(); ctx.arc(x, midY, 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fill();
+  });
+
+  // Mean marker
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const meanX = pad + ((mean - min) / range) * cw;
+  ctx.beginPath(); ctx.moveTo(meanX, midY - 8); ctx.lineTo(meanX, midY + 8);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = "300 7px 'Outfit', sans-serif"; ctx.fillStyle = 'rgba(255,255,255,0.20)';
+  ctx.textAlign = 'center'; ctx.fillText('avg', meanX, midY + 16);
+
+  // Current value dot (bright ring)
+  const curX = pad + ((current - min) / range) * cw;
+  ctx.beginPath(); ctx.arc(curX, midY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(' + rgb + ',0.10)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(curX, midY, 3.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#000'; ctx.fill();
+  ctx.strokeStyle = 'rgba(' + rgb + ',0.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.5)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.restore();
+
+  // Min/Max labels
+  ctx.font = "300 7px 'Outfit', sans-serif"; ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.textAlign = 'left'; ctx.fillText(Math.round(min), pad, midY - 10);
+  ctx.textAlign = 'right'; ctx.fillText(Math.round(max), pad + cw, midY - 10);
+}
 
 // ── Bar Hover Demo ──
 function drawBarHover() {
@@ -374,13 +540,17 @@ function drawBarHover() {
       const sorted = [...data].sort((x, y) => x - y);
       const rank = data.filter(v => v > a.value).length + 1;
       const percentile = Math.round((sorted.filter(v => v < a.value).length / sorted.length) * 100);
+      // AI picks: sparkline (shows monthly trend for this category)
+      const trendData = [28, 32, 38, a.value * 0.7, a.value * 0.85, a.value, a.value * 1.05, a.value * 0.95, a.value * 1.1, a.value * 1.15, a.value * 1.08, a.value];
       showHoverTT(e, 'Revenue', a.label, [
         { label: 'Value', value: '$' + a.value + 'K' },
         { label: '% of Total', value: pct + '%' },
         { label: 'vs Average', value: (vsAvg >= 0 ? '+' : '') + vsAvg + '%', valueColor: vsAvg >= 0 ? '#2dd4bf' : '#f43f5e' },
-        { label: 'Percentile', value: 'P' + percentile },
         { label: 'Rank', value: '#' + rank + ' of ' + data.length },
-      ], { titleColor: 'rgba(6,182,212,0.8)', barPct: Math.round((a.value / max) * 100), barColor: 'rgba(6,182,212,0.6)' });
+      ], {
+        titleColor: 'rgba(6,182,212,0.8)',
+        miniChart: { type: 'sparkline', data: trendData, highlightIdx: trendData.length - 1, color: '6,182,212', height: 36 }
+      });
     } else hideHoverTT();
   };
   c.onmouseleave = function() { c._hoverIdx = -1; drawBarHover(); hideHoverTT(); };
@@ -459,18 +629,22 @@ function drawDonutHover() {
     if (found >= 0) {
       const s = c._segments[found];
       const rank = data.filter(v => v > s.value).length + 1;
-      const allRows = c._segments.map((seg, si) => ({
+      // AI picks: mini bars (shows all segments comparison)
+      const miniBarItems = c._segments.map((seg, si) => ({
         label: seg.label,
-        value: seg.pct + '%',
-        color: seg.color,
-        ring: true,
-        dimmed: si !== found
+        value: seg.value,
+        color: PAL[si % PAL.length].rgb,
+        active: si === found
       }));
       showHoverTT(e, 'Distribution', s.label, [
         { label: 'Value', value: s.value.toLocaleString() },
         { label: 'Share', value: s.pct + '%' },
-      ].concat([{ label: '', value: '' }]).concat(allRows),
-      { titleColor: s.color, subtitle: 'Rank #' + rank + ' of ' + data.length });
+        { label: 'Rank', value: '#' + rank + ' of ' + data.length },
+      ], {
+        titleColor: s.color,
+        subtitle: 'Rank #' + rank + ' of ' + data.length,
+        miniChart: { type: 'minibars', items: miniBarItems, height: miniBarItems.length * 10 }
+      });
     } else hideHoverTT();
   };
   c.onmouseleave = function() { c._hoverIdx = -1; drawDonutHover(); hideHoverTT(); };
@@ -570,9 +744,13 @@ function drawLineHover() {
         { label: 'Revenue', value: '$' + data1[idx] + 'K', color: 'rgba(6,182,212,0.8)', ring: true },
         { label: 'Expenses', value: '$' + data2[idx] + 'K', color: 'rgba(103,232,249,0.8)', ring: true },
       ].sort((a, b) => parseFloat(b.value.replace(/[^0-9.]/g,'')) - parseFloat(a.value.replace(/[^0-9.]/g,'')));
+      // AI picks: dot distribution (shows where this total falls among all periods)
+      const allTotals = data1.map((v, i) => v + data2[i]);
       showHoverTT(e, 'Period: ' + labels[idx], null, [
         { label: 'Total', value: '$' + totalAtIdx + 'K' },
-      ].concat(seriesRows));
+      ].concat(seriesRows), {
+        miniChart: { type: 'dotdist', values: allTotals, current: totalAtIdx, color: '6,182,212', height: 32 }
+      });
     } else hideHoverTT();
   };
   c.onmouseleave = function() { c._hoverX = undefined; drawLineHover(); hideHoverTT(); };
