@@ -3025,7 +3025,7 @@ function renderOnboardingUpload(opts) {
     </svg>`
   };
 
-  const graphic = graphicSVGs[opts.graphic || 'analytics'] || '';
+  const graphic = isGenBI() ? '' : (graphicSVGs[opts.graphic || 'analytics'] || '');
 
   const featuresHTML = opts.features ? `
     <div class="feature-cards-grid">
