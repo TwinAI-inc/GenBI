@@ -5790,6 +5790,11 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
 // ── HORIZONTAL BAR CHART ──
 function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const w = canvas._lockedW || canvas.parentElement.getBoundingClientRect().width;
@@ -5811,7 +5816,7 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
     const x = padL + (cw / 4) * i;
     ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
     ctx.moveTo(x, padT); ctx.lineTo(x, padT + ch); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = chartTextColor(_g ? th.textAlpha : 0.25); ctx.font = _font; ctx.textAlign = 'center';
     ctx.fillText(formatTickLabel(maxVal, 4, 4 - i, opts.suffix || ''), x, h - padB + 16);
   }
 
@@ -5823,16 +5828,22 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
   const hitAreas = [];
 
   data.forEach((val, i) => {
-    const barRgb = barColors ? getColorRgb(barColors[i % barColors.length]) : rgb;
+    const barRgb = barColors ? getColorRgb(barColors[i % barColors.length]) : (_g && th.palette ? th.palette[i % th.palette.length] : rgb);
     const barW = (val / maxVal) * cw;
     const y = startY + i * (barH + gap);
     const x = padL;
-    const r = Math.min(4, barH / 2);
+    const r = _g ? barH / 2 : Math.min(4, barH / 2);
     const isHover = i === highlightIdx;
     const alpha = isHover ? 1 : (highlightIdx >= 0 ? 0.35 : 0.85);
     const grad = ctx.createLinearGradient(x, 0, x + barW, 0);
-    grad.addColorStop(0, 'rgba(' + barRgb + ',' + (alpha * 0.4) + ')');
-    grad.addColorStop(1, 'rgba(' + barRgb + ',' + alpha + ')');
+    if (_g) {
+      grad.addColorStop(0, 'rgba(' + barRgb + ',' + (alpha * 0.05) + ')');
+      grad.addColorStop(0.6, 'rgba(' + barRgb + ',' + (alpha * 0.6) + ')');
+      grad.addColorStop(1, 'rgba(' + barRgb + ',' + alpha + ')');
+    } else {
+      grad.addColorStop(0, 'rgba(' + barRgb + ',' + (alpha * 0.4) + ')');
+      grad.addColorStop(1, 'rgba(' + barRgb + ',' + alpha + ')');
+    }
     ctx.beginPath();
     ctx.moveTo(x, y); ctx.lineTo(x + barW - r, y);
     ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
@@ -5851,13 +5862,13 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
 
     // Value at end of bar
     const valAlpha = isHover ? 1 : (highlightIdx >= 0 ? 0.3 : 0.9);
-    ctx.fillStyle = 'rgba(' + barRgb + ',' + valAlpha + ')'; ctx.font = (isHover ? 'bold ' : '') + '10px Inter'; ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(' + barRgb + ',' + valAlpha + ')'; ctx.font = (isHover ? '500 ' : '') + (_g ? "10px 'Outfit', sans-serif" : '10px Inter'); ctx.textAlign = 'left';
     const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 2 : (val >= 1e4 ? 1 : (val % 1 ? 1 : 0))}) : String(val);
     ctx.fillText(vText, x + barW + 6, y + barH / 2 + 3);
 
     // Y label (left side)
     ctx.fillStyle = chartTextColor(isHover ? 0.8 : 0.3);
-    ctx.font = (isHover ? '500 ' : '') + '10px Inter'; ctx.textAlign = 'right';
+    ctx.font = (isHover ? '500 ' : '300 ') + (_g ? "10px 'Outfit', sans-serif" : '10px Inter'); ctx.textAlign = 'right';
     var rawLbl = String(fmtChartLabel(labels[i]));
     const lbl = rawLbl.length > 10 ? rawLbl.substring(0, 9) + '..' : rawLbl;
     ctx.fillText(lbl, padL - 8, y + barH / 2 + 3);
@@ -5865,11 +5876,11 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
 
   // Axis labels
   if (opts.xLabel) {
-    ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = chartTextColor(_g ? th.textAlpha : 0.35); ctx.font = _fontAxis; ctx.textAlign = 'center';
     ctx.fillText(opts.xLabel, padL + cw / 2, h - 2);
   }
   if (opts.yLabel) {
-    ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center';
+    ctx.save(); ctx.fillStyle = chartTextColor(_g ? th.textAlpha : 0.35); ctx.font = _fontAxis; ctx.textAlign = 'center';
     ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2);
     ctx.fillText(opts.yLabel, 0, 0); ctx.restore();
   }
@@ -5904,15 +5915,15 @@ function drawAreaChart(canvas, datasets, labels, opts = {}) {
   // Grid lines + Y labels
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     ctx.fillText(formatTickLabel(maxVal, 4, i, opts.suffix || ''), padL - 10, y + 4);
   }
 
   // X labels
   if (labels) {
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'center';
     const step = cw / (labels.length - 1);
     const nth = labels.length > 12 ? Math.ceil(labels.length / 8) : labels.length > 8 ? 2 : 1;
     labels.forEach((l, i) => {
@@ -5941,8 +5952,8 @@ function drawAreaChart(canvas, datasets, labels, opts = {}) {
   });
 
   // Axis labels
-  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 1); }
-  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
+  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 1); }
+  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
 }
 
 // ── STACKED BAR CHART ──
@@ -5969,9 +5980,9 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
   // Grid + Y labels
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     const tickVal = maxVal - (maxVal / 4) * i;
     const tickLabel = (isCurrencyAxis ? '$' : '') + formatTickLabel(maxVal, 4, i, opts.suffix || '');
     ctx.fillText(tickLabel, padL - 10, y + 4);
@@ -6035,14 +6046,14 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
     const sRgb = getColorRgb(series.color);
     ctx.fillStyle = 'rgba(' + sRgb + ',0.9)';
     ctx.fillRect(legX, legY - 4, 8, 8);
-    ctx.fillStyle = chartTextColor(0.5); ctx.font = '10px Inter'; ctx.textAlign = 'left';
+    ctx.fillStyle = chartTextColor(0.5); ctx.font = _fontSm; ctx.textAlign = 'left';
     ctx.fillText(series.name, legX + 12, legY + 3);
     legX += ctx.measureText(series.name).width + 24;
   });
 
   // Axis labels
-  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - padB + 30); }
-  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
+  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - padB + 30); }
+  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
 
   const cleanOpts = Object.assign({}, opts); delete cleanOpts._highlightIdx; delete cleanOpts._highlightSeries;
   canvas._chartHit = { type: 'stacked', areas: hitAreas, seriesData, labels, opts: cleanOpts };
@@ -6083,16 +6094,16 @@ function drawScatterChart(canvas, xData, yData, colorName, opts = {}) {
   // Grid + axis labels
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? th.gridColor : chartGridColor(); ctx.lineWidth = _g ? th.gridWidth : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? th.textAlpha : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     const yVal = yHi - ((yHi - yLo) / 4) * i;
     ctx.fillText(yVal % 1 ? yVal.toFixed(1) : Math.round(yVal), padL - 10, y + 4);
 
     const x = padL + (cw / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? th.gridColor : chartGridColor(); ctx.lineWidth = _g ? th.gridWidth : 1;
     ctx.moveTo(x, padT); ctx.lineTo(x, padT + ch); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = chartTextColor(_g ? th.textAlpha : 0.25); ctx.font = _font; ctx.textAlign = 'center';
     const xVal = xLo + ((xHi - xLo) / 4) * i;
     ctx.fillText(xVal % 1 ? xVal.toFixed(1) : Math.round(xVal), x, h - padB + 16);
   }
@@ -6105,20 +6116,30 @@ function drawScatterChart(canvas, xData, yData, colorName, opts = {}) {
     points.push({ px, py, xVal: xv, yVal: yData[i] });
     const isHover = i === highlightIdx;
     const alpha = isHover ? 1 : (highlightIdx >= 0 ? 0.25 : 0.8);
-    // Glow
-    ctx.beginPath(); ctx.arc(px, py, isHover ? 12 : 8, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(' + rgb + ',' + (alpha * 0.15) + ')'; ctx.fill();
-    // Dot
-    ctx.beginPath(); ctx.arc(px, py, isHover ? 6 : 5, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(' + rgb + ',' + alpha + ')'; ctx.fill();
+    if (_g) {
+      // GenBI: ring dot with halo
+      ctx.beginPath(); ctx.arc(px, py, isHover ? 14 : (th.scatterHaloRadius || 10), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + rgb + ',' + (th.scatterHaloAlpha || 0.06) + ')'; ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, isHover ? 5 : (th.scatterDotRadius || 4), 0, Math.PI * 2);
+      ctx.fillStyle = '#000'; ctx.fill();
+      ctx.strokeStyle = 'rgba(' + rgb + ',' + alpha + ')'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.restore();
+    } else {
+      // Glow
+      ctx.beginPath(); ctx.arc(px, py, isHover ? 12 : 8, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + rgb + ',' + (alpha * 0.15) + ')'; ctx.fill();
+      // Dot
+      ctx.beginPath(); ctx.arc(px, py, isHover ? 6 : 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + rgb + ',' + alpha + ')'; ctx.fill();
+    }
     if (isHover) {
       ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.6)'; ctx.shadowBlur = 16; ctx.fill(); ctx.restore();
     }
   });
 
   // Axis labels
-  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 2); }
-  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
+  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 2); }
+  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
 
   const cleanOpts = Object.assign({}, opts); delete cleanOpts._highlightIdx;
   canvas._chartHit = { type: 'scatter', points, xData, yData, colorName, rgb, opts: cleanOpts, labels: opts._labels || [] };
@@ -6198,7 +6219,7 @@ function drawGaugeChart(canvas, value, opts = {}) {
     ctx.fillText(opts.label, cx, cy + radius * 0.3);
   }
   // Min / Max
-  ctx.fillStyle = chartTextColor(0.2); ctx.font = '10px Inter';
+  ctx.fillStyle = chartTextColor(0.2); ctx.font = _fontSm;
   const minX = cx + (radius + 16) * Math.cos(startAngle);
   const minY = cy + (radius + 16) * Math.sin(startAngle);
   ctx.fillText(formatNumber(minVal, {abbreviate:true}), minX, minY);
@@ -6228,9 +6249,9 @@ function drawBubbleChart(canvas, xData, yData, sizeData, colorName, opts = {}) {
   // Grid
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     const yVal = yHi - ((yHi - yLo) / 4) * i;
     ctx.fillText(formatNumber(yVal, {abbreviate:true, decimals:1}), padL - 10, y + 4);
   }
@@ -6248,8 +6269,8 @@ function drawBubbleChart(canvas, xData, yData, sizeData, colorName, opts = {}) {
     ctx.strokeStyle = 'rgba(' + rgb + ',0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
   }
 
-  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 2); }
-  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
+  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 2); }
+  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
 }
 
 // ── LOLLIPOP CHART ──
@@ -6271,9 +6292,9 @@ function drawLollipopChart(canvas, labels, data, colorName, opts = {}) {
   // Grid
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     ctx.fillText(formatTickLabel(maxVal, 4, i, opts.suffix || ''), padL - 10, y + 4);
   }
 
@@ -6295,10 +6316,10 @@ function drawLollipopChart(canvas, labels, data, colorName, opts = {}) {
     ctx.fillStyle = 'rgba(' + rgb + ',0.9)'; ctx.fill();
     ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 8; ctx.fill(); ctx.restore();
     // Value
-    ctx.fillStyle = 'rgba(' + rgb + ',0.8)'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(' + rgb + ',0.8)'; ctx.font = _fontSm; ctx.textAlign = 'center';
     ctx.fillText(formatNumber(val, {abbreviate: val >= 1e4, decimals:0}), x, yTop - dotR - 5);
     // X label
-    ctx.fillStyle = chartTextColor(0.3); ctx.font = '10px Inter';
+    ctx.fillStyle = chartTextColor(0.3); ctx.font = _fontSm;
     var fL = String(fmtChartLabel(labels[i]));
     const lbl = fL.length > 9 ? fL.substring(0, 8) + '..' : fL;
     ctx.save(); ctx.translate(x, padT + ch + 14);
@@ -6306,8 +6327,8 @@ function drawLollipopChart(canvas, labels, data, colorName, opts = {}) {
     ctx.fillText(lbl, 0, 0); ctx.restore();
   });
 
-  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 2); }
-  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = '500 11px Inter'; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
+  if (opts.xLabel) { ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.fillText(opts.xLabel, padL + cw / 2, h - 2); }
+  if (opts.yLabel) { ctx.save(); ctx.fillStyle = chartTextColor(0.35); ctx.font = _fontAxis; ctx.textAlign = 'center'; ctx.translate(10, padT + ch / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(opts.yLabel, 0, 0); ctx.restore(); }
 }
 
 // ── FUNNEL CHART ──
@@ -6333,6 +6354,7 @@ function drawFunnelChart(canvas, labels, data, opts = {}) {
   const isPBI = document.body.classList.contains('theme-powerbi');
   const palette = isPBI
     ? ['17,141,255','253,180,21','117,9,133','16,124,16','209,52,56','0,120,212','232,140,0','73,130,5']
+    : (_g && th.palette) ? th.palette
     : ['0,229,255','179,136,255','105,240,174','255,215,64','255,107,157','56,189,248','129,140,248','251,146,60'];
 
   const count = Math.ceil(progress * n);
@@ -6349,22 +6371,32 @@ function drawFunnelChart(canvas, labels, data, opts = {}) {
     ctx.lineTo(cx + botW / 2, y + segH - gap);
     ctx.lineTo(cx - botW / 2, y + segH - gap);
     ctx.closePath();
-    const grad = ctx.createLinearGradient(0, y, 0, y + segH);
-    grad.addColorStop(0, 'rgba(' + rgb + ',0.85)');
-    grad.addColorStop(1, 'rgba(' + rgb + ',0.6)');
+    const grad = _g
+      ? ctx.createLinearGradient(cx - topW / 2, 0, cx + topW / 2, 0)
+      : ctx.createLinearGradient(0, y, 0, y + segH);
+    if (_g) {
+      grad.addColorStop(0, 'rgba(' + rgb + ',0.15)');
+      grad.addColorStop(0.3, 'rgba(' + rgb + ',0.55)');
+      grad.addColorStop(0.7, 'rgba(' + rgb + ',0.55)');
+      grad.addColorStop(1, 'rgba(' + rgb + ',0.15)');
+    } else {
+      grad.addColorStop(0, 'rgba(' + rgb + ',0.85)');
+      grad.addColorStop(1, 'rgba(' + rgb + ',0.6)');
+    }
     ctx.fillStyle = grad; ctx.fill();
+    if (_g) { ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.15)'; ctx.shadowBlur = th.funnelGlow || 10; ctx.fill(); ctx.restore(); }
 
     // Label + value
     ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-    ctx.fillStyle = chartTextColor(0.95); ctx.font = '500 12px Inter';
+    ctx.fillStyle = chartTextColor(0.95); ctx.font = _g ? "500 12px 'Outfit', sans-serif" : '500 12px Inter';
     ctx.fillText(labels[i], cx, y + segH / 2 - 7);
-    ctx.fillStyle = chartTextColor(0.6); ctx.font = '11px Inter';
+    ctx.fillStyle = chartTextColor(0.6); ctx.font = _font;
     ctx.fillText(formatNumber(data[i], {abbreviate:true}), cx, y + segH / 2 + 9);
 
     // Conversion rate
     if (i > 0 && data[i - 1] > 0) {
       const rate = ((data[i] / data[i - 1]) * 100).toFixed(0);
-      ctx.fillStyle = chartTextColor(0.25); ctx.font = '10px Inter'; ctx.textAlign = 'right';
+      ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _fontSm; ctx.textAlign = 'right';
       ctx.fillText(rate + '%', cx - topW / 2 - 8, y + gap + 8);
     }
   }
@@ -6448,9 +6480,9 @@ function drawWaterfallChart(canvas, labels, data, colorName, opts = {}) {
   // Grid
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     ctx.fillText(formatTickLabel(maxV, 4, i, '', minV), padL - 10, y + 4);
   }
 
@@ -6481,10 +6513,10 @@ function drawWaterfallChart(canvas, labels, data, colorName, opts = {}) {
       ctx.stroke(); ctx.setLineDash([]);
     }
     // Value
-    ctx.fillStyle = 'rgba(' + rgb + ',0.8)'; ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(' + rgb + ',0.8)'; ctx.font = _fontSm; ctx.textAlign = 'center';
     ctx.fillText((val >= 0 ? '+' : '') + formatNumber(val, {abbreviate:true}), x + barW / 2, yTop - 5);
     // X label
-    ctx.fillStyle = chartTextColor(0.3); ctx.font = '10px Inter';
+    ctx.fillStyle = chartTextColor(0.3); ctx.font = _fontSm;
     var fL2 = String(fmtChartLabel(labels[i]));
     const lbl = fL2.length > 9 ? fL2.substring(0, 8) + '..' : fL2;
     ctx.save(); ctx.translate(x + barW / 2, padT + ch + 14);
@@ -6536,7 +6568,7 @@ function drawRadarChart(canvas, labels, data, colorName, opts = {}) {
       const px = cx + r * Math.cos(angle), py = cy + r * Math.sin(angle);
       i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
     }
-    ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1; ctx.stroke();
   }
 
   // Axis lines + labels
@@ -6544,9 +6576,9 @@ function drawRadarChart(canvas, labels, data, colorName, opts = {}) {
     const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
     const px = cx + radius * Math.cos(angle), py = cy + radius * Math.sin(angle);
     ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py);
-    ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1; ctx.stroke();
+    ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1; ctx.stroke();
     const lx = cx + (radius + 16) * Math.cos(angle), ly = cy + (radius + 16) * Math.sin(angle);
-    ctx.fillStyle = chartTextColor(0.4); ctx.font = '10px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = chartTextColor(0.4); ctx.font = _fontSm; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const lbl = String(labels[i]).length > 10 ? String(labels[i]).substring(0,9) + '..' : String(labels[i]);
     ctx.fillText(lbl, lx, ly);
   }
@@ -6561,16 +6593,25 @@ function drawRadarChart(canvas, labels, data, colorName, opts = {}) {
     i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
   }
   ctx.closePath();
-  ctx.fillStyle = 'rgba(' + rgb + ',0.15)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(' + rgb + ',0.8)'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = 'rgba(' + rgb + ',' + (_g ? (th.radarFillAlpha || 0.10) : 0.15) + ')'; ctx.fill();
+  if (_g) { ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = th.radarGlow || 12; }
+  ctx.strokeStyle = 'rgba(' + rgb + ',' + (_g ? (th.radarStrokeAlpha || 0.8) : 0.8) + ')'; ctx.lineWidth = 2; ctx.stroke();
+  if (_g) ctx.restore();
 
   // Dots
   for (let i = 0; i < n; i++) {
     const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
     const val = (data[i] / maxVal) * radius * progress;
     const px = cx + val * Math.cos(angle), py = cy + val * Math.sin(angle);
-    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(' + rgb + ',1)'; ctx.fill();
+    if (_g) {
+      // Ring dot
+      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#000'; ctx.fill();
+      ctx.strokeStyle = 'rgba(' + rgb + ',0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + rgb + ',1)'; ctx.fill();
+    }
   }
 }
 
@@ -6620,18 +6661,18 @@ function drawHeatmapChart(canvas, chart, opts = {}) {
       ctx.fillRect(padL + xi * cellW + 1, padT + yi * cellH + 1, cellW - 2, cellH - 2);
       if (cellW > 30 && cellH > 20) {
         ctx.fillStyle = norm > 0.6 ? 'rgba(255,255,255,0.9)' : chartTextColor(0.6);
-        ctx.font = '10px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.font = _fontSm; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText(formatNumber(val, {abbreviate:true, decimals:0}), padL + xi * cellW + cellW / 2, padT + yi * cellH + cellH / 2);
       }
     });
     // Y label
-    ctx.fillStyle = chartTextColor(0.4); ctx.font = '10px Inter'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = chartTextColor(0.4); ctx.font = _fontSm; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
     const yl2 = String(yl).length > 8 ? String(yl).substring(0,7)+'..' : String(yl);
     ctx.fillText(yl2, padL - 8, padT + yi * cellH + cellH / 2);
   });
   // X labels
   xLabels.forEach((xl, xi) => {
-    ctx.fillStyle = chartTextColor(0.4); ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = chartTextColor(0.4); ctx.font = _fontSm; ctx.textAlign = 'center';
     const xl2 = String(xl).length > 8 ? String(xl).substring(0,7)+'..' : String(xl);
     ctx.save(); ctx.translate(padL + xi * cellW + cellW / 2, padT + ch + 12);
     if (xLabels.length > 8) ctx.rotate(-0.45);
@@ -6675,9 +6716,9 @@ function drawBoxplotChart(canvas, chart, opts = {}) {
   // Grid
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     ctx.fillText(formatTickLabel(maxV, 4, i, '', minV), padL - 10, y + 4);
   }
 
@@ -6707,7 +6748,7 @@ function drawBoxplotChart(canvas, chart, opts = {}) {
     ctx.beginPath(); ctx.moveTo(x - boxW / 2, yMed); ctx.lineTo(x + boxW / 2, yMed);
     ctx.strokeStyle = 'rgba(' + rgb + ',1)'; ctx.lineWidth = 2; ctx.stroke();
     // Label
-    ctx.fillStyle = chartTextColor(0.3); ctx.font = '10px Inter'; ctx.textAlign = 'center';
+    ctx.fillStyle = chartTextColor(0.3); ctx.font = _fontSm; ctx.textAlign = 'center';
     ctx.fillText(b.label || '', x, padT + ch + 14);
   });
 }
@@ -6737,7 +6778,7 @@ function drawTreemapChart(canvas, labels, data, opts = {}) {
   const pad = 8;
   const total = data.reduce((a, b) => a + b, 0) || 1;
   const progress = opts._sweepProgress != null ? opts._sweepProgress : 1;
-  const palette = ['0,229,255','179,136,255','105,240,174','255,215,64','255,107,157','56,189,248','129,140,248','251,146,60','45,212,191','163,230,53'];
+  const palette = (_g && th.palette) ? th.palette : ['0,229,255','179,136,255','105,240,174','255,215,64','255,107,157','56,189,248','129,140,248','251,146,60','45,212,191','163,230,53'];
 
   // Simple squarified treemap (horizontal slicing)
   const items = labels.map((l, i) => ({ label: l, value: data[i], rgb: palette[i % palette.length] }))
@@ -6766,15 +6807,16 @@ function drawTreemapChart(canvas, labels, data, opts = {}) {
     ctx.lineTo(r.x + cr, r.y + r.h); ctx.quadraticCurveTo(r.x, r.y + r.h, r.x, r.y + r.h - cr);
     ctx.lineTo(r.x, r.y + cr); ctx.quadraticCurveTo(r.x, r.y, r.x + cr, r.y);
     ctx.fill();
+    if (_g) { ctx.save(); ctx.shadowColor = 'rgba(' + r.rgb + ',0.15)'; ctx.shadowBlur = th.treemapGlow || 8; ctx.fill(); ctx.restore(); }
     // Border
-    ctx.strokeStyle = isLightBg() ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = isLightBg() ? 'rgba(255,255,255,0.8)' : (_g ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.3)'); ctx.lineWidth = _g ? 1 : 1.5; ctx.stroke();
     // Label
     if (r.w > 40 && r.h > 25) {
-      ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.font = 'bold ' + Math.max(9, Math.min(13, r.w / 8)) + 'px Inter';
+      ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.font = 'bold ' + Math.max(9, Math.min(13, r.w / 8)) + 'px ' + (_g ? "'Outfit', sans-serif" : 'Inter');
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const lbl = r.label.length > Math.floor(r.w / 7) ? r.label.substring(0, Math.floor(r.w / 7) - 1) + '..' : r.label;
       ctx.fillText(lbl, r.x + r.w / 2, r.y + r.h / 2 - 6);
-      ctx.font = '10px Inter'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = _fontSm; ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.fillText(formatNumber(r.value, {abbreviate:true}), r.x + r.w / 2, r.y + r.h / 2 + 8);
     }
   });
@@ -6815,9 +6857,9 @@ function drawCandlestickChart(canvas, chart, opts = {}) {
   // Grid
   for (let i = 0; i <= 4; i++) {
     const y = padT + (ch / 4) * i;
-    ctx.beginPath(); ctx.strokeStyle = chartGridColor(); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.strokeStyle = _g ? (th.gridColor || chartGridColor()) : chartGridColor(); ctx.lineWidth = _g ? (th.gridWidth || 0.4) : 1;
     ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
-    ctx.fillStyle = chartTextColor(0.25); ctx.font = '11px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(_g ? (th.textAlpha || 0.30) : 0.25); ctx.font = _font; ctx.textAlign = 'right';
     ctx.fillText(formatTickLabel(maxV, 4, i, '', minV), padL - 10, y + 4);
   }
 
@@ -6841,7 +6883,7 @@ function drawCandlestickChart(canvas, chart, opts = {}) {
     ctx.fillRect(x - candleW / 2, bodyTop, candleW, Math.max(1, bodyBot - bodyTop));
     // X label
     if (c.label && (candles.length < 20 || i % Math.ceil(candles.length / 10) === 0)) {
-      ctx.fillStyle = chartTextColor(0.3); ctx.font = '9px Inter'; ctx.textAlign = 'center';
+      ctx.fillStyle = chartTextColor(0.3); ctx.font = _g ? "300 9px 'Outfit', sans-serif" : '9px Inter'; ctx.textAlign = 'center';
       ctx.fillText(String(c.label).substring(0, 8), x, padT + ch + 12);
     }
   }
@@ -6881,8 +6923,8 @@ function drawSankeyChart(canvas, chart, opts = {}) {
   const srcTotals = {}; sources.forEach(s => { srcTotals[s] = flows.filter(f => f.source === s).reduce((a, f) => a + f.value, 0); });
   const tgtTotals = {}; targets.forEach(t => { tgtTotals[t] = flows.filter(f => f.target === t).reduce((a, f) => a + f.value, 0); });
   const totalFlow = flows.reduce((a, f) => a + f.value, 0) || 1;
-  const nodeW = 16, gap = 8;
-  const palette = ['0,229,255','179,136,255','105,240,174','255,215,64','255,107,157','56,189,248','129,140,248','251,146,60'];
+  const nodeW = _g ? (th.sankeyNodeW || 14) : 16, gap = 8;
+  const palette = (_g && th.palette) ? th.palette : ['0,229,255','179,136,255','105,240,174','255,215,64','255,107,157','56,189,248','129,140,248','251,146,60'];
 
   // Position source nodes
   const srcH = ch - gap * (sources.length - 1);
@@ -6922,20 +6964,21 @@ function drawSankeyChart(canvas, chart, opts = {}) {
     ctx.moveTo(sx, sy); ctx.bezierCurveTo(cpx, sy, cpx, ty, tx, ty);
     ctx.lineTo(tx, ty + fh); ctx.bezierCurveTo(cpx, ty + fh, cpx, sy + fh, sx, sy + fh);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(' + sp.rgb + ',0.2)'; ctx.fill();
+    ctx.fillStyle = 'rgba(' + sp.rgb + ',' + (_g ? (th.sankeyFlowAlpha || 0.18) : 0.2) + ')'; ctx.fill();
+    if (_g) { ctx.save(); ctx.shadowColor = 'rgba(' + sp.rgb + ',0.08)'; ctx.shadowBlur = th.sankeyGlow || 10; ctx.fill(); ctx.restore(); }
   });
 
   // Draw nodes
   Object.entries(srcPos).forEach(([name, p]) => {
     ctx.fillStyle = 'rgba(' + p.rgb + ',0.8)';
     ctx.fillRect(p.x, p.y, nodeW, p.h);
-    ctx.fillStyle = chartTextColor(0.6); ctx.font = '10px Inter'; ctx.textAlign = 'right';
+    ctx.fillStyle = chartTextColor(0.6); ctx.font = _fontSm; ctx.textAlign = 'right';
     ctx.fillText(name, p.x - 4, p.y + p.h / 2 + 3);
   });
   Object.entries(tgtPos).forEach(([name, p]) => {
     ctx.fillStyle = 'rgba(' + p.rgb + ',0.8)';
     ctx.fillRect(p.x, p.y, nodeW, p.h);
-    ctx.fillStyle = chartTextColor(0.6); ctx.font = '10px Inter'; ctx.textAlign = 'left';
+    ctx.fillStyle = chartTextColor(0.6); ctx.font = _fontSm; ctx.textAlign = 'left';
     ctx.fillText(name, p.x + nodeW + 4, p.y + p.h / 2 + 3);
   });
 }
@@ -8811,6 +8854,29 @@ function getThemeChartOpts() {
     tooltipBlur: 20, tooltipBorder: 'rgba(6,182,212,0.15)', tooltipBg: 'rgba(5,5,8,0.94)',
     legendDot: 'ring', legendSize: 7,
     animDuration: 800, animEasing: 'cubic-bezier(0.22,1,0.36,1)',
+    // Scatter: ring dots with halos
+    scatterDotRadius: 4, scatterHaloRadius: 10, scatterHaloAlpha: 0.06,
+    // Radar: minimal grid, glow polygon
+    radarGridColor: 'rgba(255,255,255,0.04)', radarAxisColor: 'rgba(255,255,255,0.04)',
+    radarFillAlpha: 0.10, radarStrokeAlpha: 0.8, radarGlow: 12,
+    // Heatmap: rounded cells, bloom on high values
+    heatmapRadius: 3, heatmapGlowThreshold: 0.7, heatmapGlow: 8,
+    // Treemap: GenBI palette, rounded rects
+    treemapRadius: 6, treemapGlow: 8,
+    // Sankey: bloom ribbons, rounded nodes
+    sankeyNodeRadius: 4, sankeyNodeW: 14, sankeyFlowAlpha: 0.18, sankeyGlow: 10,
+    // Waterfall: rounded bars, dashed connectors
+    waterfallRadius: 8, waterfallConnectorColor: 'rgba(255,255,255,0.06)',
+    // Gauge: segmented arc, needle
+    gaugeSegments: 60, gaugeTrackWidth: 8, gaugeValueWidth: 8, gaugeNeedle: true,
+    // Funnel: tapered stages with glow
+    funnelGlow: 10,
+    // Boxplot: rounded boxes
+    boxplotRadius: 4, boxplotGlow: 6,
+    // Candlestick: rounded bodies
+    candleRadius: 3, candleGlow: 6,
+    // GenBI palette for multi-color charts
+    palette: ['6,182,212','103,232,249','8,145,178','45,212,191','165,243,252','244,63,94','34,211,238','20,184,166'],
   };
   if (isLiquidGlass()) return {
     style: 'liquid',
