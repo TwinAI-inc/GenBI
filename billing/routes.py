@@ -223,17 +223,17 @@ ROOT_DIR = os.path.dirname(os.path.dirname(__file__))
 
 @billing_pages_bp.route('/pricing')
 def pricing_page():
-    """Pricing page is served via the SPA (index.html)."""
-    return send_from_directory(ROOT_DIR, 'index.html')
+    """Pricing page is served via the SPA (dashboard.html)."""
+    return send_from_directory(ROOT_DIR, 'dashboard.html')
 
 
 @billing_pages_bp.route('/billing/success')
 def billing_success():
     """Post-Checkout success page. SPA detects ?billing=success and polls."""
-    return send_from_directory(ROOT_DIR, 'index.html')
+    return send_from_directory(ROOT_DIR, 'dashboard.html')
 
 
 @billing_pages_bp.route('/billing/cancel')
 def billing_cancel():
     """Checkout was canceled. SPA detects ?billing=canceled."""
-    return send_from_directory(ROOT_DIR, 'index.html')
+    return send_from_directory(ROOT_DIR, 'dashboard.html')

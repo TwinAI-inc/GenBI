@@ -119,7 +119,7 @@ def create_app():
 
     @app.route('/dashboard')
     def dashboard_page():
-        return send_from_directory('.', 'index.html', max_age=0)
+        return send_from_directory('.', 'dashboard.html', max_age=0)
 
     # ── Session fixation prevention ──────────────────────────────────────
     @app.before_request

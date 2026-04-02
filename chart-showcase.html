@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenBI Chart Design Showcase</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --white-90: rgba(255,255,255,0.90);
+  --white-80: rgba(255,255,255,0.80);
+  --white-60: rgba(255,255,255,0.60);
+  --white-40: rgba(255,255,255,0.40);
+  --white-30: rgba(255,255,255,0.30);
+  --white-20: rgba(255,255,255,0.20);
+  --white-08: rgba(255,255,255,0.08);
+  --white-03: rgba(255,255,255,0.03);
+  --cyan: #06b6d4;
+  --cyan-light: #67e8f9;
+}
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { font-family: 'Outfit', sans-serif; font-weight: 300; background: #000; color: var(--white-80); overflow-x: hidden; }
+
+.header {
+  padding: 3rem 2rem 2rem;
+  text-align: center;
+}
+.header h1 {
+  font-size: 2.5rem; font-weight: 300; letter-spacing: -0.025em;
+  color: var(--white-90);
+}
+.header p { font-size: 0.9rem; color: var(--white-30); margin-top: 0.5rem; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem 2rem 4rem;
+}
+
+.card {
+  background: var(--white-03);
+  border: 1px solid var(--white-08);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: border-color 0.3s cubic-bezier(0.22,1,0.36,1);
+}
+.card:hover { border-color: rgba(255,255,255,0.12); }
+.card-title {
+  font-size: 0.7rem; font-weight: 400; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--white-25, rgba(255,255,255,0.25));
+  margin-bottom: 1rem;
+}
+.card canvas {
+  width: 100%;
+  height: 260px;
+  display: block;
+}
+.card.tall canvas { height: 320px; }
+
+/* Tooltip */
+.tt {
+  position: fixed; z-index: 300; pointer-events: none;
+  background: rgba(0,0,0,0.85); backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  border-radius: 8px; padding: 6px 10px;
+  font-size: 11px; font-weight: 300; color: var(--white-80);
+  opacity: 0; transition: opacity 0.15s;
+  max-width: 200px;
+}
+.tt.visible { opacity: 1; }
+.tt-label { font-size: 10px; color: var(--white-30); margin-bottom: 2px; }
+.tt-value { font-weight: 400; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>GenBI Chart Showcase</h1>
+  <p>Preview all chart styles before applying to the platform</p>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="card-title">Bar Chart</div><canvas id="bar"></canvas></div>
+  <div class="card"><div class="card-title">Horizontal Bar</div><canvas id="hbar"></canvas></div>
+  <div class="card"><div class="card-title">Line Chart (Multi-Series)</div><canvas id="line"></canvas></div>
+  <div class="card"><div class="card-title">Area Chart</div><canvas id="area"></canvas></div>
+  <div class="card"><div class="card-title">Donut Chart</div><canvas id="donut"></canvas></div>
+  <div class="card"><div class="card-title">Scatter Plot</div><canvas id="scatter"></canvas></div>
+  <div class="card"><div class="card-title">Stacked Bar</div><canvas id="stacked"></canvas></div>
+  <div class="card"><div class="card-title">Waterfall Chart</div><canvas id="waterfall"></canvas></div>
+  <div class="card"><div class="card-title">Radar Chart</div><canvas id="radar"></canvas></div>
+  <div class="card"><div class="card-title">Heatmap</div><canvas id="heatmap"></canvas></div>
+  <div class="card"><div class="card-title">Gauge</div><canvas id="gauge"></canvas></div>
+  <div class="card"><div class="card-title">Funnel Chart</div><canvas id="funnel"></canvas></div>
+  <div class="card"><div class="card-title">Sankey Diagram</div><canvas id="sankey"></canvas></div>
+  <div class="card"><div class="card-title">Treemap</div><canvas id="treemap"></canvas></div>
+</div>
+
+<div id="tooltip" class="tt"><div class="tt-label" id="ttL"></div><div class="tt-value" id="ttV"></div></div>
+
+<script>
+// ── GenBI Design Tokens ──
+const FONT = "'Outfit', sans-serif";
+const LABEL_FONT = "300 11px " + FONT;
+const VALUE_FONT = "400 11px " + FONT;
+const GRID_COLOR = 'rgba(255,255,255,0.03)';
+const AXIS_COLOR = 'rgba(255,255,255,0.06)';
+const TEXT_ALPHA = 0.30;
+const EASE = [0.22, 1, 0.36, 1];
+
+// GenBI color palette
+const PAL = [
+  { hex: '#06b6d4', rgb: '6,182,212' },
+  { hex: '#67e8f9', rgb: '103,232,249' },
+  { hex: '#0891b2', rgb: '8,145,178' },
+  { hex: '#2dd4bf', rgb: '45,212,191' },
+  { hex: '#a5f3fc', rgb: '165,243,252' },
+  { hex: '#f43f5e', rgb: '244,63,94' },
+  { hex: '#22d3ee', rgb: '34,211,238' },
+  { hex: '#14b8a6', rgb: '20,184,166' },
+];
+
+function setup(id) {
+  const c = document.getElementById(id);
+  const dpr = window.devicePixelRatio || 1;
+  const rect = c.getBoundingClientRect();
+  c.width = rect.width * dpr;
+  c.height = rect.height * dpr;
+  c.style.width = rect.width + 'px';
+  c.style.height = rect.height + 'px';
+  const ctx = c.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function textColor(a) { return 'rgba(255,255,255,' + a + ')'; }
+
+// ══════════════════════════════════════
+// BAR CHART — pill bars with bloom glow
+// ══════════════════════════════════════
+function drawBar() {
+  const { ctx, w, h } = setup('bar');
+  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const data = [42, 68, 55, 80, 65, 90, 72];
+  const max = Math.max(...data) * 1.15;
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const barW = Math.min(cw / labels.length * 0.55, 36);
+  const gap = cw / labels.length;
+  const rgb = PAL[0].rgb;
+
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y);
+    ctx.strokeStyle = GRID_COLOR; ctx.lineWidth = 0.4; ctx.stroke();
+    ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(max - (max / 4) * i), padL - 8, y);
+  }
+
+  // Labels
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  labels.forEach((l, i) => {
+    ctx.fillStyle = textColor(TEXT_ALPHA);
+    ctx.font = LABEL_FONT;
+    ctx.fillText(l, padL + gap * i + gap / 2, h - padB + 8);
+  });
+
+  // Bars
+  data.forEach((v, i) => {
+    const barH = (v / max) * ch;
+    const x = padL + gap * i + (gap - barW) / 2;
+    const y = padT + ch - barH;
+    const r = Math.min(barW / 2, 50);
+    const alpha = 0.85;
+
+    // Pill shape
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+    ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+    ctx.lineTo(x + barW, padT + ch);
+    ctx.lineTo(x, padT + ch);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, y, 0, padT + ch);
+    grad.addColorStop(0, 'rgba(' + rgb + ',' + alpha + ')');
+    grad.addColorStop(0.4, 'rgba(' + rgb + ',' + (alpha * 0.6) + ')');
+    grad.addColorStop(1, 'rgba(' + rgb + ',0.05)');
+    ctx.fillStyle = grad; ctx.fill();
+
+    // Bloom glow
+    ctx.save();
+    ctx.shadowColor = 'rgba(' + rgb + ',0.25)'; ctx.shadowBlur = 14;
+    ctx.fill(); ctx.restore();
+
+    // Top highlight
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.5)'; ctx.lineWidth = 1; ctx.lineCap = 'round'; ctx.stroke();
+  });
+}
+
+// ══════════════════════════════════════
+// HORIZONTAL BAR — pill bars, right glow
+// ══════════════════════════════════════
+function drawHBar() {
+  const { ctx, w, h } = setup('hbar');
+  const labels = ['Product A', 'Product B', 'Product C', 'Product D', 'Product E'];
+  const data = [85, 72, 60, 45, 38];
+  const max = 100;
+  const padL = 72, padR = 24, padT = 12, padB = 24;
+  const ch = h - padT - padB;
+  const cw = w - padL - padR;
+  const barH = Math.min(ch / labels.length * 0.55, 24);
+  const gap = ch / labels.length;
+
+  labels.forEach((l, i) => {
+    const rgb = PAL[i % PAL.length].rgb;
+    const barW = (data[i] / max) * cw;
+    const y = padT + gap * i + (gap - barH) / 2;
+    const r = barH / 2;
+
+    // Label
+    ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(l, padL - 10, y + barH / 2);
+
+    // Pill
+    ctx.beginPath();
+    ctx.moveTo(padL, y); ctx.lineTo(padL + barW - r, y);
+    ctx.quadraticCurveTo(padL + barW, y, padL + barW, y + r);
+    ctx.quadraticCurveTo(padL + barW, y + barH, padL + barW - r, y + barH);
+    ctx.lineTo(padL, y + barH);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(padL, 0, padL + barW, 0);
+    grad.addColorStop(0, 'rgba(' + rgb + ',0.05)');
+    grad.addColorStop(0.6, 'rgba(' + rgb + ',0.6)');
+    grad.addColorStop(1, 'rgba(' + rgb + ',0.85)');
+    ctx.fillStyle = grad; ctx.fill();
+
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.2)'; ctx.shadowBlur = 12; ctx.fill(); ctx.restore();
+
+    // Value
+    ctx.font = VALUE_FONT; ctx.fillStyle = textColor(0.6);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(data[i], padL + barW + 8, y + barH / 2);
+  });
+}
+
+// ══════════════════════════════════════
+// LINE CHART — double glow, ring dots
+// ══════════════════════════════════════
+function drawLine() {
+  const { ctx, w, h } = setup('line');
+  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  const series = [
+    { data: [30, 45, 38, 62, 55, 70, 65, 80], color: PAL[0] },
+    { data: [20, 35, 50, 40, 60, 48, 72, 58], color: PAL[1] },
+  ];
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const max = 100;
+
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y);
+    ctx.strokeStyle = GRID_COLOR; ctx.lineWidth = 0.4; ctx.stroke();
+    ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(max - (max / 4) * i), padL - 8, y);
+  }
+
+  // X labels
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  labels.forEach((l, i) => {
+    ctx.fillStyle = textColor(TEXT_ALPHA); ctx.font = LABEL_FONT;
+    ctx.fillText(l, padL + (cw / (labels.length - 1)) * i, h - padB + 8);
+  });
+
+  series.forEach(s => {
+    const rgb = s.color.rgb;
+    const pts = s.data.map((v, i) => ({
+      x: padL + (cw / (labels.length - 1)) * i,
+      y: padT + ch - (v / max) * ch
+    }));
+
+    // Area fill
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const cp1x = (pts[i-1].x + pts[i].x) / 2;
+      ctx.bezierCurveTo(cp1x, pts[i-1].y, cp1x, pts[i].y, pts[i].x, pts[i].y);
+    }
+    ctx.lineTo(pts[pts.length-1].x, padT + ch); ctx.lineTo(pts[0].x, padT + ch); ctx.closePath();
+    const aGrad = ctx.createLinearGradient(0, padT, 0, padT + ch);
+    aGrad.addColorStop(0, 'rgba(' + rgb + ',0.15)');
+    aGrad.addColorStop(1, 'rgba(' + rgb + ',0.0)');
+    ctx.fillStyle = aGrad; ctx.fill();
+
+    // Outer glow
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const cp1x = (pts[i-1].x + pts[i].x) / 2;
+      ctx.bezierCurveTo(cp1x, pts[i-1].y, cp1x, pts[i].y, pts[i].x, pts[i].y);
+    }
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.08)'; ctx.shadowBlur = 20;
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.3)'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+
+    // Inner line
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const cp1x = (pts[i-1].x + pts[i].x) / 2;
+      ctx.bezierCurveTo(cp1x, pts[i-1].y, cp1x, pts[i].y, pts[i].x, pts[i].y);
+    }
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.4)'; ctx.shadowBlur = 12;
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.85)'; ctx.lineWidth = 2.8; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+
+    // Ring dots with halo
+    pts.forEach(p => {
+      // Halo
+      ctx.beginPath(); ctx.arc(p.x, p.y, 12, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(' + rgb + ',0.08)'; ctx.fill();
+      // Ring
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#000'; ctx.fill();
+      ctx.strokeStyle = 'rgba(' + rgb + ',0.85)'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.4)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.restore();
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// AREA CHART — gradient fill, glow line
+// ══════════════════════════════════════
+function drawArea() {
+  const { ctx, w, h } = setup('area');
+  const labels = ['Q1', 'Q2', 'Q3', 'Q4'];
+  const data = [40, 65, 50, 80];
+  const max = 100;
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const rgb = PAL[0].rgb;
+
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y);
+    ctx.strokeStyle = GRID_COLOR; ctx.lineWidth = 0.4; ctx.stroke();
+  }
+
+  const pts = data.map((v, i) => ({
+    x: padL + (cw / (data.length - 1)) * i,
+    y: padT + ch - (v / max) * ch
+  }));
+
+  // Area
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const cp = (pts[i-1].x + pts[i].x) / 2;
+    ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+  }
+  ctx.lineTo(pts[pts.length-1].x, padT + ch); ctx.lineTo(pts[0].x, padT + ch); ctx.closePath();
+  const grad = ctx.createLinearGradient(0, padT, 0, padT + ch);
+  grad.addColorStop(0, 'rgba(' + rgb + ',0.20)');
+  grad.addColorStop(0.5, 'rgba(' + rgb + ',0.08)');
+  grad.addColorStop(1, 'rgba(' + rgb + ',0.0)');
+  ctx.fillStyle = grad; ctx.fill();
+
+  // Line with glow
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const cp = (pts[i-1].x + pts[i].x) / 2;
+    ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+  }
+  ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.4)'; ctx.shadowBlur = 12;
+  ctx.strokeStyle = 'rgba(' + rgb + ',0.85)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+
+  // Labels
+  ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA); ctx.textAlign = 'center';
+  labels.forEach((l, i) => ctx.fillText(l, pts[i].x, h - padB + 8));
+}
+
+// ══════════════════════════════════════
+// DONUT — thin ring, radial gradient, glow
+// ══════════════════════════════════════
+function drawDonut() {
+  const { ctx, w, h } = setup('donut');
+  const data = [35, 25, 20, 12, 8];
+  const labels = ['Direct', 'Social', 'Referral', 'Email', 'Other'];
+  const total = data.reduce((a, b) => a + b, 0);
+  const cx = w * 0.42, cy = h / 2;
+  const outerR = Math.min(w, h) * 0.38;
+  const innerR = outerR * 0.68;
+
+  let angle = -Math.PI / 2;
+  data.forEach((v, i) => {
+    const slice = (v / total) * Math.PI * 2;
+    const c = PAL[i % PAL.length];
+    const rgb = c.rgb;
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, angle, angle + slice);
+    ctx.arc(cx, cy, innerR, angle + slice, angle, true);
+    ctx.closePath();
+
+    // Radial gradient
+    const segGrad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+    segGrad.addColorStop(0, 'rgba(' + rgb + ',0.4)');
+    segGrad.addColorStop(1, 'rgba(' + rgb + ',0.85)');
+    ctx.fillStyle = segGrad; ctx.fill();
+
+    // Bloom
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.25)'; ctx.shadowBlur = 12; ctx.fill(); ctx.restore();
+
+    // Gap
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, angle + slice - 0.01, angle + slice + 0.01);
+    ctx.arc(cx, cy, innerR, angle + slice + 0.01, angle + slice - 0.01, true);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke();
+
+    angle += slice;
+  });
+
+  // Center text
+  ctx.font = "300 24px " + FONT; ctx.fillStyle = textColor(0.90);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(total, cx, cy - 6);
+  ctx.font = "300 10px " + FONT; ctx.fillStyle = textColor(0.25);
+  ctx.fillText('TOTAL', cx, cy + 14);
+
+  // Legend (right side, ring dots)
+  const legX = w * 0.70, legY = h * 0.22;
+  labels.forEach((l, i) => {
+    const y = legY + i * 22;
+    const rgb = PAL[i % PAL.length].rgb;
+    // Ring dot
+    ctx.beginPath(); ctx.arc(legX, y, 4, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    // Label
+    ctx.font = "300 11px " + FONT; ctx.fillStyle = textColor(0.40);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(l, legX + 12, y);
+    // Value
+    ctx.font = "400 11px " + FONT; ctx.fillStyle = textColor(0.70);
+    ctx.fillText(data[i] + '%', legX + 70, y);
+  });
+}
+
+// ══════════════════════════════════════
+// SCATTER — ring dots with halos
+// ══════════════════════════════════════
+function drawScatter() {
+  const { ctx, w, h } = setup('scatter');
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const points = [];
+  for (let i = 0; i < 30; i++) points.push({ x: Math.random() * 100, y: Math.random() * 100 });
+  const rgb = PAL[0].rgb;
+
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y);
+    ctx.strokeStyle = GRID_COLOR; ctx.lineWidth = 0.4; ctx.stroke();
+  }
+
+  points.forEach(p => {
+    const px = padL + (p.x / 100) * cw;
+    const py = padT + ch - (p.y / 100) * ch;
+    const alpha = 0.5 + p.y * 0.005;
+
+    // Halo
+    ctx.beginPath(); ctx.arc(px, py, 10, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(' + rgb + ',0.06)'; ctx.fill();
+    // Ring dot
+    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.strokeStyle = 'rgba(' + rgb + ',' + alpha + ')'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.restore();
+  });
+
+  ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA);
+  ctx.textAlign = 'center'; ctx.fillText('X Axis', w / 2, h - 4);
+}
+
+// ══════════════════════════════════════
+// STACKED BAR — layered pills
+// ══════════════════════════════════════
+function drawStacked() {
+  const { ctx, w, h } = setup('stacked');
+  const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const series = [
+    { data: [30, 40, 35, 50, 45], color: PAL[0] },
+    { data: [20, 25, 30, 20, 35], color: PAL[1] },
+    { data: [15, 10, 20, 15, 10], color: PAL[3] },
+  ];
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const max = 100;
+  const gap = cw / labels.length;
+  const barW = Math.min(gap * 0.55, 36);
+
+  labels.forEach((l, i) => {
+    let cumY = 0;
+    series.forEach((s, si) => {
+      const rgb = s.color.rgb;
+      const barH = (s.data[i] / max) * ch;
+      const x = padL + gap * i + (gap - barW) / 2;
+      const y = padT + ch - cumY - barH;
+      const isTop = si === series.length - 1;
+      const r = isTop ? Math.min(barW / 2, 50) : 0;
+
+      ctx.beginPath();
+      if (isTop) {
+        ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+        ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+      } else {
+        ctx.moveTo(x, y); ctx.lineTo(x + barW, y);
+      }
+      ctx.lineTo(x + barW, y + barH);
+      ctx.lineTo(x, y + barH);
+      if (isTop) { ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); }
+      ctx.closePath();
+
+      ctx.fillStyle = 'rgba(' + rgb + ',0.75)'; ctx.fill();
+      ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.15)'; ctx.shadowBlur = 8; ctx.fill(); ctx.restore();
+      cumY += barH;
+    });
+
+    ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA);
+    ctx.textAlign = 'center'; ctx.fillText(l, padL + gap * i + gap / 2, h - padB + 8);
+  });
+}
+
+// ══════════════════════════════════════
+// WATERFALL — connected pill segments
+// ══════════════════════════════════════
+function drawWaterfall() {
+  const { ctx, w, h } = setup('waterfall');
+  const labels = ['Start', 'Sales', 'COGS', 'OpEx', 'Tax', 'Net'];
+  const vals = [100, 45, -30, -25, -12, 78];
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const max = 120;
+  const gap = cw / labels.length;
+  const barW = Math.min(gap * 0.55, 36);
+
+  let running = 0;
+  vals.forEach((v, i) => {
+    const isTotal = i === 0 || i === vals.length - 1;
+    const start = isTotal ? 0 : running;
+    const end = isTotal ? v : running + v;
+    running = isTotal ? v : end;
+
+    const y1 = padT + ch - (Math.max(start, end) / max) * ch;
+    const y2 = padT + ch - (Math.min(start, end) / max) * ch;
+    const barH = y2 - y1;
+    const x = padL + gap * i + (gap - barW) / 2;
+    const rgb = v >= 0 ? PAL[3].rgb : PAL[5].rgb;
+    const r = Math.min(barW / 2, 8);
+
+    ctx.beginPath();
+    ctx.moveTo(x + r, y1); ctx.lineTo(x + barW - r, y1);
+    ctx.quadraticCurveTo(x + barW, y1, x + barW, y1 + r);
+    ctx.lineTo(x + barW, y2 - r);
+    ctx.quadraticCurveTo(x + barW, y2, x + barW - r, y2);
+    ctx.lineTo(x + r, y2);
+    ctx.quadraticCurveTo(x, y2, x, y2 - r);
+    ctx.lineTo(x, y1 + r);
+    ctx.quadraticCurveTo(x, y1, x + r, y1);
+    ctx.closePath();
+
+    ctx.fillStyle = 'rgba(' + rgb + ',0.75)'; ctx.fill();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.2)'; ctx.shadowBlur = 10; ctx.fill(); ctx.restore();
+
+    // Connector
+    if (i < vals.length - 1) {
+      const nx = padL + gap * (i + 1) + (gap - barW) / 2;
+      const connY = padT + ch - (running / max) * ch;
+      ctx.beginPath(); ctx.moveTo(x + barW, connY); ctx.lineTo(nx, connY);
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA);
+    ctx.textAlign = 'center'; ctx.fillText(labels[i], x + barW / 2, h - padB + 8);
+  });
+}
+
+// ══════════════════════════════════════
+// RADAR — minimal grid, glow polygon
+// ══════════════════════════════════════
+function drawRadar() {
+  const { ctx, w, h } = setup('radar');
+  const labels = ['Speed', 'Accuracy', 'Cost', 'Scale', 'Quality', 'Support'];
+  const data = [80, 65, 70, 90, 75, 85];
+  const cx = w / 2, cy = h / 2;
+  const r = Math.min(w, h) * 0.36;
+  const n = labels.length;
+  const rgb = PAL[0].rgb;
+
+  // Grid rings
+  for (let ring = 1; ring <= 4; ring++) {
+    const rr = (r / 4) * ring;
+    ctx.beginPath();
+    for (let i = 0; i <= n; i++) {
+      const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+      const px = cx + Math.cos(angle) * rr;
+      const py = cy + Math.sin(angle) * rr;
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 0.5; ctx.stroke();
+  }
+
+  // Axis lines
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 0.5; ctx.stroke();
+    // Label
+    const lx = cx + Math.cos(angle) * (r + 16);
+    const ly = cy + Math.sin(angle) * (r + 16);
+    ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(labels[i], lx, ly);
+  }
+
+  // Data polygon
+  ctx.beginPath();
+  data.forEach((v, i) => {
+    const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+    const dr = (v / 100) * r;
+    const px = cx + Math.cos(angle) * dr;
+    const py = cy + Math.sin(angle) * dr;
+    i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+  });
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(' + rgb + ',0.10)'; ctx.fill();
+  ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 12;
+  ctx.strokeStyle = 'rgba(' + rgb + ',0.8)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+
+  // Ring dots at vertices
+  data.forEach((v, i) => {
+    const angle = (Math.PI * 2 / n) * i - Math.PI / 2;
+    const dr = (v / 100) * r;
+    const px = cx + Math.cos(angle) * dr;
+    const py = cy + Math.sin(angle) * dr;
+    ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+  });
+}
+
+// ══════════════════════════════════════
+// HEATMAP — rounded cells, glow on high
+// ══════════════════════════════════════
+function drawHeatmap() {
+  const { ctx, w, h } = setup('heatmap');
+  const rows = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+  const cols = ['9am', '10am', '11am', '12pm', '1pm', '2pm', '3pm', '4pm'];
+  const padL = 40, padT = 24, padR = 8, padB = 28;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const cellW = cw / cols.length, cellH = ch / rows.length;
+  const rgb = PAL[0].rgb;
+
+  // Column labels
+  ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA); ctx.textAlign = 'center';
+  cols.forEach((c, i) => ctx.fillText(c, padL + cellW * i + cellW / 2, padT - 8));
+
+  // Row labels
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  rows.forEach((r, i) => ctx.fillText(r, padL - 8, padT + cellH * i + cellH / 2));
+
+  rows.forEach((_, ri) => {
+    cols.forEach((_, ci) => {
+      const v = Math.random();
+      const x = padL + cellW * ci + 1.5;
+      const y = padT + cellH * ri + 1.5;
+      const cW = cellW - 3, cH = cellH - 3;
+      const r2 = 3;
+
+      ctx.beginPath();
+      ctx.moveTo(x + r2, y); ctx.lineTo(x + cW - r2, y);
+      ctx.quadraticCurveTo(x + cW, y, x + cW, y + r2);
+      ctx.lineTo(x + cW, y + cH - r2);
+      ctx.quadraticCurveTo(x + cW, y + cH, x + cW - r2, y + cH);
+      ctx.lineTo(x + r2, y + cH);
+      ctx.quadraticCurveTo(x, y + cH, x, y + cH - r2);
+      ctx.lineTo(x, y + r2);
+      ctx.quadraticCurveTo(x, y, x + r2, y);
+      ctx.closePath();
+
+      ctx.fillStyle = 'rgba(' + rgb + ',' + (v * 0.75 + 0.05) + ')';
+      ctx.fill();
+
+      if (v > 0.7) {
+        ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 8; ctx.fill(); ctx.restore();
+      }
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// GAUGE — gradient arc, needle, tick marks
+// ══════════════════════════════════════
+function drawGauge() {
+  const { ctx, w, h } = setup('gauge');
+  const value = 73;
+  const cx = w / 2, cy = h * 0.62;
+  const r = Math.min(w, h) * 0.38;
+  const startAngle = Math.PI * 0.75;
+  const endAngle = Math.PI * 2.25;
+  const sweep = endAngle - startAngle;
+  const valAngle = startAngle + (sweep * value / 100);
+
+  // Gradient zones: low (dim cyan) → mid (cyan) → high (bright cyan/white)
+  const segments = 60;
+  const segAngle = sweep / segments;
+  for (let i = 0; i < segments; i++) {
+    const t = i / segments;
+    const a1 = startAngle + segAngle * i;
+    const a2 = a1 + segAngle + 0.005;
+    const isFilled = (startAngle + sweep * t) <= valAngle;
+
+    ctx.beginPath(); ctx.arc(cx, cy, r, a1, a2);
+    if (isFilled) {
+      // Color gradient: teal → cyan → light cyan
+      let cr, cg, cb, alpha;
+      if (t < 0.4) { cr = 8; cg = 145; cb = 178; alpha = 0.4 + t * 1.2; }
+      else if (t < 0.7) { cr = 6; cg = 182; cb = 212; alpha = 0.7 + (t - 0.4) * 0.5; }
+      else { cr = 103; cg = 232; cb = 249; alpha = 0.85; }
+      ctx.strokeStyle = 'rgba(' + cr + ',' + cg + ',' + cb + ',' + alpha + ')';
+      ctx.lineWidth = 8;
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 6;
+    }
+    ctx.lineCap = 'butt'; ctx.stroke();
+  }
+
+  // Glow on filled arc
+  ctx.beginPath(); ctx.arc(cx, cy, r, startAngle, valAngle);
+  ctx.save(); ctx.shadowColor = 'rgba(6,182,212,0.3)'; ctx.shadowBlur = 18;
+  ctx.strokeStyle = 'rgba(6,182,212,0.0)'; ctx.lineWidth = 12; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+
+  // Tick marks
+  for (let i = 0; i <= 10; i++) {
+    const t = i / 10;
+    const a = startAngle + sweep * t;
+    const isMajor = i % 5 === 0;
+    const inner = r - (isMajor ? 16 : 10);
+    const outer = r + (isMajor ? 6 : 3);
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+    ctx.lineTo(cx + Math.cos(a) * outer, cy + Math.sin(a) * outer);
+    ctx.strokeStyle = isMajor ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = isMajor ? 1.5 : 0.8; ctx.lineCap = 'round'; ctx.stroke();
+
+    if (isMajor) {
+      const lbl = i * 10;
+      const lx = cx + Math.cos(a) * (inner - 14);
+      const ly = cy + Math.sin(a) * (inner - 14);
+      ctx.font = "300 9px " + FONT; ctx.fillStyle = textColor(0.20);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(lbl, lx, ly);
+    }
+  }
+
+  // Needle
+  const needleLen = r - 24;
+  const nx = cx + Math.cos(valAngle) * needleLen;
+  const ny = cy + Math.sin(valAngle) * needleLen;
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(nx, ny);
+  ctx.save(); ctx.shadowColor = 'rgba(6,182,212,0.5)'; ctx.shadowBlur = 8;
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+
+  // Center dot
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+  ctx.fillStyle = '#000'; ctx.fill();
+  ctx.strokeStyle = 'rgba(6,182,212,0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.save(); ctx.shadowColor = 'rgba(6,182,212,0.5)'; ctx.shadowBlur = 8; ctx.stroke(); ctx.restore();
+
+  // Value text
+  ctx.font = "300 32px " + FONT; ctx.fillStyle = textColor(0.95);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(value + '%', cx, cy + r * 0.45);
+  ctx.font = "400 9px " + FONT; ctx.fillStyle = textColor(0.20);
+  ctx.letterSpacing = '0.08em';
+  ctx.fillText('PERFORMANCE', cx, cy + r * 0.45 + 20);
+}
+
+// ══════════════════════════════════════
+// FUNNEL — tapered stages with glow
+// ══════════════════════════════════════
+function drawFunnel() {
+  const { ctx, w, h } = setup('funnel');
+  const stages = [
+    { label: 'Visitors', value: 10000 },
+    { label: 'Leads', value: 6200 },
+    { label: 'Qualified', value: 3800 },
+    { label: 'Proposals', value: 1900 },
+    { label: 'Closed', value: 850 },
+  ];
+  const max = stages[0].value;
+  const padT = 12, padB = 12, padX = 40;
+  const ch = h - padT - padB;
+  const stageH = ch / stages.length;
+  const maxW = w - padX * 2;
+  const minW = maxW * 0.18;
+  const cx = w / 2;
+
+  stages.forEach((s, i) => {
+    const rgb = PAL[i % PAL.length].rgb;
+    const ratio = s.value / max;
+    const nextRatio = i < stages.length - 1 ? stages[i + 1].value / max : ratio * 0.6;
+    const topW = minW + (maxW - minW) * ratio;
+    const botW = minW + (maxW - minW) * nextRatio;
+    const y = padT + stageH * i;
+    const gap = 2;
+
+    // Trapezoid
+    ctx.beginPath();
+    ctx.moveTo(cx - topW / 2, y + gap);
+    ctx.lineTo(cx + topW / 2, y + gap);
+    ctx.lineTo(cx + botW / 2, y + stageH - gap);
+    ctx.lineTo(cx - botW / 2, y + stageH - gap);
+    ctx.closePath();
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(cx - topW / 2, 0, cx + topW / 2, 0);
+    grad.addColorStop(0, 'rgba(' + rgb + ',0.15)');
+    grad.addColorStop(0.3, 'rgba(' + rgb + ',0.55)');
+    grad.addColorStop(0.7, 'rgba(' + rgb + ',0.55)');
+    grad.addColorStop(1, 'rgba(' + rgb + ',0.15)');
+    ctx.fillStyle = grad; ctx.fill();
+
+    // Bloom
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.15)'; ctx.shadowBlur = 10; ctx.fill(); ctx.restore();
+
+    // Top edge highlight
+    ctx.beginPath();
+    ctx.moveTo(cx - topW / 2 + 8, y + gap);
+    ctx.lineTo(cx + topW / 2 - 8, y + gap);
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.3)'; ctx.lineWidth = 0.8; ctx.lineCap = 'round'; ctx.stroke();
+
+    // Label + value
+    const midY = y + stageH / 2;
+    ctx.font = "400 12px " + FONT; ctx.fillStyle = textColor(0.85);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(s.label, cx, midY - 7);
+    ctx.font = "300 11px " + FONT; ctx.fillStyle = textColor(0.35);
+    ctx.fillText(s.value.toLocaleString(), cx, midY + 9);
+
+    // Conversion rate
+    if (i > 0) {
+      const pct = Math.round((s.value / stages[i - 1].value) * 100);
+      ctx.font = "300 9px " + FONT; ctx.fillStyle = textColor(0.20);
+      ctx.textAlign = 'left';
+      ctx.fillText(pct + '%', cx + topW / 2 + 8, midY);
+    }
+  });
+}
+
+// ══════════════════════════════════════
+// SANKEY — flowing ribbons with bloom
+// ══════════════════════════════════════
+function drawSankey() {
+  const { ctx, w, h } = setup('sankey');
+  const padL = 16, padR = 16, padT = 16, padB = 16;
+  const cw = w - padL - padR, ch = h - padT - padB;
+
+  // Nodes: 3 columns
+  const cols = [
+    [ { label: 'Organic', value: 40 }, { label: 'Paid', value: 35 }, { label: 'Direct', value: 25 } ],
+    [ { label: 'Landing', value: 55 }, { label: 'Blog', value: 28 }, { label: 'Pricing', value: 17 } ],
+    [ { label: 'Signup', value: 42 }, { label: 'Demo', value: 30 }, { label: 'Bounce', value: 28 } ],
+  ];
+
+  const colX = [padL, padL + cw * 0.38, padL + cw * 0.76];
+  const nodeW = 14;
+  const nodeR = 4;
+
+  // Layout nodes vertically within each column
+  function layoutCol(col, x) {
+    const total = col.reduce((a, b) => a + b.value, 0);
+    const gap = 8;
+    const availH = ch - gap * (col.length - 1);
+    let y = padT;
+    return col.map(n => {
+      const nh = (n.value / total) * availH;
+      const node = { ...n, x, y, h: nh };
+      y += nh + gap;
+      return node;
+    });
+  }
+
+  const nodes = cols.map((col, ci) => layoutCol(col, colX[ci]));
+
+  // Define flows: [fromCol, fromIdx, toCol, toIdx, value]
+  const flows = [
+    [0, 0, 1, 0, 28], [0, 0, 1, 1, 12],
+    [0, 1, 1, 0, 18], [0, 1, 1, 2, 17],
+    [0, 2, 1, 0, 9],  [0, 2, 1, 1, 16],
+    [1, 0, 2, 0, 32], [1, 0, 2, 1, 15], [1, 0, 2, 2, 8],
+    [1, 1, 2, 0, 10], [1, 1, 2, 2, 18],
+    [1, 2, 2, 1, 15], [1, 2, 2, 2, 2],
+  ];
+
+  // Track offsets for stacking flows within nodes
+  const outOff = nodes.map(col => col.map(() => 0));
+  const inOff = nodes.map(col => col.map(() => 0));
+
+  // Draw flows
+  flows.forEach(([fc, fi, tc, ti, val]) => {
+    const from = nodes[fc][fi];
+    const to = nodes[tc][ti];
+    const fromTotal = cols[fc][fi].value;
+    const toTotal = cols[tc][ti].value;
+    const fromH = (val / fromTotal) * from.h;
+    const toH = (val / toTotal) * to.h;
+
+    const x1 = from.x + nodeW;
+    const y1 = from.y + outOff[fc][fi];
+    const x2 = to.x;
+    const y2 = to.y + inOff[tc][ti];
+
+    outOff[fc][fi] += fromH;
+    inOff[tc][ti] += toH;
+
+    const cp = (x2 - x1) * 0.5;
+    const rgb = PAL[fi % PAL.length].rgb;
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.bezierCurveTo(x1 + cp, y1, x2 - cp, y2, x2, y2);
+    ctx.lineTo(x2, y2 + toH);
+    ctx.bezierCurveTo(x2 - cp, y2 + toH, x1 + cp, y1 + fromH, x1, y1 + fromH);
+    ctx.closePath();
+
+    ctx.fillStyle = 'rgba(' + rgb + ',0.18)';
+    ctx.fill();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.08)'; ctx.shadowBlur = 8; ctx.fill(); ctx.restore();
+  });
+
+  // Draw nodes
+  nodes.forEach((col, ci) => {
+    col.forEach((n, ni) => {
+      const rgb = PAL[ni % PAL.length].rgb;
+      const r = Math.min(nodeR, n.h / 2);
+
+      ctx.beginPath();
+      ctx.moveTo(n.x + r, n.y);
+      ctx.lineTo(n.x + nodeW - r, n.y);
+      ctx.quadraticCurveTo(n.x + nodeW, n.y, n.x + nodeW, n.y + r);
+      ctx.lineTo(n.x + nodeW, n.y + n.h - r);
+      ctx.quadraticCurveTo(n.x + nodeW, n.y + n.h, n.x + nodeW - r, n.y + n.h);
+      ctx.lineTo(n.x + r, n.y + n.h);
+      ctx.quadraticCurveTo(n.x, n.y + n.h, n.x, n.y + n.h - r);
+      ctx.lineTo(n.x, n.y + r);
+      ctx.quadraticCurveTo(n.x, n.y, n.x + r, n.y);
+      ctx.closePath();
+
+      ctx.fillStyle = 'rgba(' + rgb + ',0.75)';
+      ctx.fill();
+      ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 10; ctx.fill(); ctx.restore();
+
+      // Label
+      const lx = ci === 2 ? n.x + nodeW + 8 : (ci === 0 ? n.x - 8 : n.x + nodeW / 2);
+      const align = ci === 2 ? 'left' : (ci === 0 ? 'right' : 'center');
+      ctx.font = "300 11px " + FONT;
+      ctx.fillStyle = textColor(0.50);
+      ctx.textAlign = align;
+      ctx.textBaseline = 'middle';
+      if (ci === 1) {
+        ctx.fillText(n.label, n.x + nodeW / 2, n.y - 8);
+      } else {
+        ctx.fillText(n.label, lx, n.y + n.h / 2);
+      }
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// TREEMAP — rounded rects with glow
+// ══════════════════════════════════════
+function drawTreemap() {
+  const { ctx, w, h } = setup('treemap');
+  const items = [
+    { label: 'Product A', value: 35 },
+    { label: 'Product B', value: 25 },
+    { label: 'Product C', value: 20 },
+    { label: 'Product D', value: 12 },
+    { label: 'Product E', value: 8 },
+  ];
+  const total = items.reduce((a, b) => a + b.value, 0);
+  const pad = 8;
+  let x = pad, y = pad;
+  const availW = w - pad * 2, availH = h - pad * 2;
+
+  // Simple horizontal strip layout
+  items.forEach((item, i) => {
+    const rgb = PAL[i % PAL.length].rgb;
+    const ratio = item.value / total;
+    let rw, rh;
+
+    if (i < 2) {
+      rw = availW * ratio / (items[0].value + items[1].value) * total / total;
+      rw = (i === 0 ? 0.58 : 0.42) * availW;
+      rh = availH * 0.55;
+      if (i === 1) x = pad + availW * 0.58 + 3;
+    } else {
+      if (i === 2) { x = pad; y = pad + availH * 0.55 + 3; }
+      rw = availW * (item.value / (20 + 12 + 8)) - 2;
+      rh = availH * 0.45 - 3;
+      if (i > 2) x += availW * (items[i-1].value / (20 + 12 + 8));
+    }
+
+    const r2 = 6;
+    ctx.beginPath();
+    ctx.moveTo(x + r2, y); ctx.lineTo(x + rw - r2, y);
+    ctx.quadraticCurveTo(x + rw, y, x + rw, y + r2);
+    ctx.lineTo(x + rw, y + rh - r2);
+    ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r2, y + rh);
+    ctx.lineTo(x + r2, y + rh);
+    ctx.quadraticCurveTo(x, y + rh, x, y + rh - r2);
+    ctx.lineTo(x, y + r2);
+    ctx.quadraticCurveTo(x, y, x + r2, y);
+    ctx.closePath();
+
+    ctx.fillStyle = 'rgba(' + rgb + ',0.35)'; ctx.fill();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.15)'; ctx.shadowBlur = 8; ctx.fill(); ctx.restore();
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
+
+    // Label
+    ctx.font = "400 12px " + FONT; ctx.fillStyle = textColor(0.80);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(item.label, x + 10, y + 10);
+    ctx.font = "300 11px " + FONT; ctx.fillStyle = textColor(0.40);
+    ctx.fillText(item.value + '%', x + 10, y + 26);
+  });
+}
+
+// ── Render all ──
+window.addEventListener('DOMContentLoaded', () => {
+  drawBar();
+  drawHBar();
+  drawLine();
+  drawArea();
+  drawDonut();
+  drawScatter();
+  drawStacked();
+  drawWaterfall();
+  drawRadar();
+  drawHeatmap();
+  drawGauge();
+  drawFunnel();
+  drawSankey();
+  drawTreemap();
+});
+
+window.addEventListener('resize', () => {
+  drawBar(); drawHBar(); drawLine(); drawArea(); drawDonut();
+  drawScatter(); drawStacked(); drawWaterfall(); drawRadar();
+  drawHeatmap(); drawGauge(); drawFunnel(); drawSankey(); drawTreemap();
+});
+</script>
+</body>
+</html>
