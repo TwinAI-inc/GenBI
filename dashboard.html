@@ -5920,6 +5920,11 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
 // ── AREA CHART ──
 function drawAreaChart(canvas, datasets, labels, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -5981,6 +5986,11 @@ function drawAreaChart(canvas, datasets, labels, opts = {}) {
 // ── STACKED BAR CHART ──
 function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6090,6 +6100,11 @@ function drawStackedBarChart(canvas, labels, seriesData, opts = {}) {
 // ── SCATTER CHART ──
 function drawScatterChart(canvas, xData, yData, colorName, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const w = canvas._lockedW || canvas.parentElement.getBoundingClientRect().width;
@@ -6176,6 +6191,11 @@ function drawScatterChart(canvas, xData, yData, colorName, opts = {}) {
 // ── GAUGE CHART ──
 function drawGaugeChart(canvas, value, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6195,7 +6215,6 @@ function drawGaugeChart(canvas, value, opts = {}) {
   const sweep = opts._sweepProgress != null ? opts._sweepProgress : 1;
   const valueAngle = startAngle + (endAngle - startAngle) * pct * sweep;
 
-  const th = getThemeChartOpts();
   const rgb = getColorRgb(opts.color || 'cyan');
 
   // Background arc — subtle track
@@ -6253,6 +6272,11 @@ function drawGaugeChart(canvas, value, opts = {}) {
 // ── BUBBLE CHART (extends scatter with sized circles) ──
 function drawBubbleChart(canvas, xData, yData, sizeData, colorName, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6298,6 +6322,11 @@ function drawBubbleChart(canvas, xData, yData, sizeData, colorName, opts = {}) {
 // ── LOLLIPOP CHART ──
 function drawLollipopChart(canvas, labels, data, colorName, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6356,6 +6385,11 @@ function drawLollipopChart(canvas, labels, data, colorName, opts = {}) {
 // ── FUNNEL CHART ──
 function drawFunnelChart(canvas, labels, data, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6479,6 +6513,11 @@ function animateFunnelChart(canvas, labels, data, opts = {}) {
 // ── WATERFALL CHART ──
 function drawWaterfallChart(canvas, labels, data, colorName, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6565,6 +6604,11 @@ function animateWaterfallChart(canvas, labels, data, colorName, opts = {}) {
 // ── RADAR / SPIDER CHART ──
 function drawRadarChart(canvas, labels, data, colorName, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6652,6 +6696,11 @@ function animateRadarChart(canvas, labels, data, colorName, opts = {}) {
 // ── HEATMAP CHART ──
 function drawHeatmapChart(canvas, chart, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6716,6 +6765,11 @@ function animateHeatmapChart(canvas, chart) {
 // ── BOXPLOT CHART ──
 function drawBoxplotChart(canvas, chart, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6789,6 +6843,11 @@ function animateBoxplotChart(canvas, chart) {
 // ── TREEMAP CHART ──
 function drawTreemapChart(canvas, labels, data, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6858,6 +6917,11 @@ function animateTreemapChart(canvas, labels, data, opts = {}) {
 // ── CANDLESTICK CHART ──
 function drawCandlestickChart(canvas, chart, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
@@ -6925,6 +6989,11 @@ function animateCandlestickChart(canvas, chart) {
 // ── SANKEY DIAGRAM ──
 function drawSankeyChart(canvas, chart, opts = {}) {
   if (!canvas) return;
+  const th = getThemeChartOpts();
+  const _g = th.style === 'genbi';
+  const _font = _g ? th.labelFont : '11px Inter';
+  const _fontSm = _g ? "300 10px 'Outfit', sans-serif" : '10px Inter';
+  const _fontAxis = _g ? th.valueFont : '500 11px Inter';
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
