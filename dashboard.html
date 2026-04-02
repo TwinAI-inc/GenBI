@@ -5812,7 +5812,7 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     const explode = isHover ? 6 : 0;
     const midAngle = angle + slice / 2;
     const ex = explode * Math.cos(midAngle), ey = explode * Math.sin(midAngle);
-    const dimAlpha = (highlightIdx >= 0 && !isHover) ? 0.3 : 0.8;
+    const dimAlpha = (highlightIdx >= 0 && !isHover) ? 0.5 : 0.85;
 
     ctx.save();
     ctx.translate(ex, ey);
@@ -11891,6 +11891,28 @@ function autoMapExcelData(rows) {
           labels: radarMetrics.map(m => m.replace(/_/g, ' ')), data: radarData, color: 'emerald',
           desc: 'Radar showing ' + bestGroup[0] + ' across ' + radarMetrics.length + ' metrics.' });
       }
+    }
+  }
+
+  // CANDIDATE: US Map — if State column exists
+  const stateCol = allHeaders.find(h => /^state$/i.test(h.trim()));
+  if (stateCol && primaryMetric && window.GenBIMaps) {
+    const agg = aggByCategory(stateCol, primaryMetric, /score|rate|percent/i.test(primaryMetric) ? 'avg' : 'sum').filter(a => a.value > 0);
+    if (agg.length >= 3) {
+      candidates.push({ type: 'usmap', insight: 9, title: primaryMetric.replace(/_/g,' ') + ' by State',
+        labels: agg.map(a => a.label), data: agg.map(a => a.value), color: 'cyan',
+        desc: 'US map showing ' + primaryMetric.replace(/_/g,' ').toLowerCase() + ' distribution across states.' });
+    }
+  }
+
+  // CANDIDATE: World Map — if Country column exists
+  const countryCol = allHeaders.find(h => /^country$|^nation$|^location$/i.test(h.trim()));
+  if (countryCol && primaryMetric && window.GenBIMaps) {
+    const agg = aggByCategory(countryCol, primaryMetric, /score|rate|percent/i.test(primaryMetric) ? 'avg' : 'sum').filter(a => a.value > 0);
+    if (agg.length >= 2) {
+      candidates.push({ type: 'worldmap', insight: 8, title: primaryMetric.replace(/_/g,' ') + ' by ' + countryCol.replace(/_/g,' '),
+        labels: agg.map(a => a.label), data: agg.map(a => a.value), color: 'cyan',
+        desc: 'World map showing ' + primaryMetric.replace(/_/g,' ').toLowerCase() + ' distribution globally.' });
     }
   }
 
