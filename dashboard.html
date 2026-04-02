@@ -5311,7 +5311,7 @@ function navigate(page) {
       const isLanding = document.body.classList.contains('landing-mode');
       ab.style.display = isLanding ? 'none' : '';
     }
-    if (page === 'analytics') { if (App.excelData) { initAnalyticsCharts(); generateAskSuggestions(); setTimeout(() => { loadBriefingCard(); loadAnomalyBadges(); loadNarrativeCaptions(); loadSuggestedActions(); }, 200); } else { setTimeout(initDropZone, 50); } }
+    if (page === 'analytics') { if (App.excelData) { requestAnimationFrame(() => { initAnalyticsCharts(); generateAskSuggestions(); setTimeout(() => { loadBriefingCard(); loadAnomalyBadges(); loadNarrativeCaptions(); loadSuggestedActions(); }, 200); }); } else { setTimeout(initDropZone, 50); } }
     if (page === 'documents' && !App.excelData) { setTimeout(initDropZone, 50); }
     if (page === 'pricing') setTimeout(loadPricingData, 0);
     if (page === 'subscription') setTimeout(loadSubscriptionPage, 0);
@@ -8258,6 +8258,13 @@ function animateScatterChart(canvas, xData, yData, colorName, opts = {}) {
 }
 
 function animateChartFromPlan(canvas, chart, delay) {
+  if (!canvas) return;
+  // Guard: if canvas has no dimensions yet, retry after layout
+  var rect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : null;
+  if (rect && (rect.width === 0 || rect.height === 0)) {
+    setTimeout(function() { animateChartFromPlan(canvas, chart, 0); }, 100);
+    return;
+  }
   const type = chart._userType || chart.type;
   const axisOpts = { suffix: chart.suffix || '', xLabel: chart.xLabel || '', yLabel: chart.yLabel || '' };
   if (chart._barPalette && linePalettes[chart._barPalette]) {
