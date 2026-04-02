@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenBI Donut Style Picker</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Outfit',sans-serif;font-weight:300;background:#000;color:rgba(255,255,255,0.80);}
+.header{padding:2rem 2rem 1rem;text-align:center;}
+.header h1{font-size:1.8rem;font-weight:300;letter-spacing:-0.025em;color:rgba(255,255,255,0.90);}
+.header p{font-size:0.8rem;color:rgba(255,255,255,0.30);margin-top:0.35rem;}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;max-width:900px;margin:0 auto;padding:1rem 2rem 3rem;}
+.card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1.5rem;text-align:center;cursor:pointer;transition:all 0.3s cubic-bezier(0.22,1,0.36,1);position:relative;min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.card:hover{border-color:rgba(255,255,255,0.15);}
+.card.selected{border-color:#06b6d4;box-shadow:0 0 20px rgba(6,182,212,0.15);}
+.card-name{font-size:0.85rem;font-weight:400;color:rgba(255,255,255,0.70);margin-top:1rem;}
+.card-desc{font-size:0.7rem;color:rgba(255,255,255,0.30);margin-top:0.25rem;}
+.pick-badge{position:absolute;top:10px;right:10px;background:#06b6d4;color:#000;font-size:0.65rem;font-weight:600;padding:0.2rem 0.6rem;border-radius:5rem;opacity:0;transition:opacity 0.2s;}
+.card.selected .pick-badge{opacity:1;}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Donut Chart Style Picker</h1>
+  <p>Click to select your preferred donut/pie chart style</p>
+</div>
+<div class="grid">
+  <div class="card" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <canvas id="d1" width="240" height="200"></canvas>
+    <div class="card-name">Thin Ring + Glow</div>
+    <div class="card-desc">Elegant thin donut with radial gradient and bloom glow. Current style.</div>
+  </div>
+  <div class="card" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <canvas id="d2" width="240" height="200"></canvas>
+    <div class="card-name">Wide Ring + Solid</div>
+    <div class="card-desc">Thicker ring with solid fills, stronger visual presence.</div>
+  </div>
+  <div class="card" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <canvas id="d3" width="240" height="200"></canvas>
+    <div class="card-name">Semi-Circle Gauge</div>
+    <div class="card-desc">Half-donut showing distribution as a gauge arc.</div>
+  </div>
+  <div class="card" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <canvas id="d4" width="240" height="200"></canvas>
+    <div class="card-name">Nested Rings</div>
+    <div class="card-desc">Multiple concentric rings, each showing a different metric.</div>
+  </div>
+</div>
+
+<script>
+function pick(card){document.querySelectorAll('.card').forEach(c=>c.classList.toggle('selected',c===card));}
+
+const PAL=[
+  {rgb:'6,182,212'},{rgb:'103,232,249'},{rgb:'45,212,191'},{rgb:'8,145,178'},
+  {rgb:'165,243,252'},{rgb:'244,63,94'}
+];
+const data=[35,25,20,12,8];
+const labels=['Direct','Social','Referral','Email','Other'];
+const total=data.reduce((a,b)=>a+b,0);
+const FONT="'Outfit', sans-serif";
+
+function setup(id){
+  const c=document.getElementById(id);
+  const dpr=window.devicePixelRatio||1;
+  c.width=240*dpr;c.height=200*dpr;
+  c.style.width='240px';c.style.height='200px';
+  const ctx=c.getContext('2d');ctx.scale(dpr,dpr);
+  return ctx;
+}
+
+// ── Style 1: Thin Ring + Glow (current) ──
+function draw1(){
+  const ctx=setup('d1');
+  const cx=100,cy=95,outerR=75,innerR=outerR*0.68;
+  let angle=-Math.PI/2;
+  data.forEach((v,i)=>{
+    const slice=(v/total)*Math.PI*2;
+    const rgb=PAL[i%PAL.length].rgb;
+    ctx.beginPath();ctx.arc(cx,cy,outerR,angle,angle+slice);ctx.arc(cx,cy,innerR,angle+slice,angle,true);ctx.closePath();
+    const g=ctx.createRadialGradient(cx,cy,innerR,cx,cy,outerR);
+    g.addColorStop(0,'rgba('+rgb+',0.45)');g.addColorStop(1,'rgba('+rgb+',0.85)');
+    ctx.fillStyle=g;ctx.fill();
+    ctx.save();ctx.shadowColor='rgba('+rgb+',0.3)';ctx.shadowBlur=12;ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.arc(cx,cy,outerR,angle+slice-0.01,angle+slice+0.01);
+    ctx.arc(cx,cy,innerR,angle+slice+0.01,angle+slice-0.01,true);
+    ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.stroke();
+    angle+=slice;
+  });
+  ctx.font="300 20px "+FONT;ctx.fillStyle='rgba(255,255,255,0.90)';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(total,cx,cy-4);
+  ctx.font="300 8px "+FONT;ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillText('TOTAL',cx,cy+12);
+  // Legend
+  labels.forEach((l,i)=>{const y=30+i*18;const rgb=PAL[i%PAL.length].rgb;
+    ctx.beginPath();ctx.arc(190,y,3,0,Math.PI*2);ctx.strokeStyle='rgba('+rgb+',0.8)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.font="300 9px "+FONT;ctx.fillStyle='rgba(255,255,255,0.40)';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(l,198,y);
+  });
+}
+
+// ── Style 2: Wide Ring + Solid ──
+function draw2(){
+  const ctx=setup('d2');
+  const cx=100,cy=95,outerR=78,innerR=outerR*0.48;
+  let angle=-Math.PI/2;
+  data.forEach((v,i)=>{
+    const slice=(v/total)*Math.PI*2;
+    const rgb=PAL[i%PAL.length].rgb;
+    ctx.beginPath();ctx.arc(cx,cy,outerR,angle,angle+slice);ctx.arc(cx,cy,innerR,angle+slice,angle,true);ctx.closePath();
+    ctx.fillStyle='rgba('+rgb+',0.80)';ctx.fill();
+    ctx.save();ctx.shadowColor='rgba('+rgb+',0.2)';ctx.shadowBlur=8;ctx.fill();ctx.restore();
+    // Gap
+    ctx.beginPath();ctx.arc(cx,cy,outerR,angle+slice-0.01,angle+slice+0.01);
+    ctx.arc(cx,cy,innerR,angle+slice+0.01,angle+slice-0.01,true);
+    ctx.strokeStyle='#000';ctx.lineWidth=3;ctx.stroke();
+    angle+=slice;
+  });
+  ctx.font="300 18px "+FONT;ctx.fillStyle='rgba(255,255,255,0.90)';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(total,cx,cy-4);
+  ctx.font="300 8px "+FONT;ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillText('TOTAL',cx,cy+12);
+  labels.forEach((l,i)=>{const y=30+i*18;const rgb=PAL[i%PAL.length].rgb;
+    ctx.fillStyle='rgba('+rgb+',0.8)';ctx.fillRect(190,y-4,8,8);
+    ctx.font="300 9px "+FONT;ctx.fillStyle='rgba(255,255,255,0.40)';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(l,202,y);
+  });
+}
+
+// ── Style 3: Semi-Circle Gauge ──
+function draw3(){
+  const ctx=setup('d3');
+  const cx=120,cy=140,outerR=100,innerR=outerR*0.65;
+  const startAngle=Math.PI;
+  let angle=startAngle;
+  data.forEach((v,i)=>{
+    const slice=(v/total)*Math.PI;
+    const rgb=PAL[i%PAL.length].rgb;
+    ctx.beginPath();ctx.arc(cx,cy,outerR,angle,angle+slice);ctx.arc(cx,cy,innerR,angle+slice,angle,true);ctx.closePath();
+    const g=ctx.createRadialGradient(cx,cy,innerR,cx,cy,outerR);
+    g.addColorStop(0,'rgba('+rgb+',0.4)');g.addColorStop(1,'rgba('+rgb+',0.85)');
+    ctx.fillStyle=g;ctx.fill();
+    ctx.save();ctx.shadowColor='rgba('+rgb+',0.25)';ctx.shadowBlur=10;ctx.fill();ctx.restore();
+    ctx.beginPath();ctx.arc(cx,cy,outerR,angle+slice-0.01,angle+slice+0.01);
+    ctx.arc(cx,cy,innerR,angle+slice+0.01,angle+slice-0.01,true);
+    ctx.strokeStyle='#000';ctx.lineWidth=2.5;ctx.stroke();
+    angle+=slice;
+  });
+  ctx.font="300 22px "+FONT;ctx.fillStyle='rgba(255,255,255,0.90)';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(total,cx,cy-8);
+  ctx.font="300 8px "+FONT;ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillText('TOTAL',cx,cy+10);
+  // Inline legend below
+  let lx=20;
+  labels.forEach((l,i)=>{const rgb=PAL[i%PAL.length].rgb;
+    ctx.beginPath();ctx.arc(lx,185,3,0,Math.PI*2);ctx.strokeStyle='rgba('+rgb+',0.8)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.font="300 8px "+FONT;ctx.fillStyle='rgba(255,255,255,0.35)';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(l+' '+data[i]+'%',lx+7,185);
+    lx+=ctx.measureText(l+' '+data[i]+'%').width+18;
+  });
+}
+
+// ── Style 4: Nested Rings ──
+function draw4(){
+  const ctx=setup('d4');
+  const cx=100,cy=100;
+  const rings=[
+    {label:'Direct',value:35,max:100,rgb:PAL[0].rgb,r:80,w:12},
+    {label:'Social',value:25,max:100,rgb:PAL[1].rgb,r:62,w:12},
+    {label:'Referral',value:20,max:100,rgb:PAL[2].rgb,r:44,w:12},
+    {label:'Email',value:12,max:100,rgb:PAL[3].rgb,r:26,w:10},
+  ];
+  rings.forEach(ring=>{
+    const startAngle=-Math.PI/2;
+    const endAngle=startAngle+(ring.value/ring.max)*Math.PI*2;
+    // Track
+    ctx.beginPath();ctx.arc(cx,cy,ring.r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.lineWidth=ring.w;ctx.stroke();
+    // Value
+    ctx.beginPath();ctx.arc(cx,cy,ring.r,startAngle,endAngle);
+    ctx.strokeStyle='rgba('+ring.rgb+',0.8)';ctx.lineWidth=ring.w;ctx.lineCap='round';ctx.stroke();
+    ctx.save();ctx.shadowColor='rgba('+ring.rgb+',0.3)';ctx.shadowBlur=8;
+    ctx.beginPath();ctx.arc(cx,cy,ring.r,startAngle,endAngle);ctx.stroke();ctx.restore();
+    ctx.lineCap='butt';
+  });
+  // Center
+  ctx.font="300 16px "+FONT;ctx.fillStyle='rgba(255,255,255,0.90)';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('4',cx,cy-4);
+  ctx.font="300 7px "+FONT;ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fillText('METRICS',cx,cy+10);
+  // Legend
+  rings.forEach((ring,i)=>{const y=30+i*20;
+    ctx.beginPath();ctx.arc(190,y,3,0,Math.PI*2);ctx.strokeStyle='rgba('+ring.rgb+',0.8)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.font="300 9px "+FONT;ctx.fillStyle='rgba(255,255,255,0.40)';ctx.textAlign='left';ctx.textBaseline='middle';
+    ctx.fillText(ring.label+' '+ring.value+'%',198,y);
+  });
+}
+
+draw1();draw2();draw3();draw4();
+</script>
+</body>
+</html>
