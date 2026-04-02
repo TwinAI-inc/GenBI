@@ -12247,6 +12247,22 @@ document.addEventListener('click', function(e) {
       window.history.replaceState({}, '', '/dashboard');
     }
 
+  } else if (path === '/pricing') {
+    // ── /pricing: public pricing page (works for both logged-in and anonymous) ──
+    document.body.classList.remove('landing-mode');
+    document.body.classList.add('app-mode');
+    if (token && user) {
+      App.user = user;
+      const profileName = document.querySelector('.profile-name');
+      const profileRole = document.querySelector('.profile-role');
+      const profileAvatar = document.querySelector('.profile-avatar');
+      if (profileName) profileName.textContent = user.name || 'User';
+      if (profileRole) profileRole.textContent = user.email || '';
+      if (profileAvatar) profileAvatar.textContent = (user.name || 'U').charAt(0).toUpperCase();
+    }
+    if (authBar) authBar.innerHTML = '';
+    navigate('pricing');
+
   } else {
     // ── / : public homepage ──
     document.body.classList.add('landing-mode');
