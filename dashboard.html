@@ -1806,7 +1806,7 @@ body.layout-compact .layout-toggle { background: rgba(6,182,212,0.08); border-co
 .chart-info-btn:hover{background:hsl(0 0% 12%);color:var(--text-primary);border-color:hsl(0 0% 22%);}
 .chart-info-bar{display:none;padding:10px 14px;margin-top:-4px;margin-bottom:4px;border-radius:var(--radius-md);background:hsl(0 0% 5%);border:1px solid var(--glass-border);font-size:12px;color:var(--text-secondary);line-height:1.5;animation:infoFadeIn .25s ease;gap:8px;align-items:flex-start;}
 .chart-info-bar.visible{display:flex;}
-.chart-info-bar::before{content:'';flex-shrink:0;width:16px;height:16px;margin-top:1px;border-radius:50%;border:1.5px solid var(--accent-cyan);background:rgba(0,229,255,0.06);display:block;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2300e5ff' stroke-width='2.5'%3E%3Cline x1='12' y1='16' x2='12' y2='12'/%3E%3Cline x1='12' y1='8' x2='12.01' y2='8'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;background-size:10px;}
+.chart-info-bar::before{content:'';flex-shrink:0;width:3px;height:100%;min-height:16px;border-radius:2px;background:var(--accent-cyan);display:block;opacity:0.4;}
 @keyframes infoFadeIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
 
 /* ══════ VISUAL EDITOR FLOATING TOOLBAR ══════ */
@@ -5773,14 +5773,14 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     { fill: 'rgba(156,204,101,0.7)', rgb: '156,204,101' },
   ];
   const genbiColors = [
-    { fill: 'rgba(6,182,212,0.85)', rgb: '6,182,212' },
-    { fill: 'rgba(8,145,178,0.8)', rgb: '8,145,178' },
-    { fill: 'rgba(103,232,249,0.8)', rgb: '103,232,249' },
-    { fill: 'rgba(16,185,129,0.8)', rgb: '16,185,129' },
-    { fill: 'rgba(165,243,252,0.75)', rgb: '165,243,252' },
-    { fill: 'rgba(244,63,94,0.8)', rgb: '244,63,94' },
-    { fill: 'rgba(34,211,238,0.7)', rgb: '34,211,238' },
-    { fill: 'rgba(20,184,166,0.75)', rgb: '20,184,166' },
+    { fill: 'rgba(6,182,212,0.90)', rgb: '6,182,212' },
+    { fill: 'rgba(103,232,249,0.85)', rgb: '103,232,249' },
+    { fill: 'rgba(45,212,191,0.85)', rgb: '45,212,191' },
+    { fill: 'rgba(8,145,178,0.85)', rgb: '8,145,178' },
+    { fill: 'rgba(165,243,252,0.80)', rgb: '165,243,252' },
+    { fill: 'rgba(20,184,166,0.80)', rgb: '20,184,166' },
+    { fill: 'rgba(244,63,94,0.85)', rgb: '244,63,94' },
+    { fill: 'rgba(34,211,238,0.80)', rgb: '34,211,238' },
   ];
   let segColors = (th.style === 'genbi' && !isPBI) ? genbiColors : defaultColors;
   if (opts.paletteColors) {
@@ -5825,12 +5825,13 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     ctx.arc(cx, cy, innerR, angle + slice, angle, true);
     ctx.closePath();
     if (th.style === 'genbi') {
-      // GenBI: radial gradient per segment with bloom glow
+      // GenBI: radial gradient per segment with bloom glow — boosted visibility
+      const boostedAlpha = Math.max(dimAlpha, 0.55);
       const segGrad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
-      segGrad.addColorStop(0, 'rgba(' + c.rgb + ',' + (dimAlpha * 0.5) + ')');
-      segGrad.addColorStop(1, 'rgba(' + c.rgb + ',' + dimAlpha + ')');
+      segGrad.addColorStop(0, 'rgba(' + c.rgb + ',' + (boostedAlpha * 0.6) + ')');
+      segGrad.addColorStop(1, 'rgba(' + c.rgb + ',' + boostedAlpha + ')');
       ctx.fillStyle = segGrad; ctx.fill();
-      ctx.shadowColor = 'rgba(' + c.rgb + ',' + (isHover ? 0.6 : 0.25) + ')';
+      ctx.shadowColor = 'rgba(' + c.rgb + ',' + (isHover ? 0.6 : 0.3) + ')';
       ctx.shadowBlur = isHover ? 24 : th.donutGlow; ctx.fill();
     } else {
       ctx.fillStyle = 'rgba(' + c.rgb + ',' + dimAlpha + ')'; ctx.fill();
