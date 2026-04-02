@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenBI Logo Fill — Thinking Animation Picker</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Outfit', sans-serif; font-weight: 300; background: #000; color: rgba(255,255,255,0.80); }
+.header { padding: 3rem 2rem 1.5rem; text-align: center; }
+.header h1 { font-size: 2rem; font-weight: 300; letter-spacing: -0.025em; color: rgba(255,255,255,0.90); }
+.header p { font-size: 0.85rem; color: rgba(255,255,255,0.30); margin-top: 0.5rem; }
+
+.grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem; max-width: 900px; margin: 0 auto; padding: 1rem 2rem 4rem;
+}
+.card {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px; padding: 2.5rem 2rem; text-align: center;
+  cursor: pointer; transition: all 0.3s cubic-bezier(0.22,1,0.36,1);
+  min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative;
+}
+.card:hover { border-color: rgba(255,255,255,0.15); }
+.card.selected { border-color: #06b6d4; box-shadow: 0 0 20px rgba(6,182,212,0.15); }
+.card-name { font-size: 0.85rem; font-weight: 400; color: rgba(255,255,255,0.70); margin-top: 1.5rem; }
+.card-desc { font-size: 0.72rem; color: rgba(255,255,255,0.30); margin-top: 0.25rem; }
+.card-size { font-size: 0.6rem; color: rgba(6,182,212,0.5); margin-top: 0.5rem; font-weight: 400; }
+.pick-badge {
+  position: absolute; top: 10px; right: 10px;
+  background: #06b6d4; color: #000; font-size: 0.65rem; font-weight: 600;
+  padding: 0.2rem 0.6rem; border-radius: 5rem; opacity: 0; transition: opacity 0.2s;
+}
+.card.selected .pick-badge { opacity: 1; }
+
+/* ── Status text animation ── */
+.status { font-size: 0.75rem; font-weight: 300; color: rgba(255,255,255,0.30); margin-top: 12px; }
+.status span { animation: textCycle 6s ease-in-out infinite; }
+@keyframes textCycle { 0%,100% { opacity: 0.3; } 50% { opacity: 0.7; } }
+
+/* ══════════════════════════════════════
+   Logo Fill Animation — base
+   ══════════════════════════════════════ */
+.logo-fill { display: flex; align-items: flex-end; }
+.logo-fill .bar {
+  border-radius: 2px; background: rgba(255,255,255,0.06);
+  transform-origin: bottom; position: relative; overflow: hidden;
+}
+.logo-fill .bar::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  background: #06b6d4; border-radius: 2px;
+  animation: fillUp 2.4s cubic-bezier(0.22,1,0.36,1) infinite;
+}
+.logo-fill .bar:nth-child(1)::after { animation-delay: 0s; }
+.logo-fill .bar:nth-child(2)::after { animation-delay: 0.2s; }
+.logo-fill .bar:nth-child(3)::after { animation-delay: 0.4s; }
+.logo-fill .bar:nth-child(4)::after { animation-delay: 0.6s; }
+
+@keyframes fillUp {
+  0% { height: 0%; opacity: 0.2; box-shadow: none; }
+  35% { height: 100%; opacity: 1; box-shadow: 0 0 12px rgba(6,182,212,0.4); }
+  55% { height: 100%; opacity: 1; box-shadow: 0 0 12px rgba(6,182,212,0.4); }
+  90% { height: 0%; opacity: 0.2; box-shadow: none; }
+  100% { height: 0%; opacity: 0.2; box-shadow: none; }
+}
+
+/* ── Size: Small (inline) ── */
+.logo-sm { gap: 2px; }
+.logo-sm .bar { width: 4px; }
+.logo-sm .bar:nth-child(1) { height: 10px; }
+.logo-sm .bar:nth-child(2) { height: 16px; }
+.logo-sm .bar:nth-child(3) { height: 22px; }
+.logo-sm .bar:nth-child(4) { height: 28px; }
+
+/* ── Size: Medium (card/tooltip) ── */
+.logo-md { gap: 3px; }
+.logo-md .bar { width: 6px; border-radius: 2px; }
+.logo-md .bar:nth-child(1) { height: 14px; }
+.logo-md .bar:nth-child(2) { height: 22px; }
+.logo-md .bar:nth-child(3) { height: 30px; }
+.logo-md .bar:nth-child(4) { height: 40px; }
+
+/* ── Size: Large (full page) ── */
+.logo-lg { gap: 5px; }
+.logo-lg .bar { width: 10px; border-radius: 3px; }
+.logo-lg .bar:nth-child(1) { height: 22px; }
+.logo-lg .bar:nth-child(2) { height: 36px; }
+.logo-lg .bar:nth-child(3) { height: 50px; }
+.logo-lg .bar:nth-child(4) { height: 66px; }
+
+/* ── Variant: With breathing ring ── */
+.with-ring { position: relative; }
+.with-ring .breath-ring {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 80px; height: 80px; border-radius: 50%;
+  border: 1px solid rgba(6,182,212,0.1);
+  animation: ringBreathe 2.4s ease-in-out infinite;
+}
+@keyframes ringBreathe {
+  0%, 100% { transform: translate(-50%,-50%) scale(0.9); border-color: rgba(6,182,212,0.08); box-shadow: none; }
+  50% { transform: translate(-50%,-50%) scale(1.1); border-color: rgba(6,182,212,0.25); box-shadow: 0 0 20px rgba(6,182,212,0.08); }
+}
+
+/* ── Variant: With dots ── */
+.with-dots .thinking-dots { display: flex; gap: 4px; margin-top: 10px; }
+.with-dots .thinking-dots span {
+  width: 4px; height: 4px; border-radius: 50%; background: rgba(255,255,255,0.20);
+  animation: dotPulse 1.4s ease-in-out infinite;
+}
+.with-dots .thinking-dots span:nth-child(2) { animation-delay: 0.15s; }
+.with-dots .thinking-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); background: #06b6d4; }
+}
+
+/* ── Context preview ── */
+.context-label { font-size: 0.6rem; font-weight: 400; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.15); margin-bottom: 8px; }
+
+/* ── Bottom: show in-context previews ── */
+.context-section { max-width: 900px; margin: 0 auto; padding: 0 2rem 4rem; }
+.context-title { font-size: 0.7rem; font-weight: 400; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.25); margin-bottom: 1rem; }
+.context-row { display: flex; gap: 1.5rem; }
+.context-card {
+  flex: 1; padding: 1.5rem; border-radius: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+}
+.context-card h4 { font-size: 0.75rem; font-weight: 400; color: rgba(255,255,255,0.50); margin-bottom: 1rem; }
+
+/* Mock ask bar */
+.mock-ask {
+  display: flex; gap: 8px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  align-items: center;
+}
+.mock-ask-text { flex: 1; font-size: 11px; color: rgba(255,255,255,0.30); }
+.mock-ask-btn { padding: 5px 14px; border-radius: 5rem; background: rgba(255,255,255,0.90); color: #000; font-size: 10px; font-weight: 600; }
+
+/* Mock chat bubble */
+.mock-bubble {
+  padding: 10px 14px; border-radius: 12px; font-size: 11px;
+  max-width: 80%; display: inline-flex; align-items: center; gap: 10px;
+}
+.mock-bubble.ai { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); color: rgba(255,255,255,0.50); }
+.mock-bubble.user { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.70); margin-left: auto; margin-bottom: 8px; display: block; text-align: right; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Logo Fill — Size &amp; Style Picker</h1>
+  <p>Pick the right size and variant for different contexts</p>
+</div>
+
+<div class="grid">
+
+  <!-- 1: Medium + Dots -->
+  <div class="card with-dots" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <div class="logo-fill logo-md">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
+    <div class="thinking-dots"><span></span><span></span><span></span></div>
+    <div class="status"><span>Analyzing your data...</span></div>
+    <div class="card-name">Medium + Dots</div>
+    <div class="card-desc">For ask bar responses, AI processing</div>
+    <div class="card-size">40px height</div>
+  </div>
+
+  <!-- 2: Medium + Ring -->
+  <div class="card" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <div class="with-ring" style="display:inline-flex;">
+      <div class="breath-ring"></div>
+      <div class="logo-fill logo-md" style="position:relative;z-index:1;">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </div>
+    </div>
+    <div class="status"><span>Building charts...</span></div>
+    <div class="card-name">Medium + Breathing Ring</div>
+    <div class="card-desc">For chart generation, heavier processing</div>
+    <div class="card-size">40px height + ring</div>
+  </div>
+
+  <!-- 3: Small (inline) -->
+  <div class="card with-dots" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div class="logo-fill logo-sm">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </div>
+      <span style="font-size:11px; color:rgba(255,255,255,0.35);">Thinking...</span>
+    </div>
+    <div class="card-name">Small Inline</div>
+    <div class="card-desc">For chat bubbles, inline status</div>
+    <div class="card-size">28px height, inline with text</div>
+  </div>
+
+  <!-- 4: Large (full page) -->
+  <div class="card" onclick="pick(this)">
+    <div class="pick-badge">Selected</div>
+    <div class="with-ring" style="display:inline-flex;">
+      <div class="breath-ring" style="width:120px;height:120px;"></div>
+      <div class="logo-fill logo-lg" style="position:relative;z-index:1;">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </div>
+    </div>
+    <div class="status"><span>Generating your dashboard...</span></div>
+    <div class="card-name">Large + Ring</div>
+    <div class="card-desc">For full-page loading, initial data processing</div>
+    <div class="card-size">66px height + ring</div>
+  </div>
+
+</div>
+
+<!-- In-context previews -->
+<div class="context-section">
+  <div class="context-title">In-Context Previews</div>
+  <div class="context-row">
+
+    <!-- Ask bar context -->
+    <div class="context-card">
+      <h4>Ask Bar — Processing</h4>
+      <div class="mock-ask">
+        <div class="mock-ask-text">Show revenue by region as a bar chart</div>
+        <div class="mock-ask-btn">Ask</div>
+      </div>
+      <div style="margin-top:12px; padding:12px; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); display:flex; align-items:center; gap:10px;">
+        <div class="logo-fill logo-sm">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <span style="font-size:11px; color:rgba(255,255,255,0.35);">Analyzing data and generating chart...</span>
+      </div>
+    </div>
+
+    <!-- Chat context -->
+    <div class="context-card">
+      <h4>Chat — AI Thinking</h4>
+      <div class="mock-bubble user">What drove the Q3 revenue spike?</div>
+      <div class="mock-bubble ai">
+        <div class="logo-fill logo-sm">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <span>Analyzing trends...</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function pick(card) {
+  document.querySelectorAll('.card').forEach(c => c.classList.toggle('selected', c === card));
+}
+</script>
+</body>
+</html>

@@ -945,6 +945,34 @@ body.theme-genbi .ai-insights-card p, body.theme-genbi .ai-insights-card li, bod
 body.theme-genbi .ai-caption { color: rgba(255,255,255,0.65); }
 body.theme-genbi .ai-loading-text { color: rgba(255,255,255,0.50); }
 
+/* ── GenBI: Logo Fill thinking animation ── */
+.genbi-logo-loader { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.40); font-family: 'Outfit', sans-serif; font-weight: 300; }
+.genbi-fill-bars { display: flex; align-items: flex-end; gap: 2px; }
+.genbi-fill-bars .gfb {
+  border-radius: 2px; background: rgba(255,255,255,0.06);
+  transform-origin: bottom; position: relative; overflow: hidden;
+}
+.genbi-fill-bars .gfb { width: 4px; }
+.genbi-fill-bars .gfb:nth-child(1) { height: 10px; }
+.genbi-fill-bars .gfb:nth-child(2) { height: 16px; }
+.genbi-fill-bars .gfb:nth-child(3) { height: 22px; }
+.genbi-fill-bars .gfb:nth-child(4) { height: 28px; }
+.genbi-fill-bars .gfb::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  background: #06b6d4; border-radius: 2px;
+  animation: gfbFill 2.4s cubic-bezier(0.22,1,0.36,1) infinite;
+}
+.genbi-fill-bars .gfb:nth-child(1)::after { animation-delay: 0s; }
+.genbi-fill-bars .gfb:nth-child(2)::after { animation-delay: 0.2s; }
+.genbi-fill-bars .gfb:nth-child(3)::after { animation-delay: 0.4s; }
+.genbi-fill-bars .gfb:nth-child(4)::after { animation-delay: 0.6s; }
+@keyframes gfbFill {
+  0% { height: 0%; opacity: 0.2; box-shadow: none; }
+  35% { height: 100%; opacity: 1; box-shadow: 0 0 8px rgba(6,182,212,0.4); }
+  55% { height: 100%; opacity: 1; box-shadow: 0 0 8px rgba(6,182,212,0.4); }
+  90%,100% { height: 0%; opacity: 0.2; box-shadow: none; }
+}
+
 /* ── GenBI: Stats ── */
 body.theme-genbi .stat-value { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; font-weight: 300; }
 body.theme-genbi .stat-label { color: rgba(255,255,255,0.40); font-family: 'Outfit', sans-serif; font-weight: 300; }
@@ -9437,6 +9465,11 @@ function buildQualityMetrics() {
 }
 
 function aiLoadingHTML(id) {
+  if (isGenBI()) {
+    return '<div class="ai-loading genbi-logo-loader" id="' + id + '">' +
+      '<div class="genbi-fill-bars"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
+      '<span>Analyzing...</span></div>';
+  }
   return '<div class="ai-loading" id="' + id + '"><span class="ai-loading-dot"></span><span class="ai-loading-dot"></span><span class="ai-loading-dot"></span><span style="margin-left:4px">Analyzing...</span></div>';
 }
 
