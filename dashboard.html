@@ -961,6 +961,12 @@ body.theme-genbi .ai-loading-text { color: rgba(255,255,255,0.50); }
 .genbi-fill-bars .gfb:nth-child(2) { height: 16px; }
 .genbi-fill-bars .gfb:nth-child(3) { height: 22px; }
 .genbi-fill-bars .gfb:nth-child(4) { height: 28px; }
+/* Smaller variant */
+.genbi-fill-sm .gfb { width: 3px; }
+.genbi-fill-sm .gfb:nth-child(1) { height: 7px; }
+.genbi-fill-sm .gfb:nth-child(2) { height: 11px; }
+.genbi-fill-sm .gfb:nth-child(3) { height: 15px; }
+.genbi-fill-sm .gfb:nth-child(4) { height: 20px; }
 .genbi-fill-bars .gfb::after {
   content: ''; position: absolute; bottom: 0; left: 0; right: 0;
   background: #06b6d4; border-radius: 2px;
@@ -9514,10 +9520,16 @@ function buildQualityMetrics() {
   return metrics;
 }
 
-function aiLoadingHTML(id) {
+function aiLoadingHTML(id, style) {
   if (isGenBI()) {
+    if (style === 'dots') {
+      return '<div class="ai-loading genbi-logo-loader" id="' + id + '" style="font-size:10px;color:rgba(255,255,255,0.30);">' +
+        '<span class="ai-loading-dot" style="width:4px;height:4px;background:#06b6d4;"></span>' +
+        '<span class="ai-loading-dot" style="width:4px;height:4px;background:#06b6d4;"></span>' +
+        '<span class="ai-loading-dot" style="width:4px;height:4px;background:#06b6d4;"></span></div>';
+    }
     return '<div class="ai-loading genbi-logo-loader" id="' + id + '">' +
-      '<div class="genbi-fill-bars"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
+      '<div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
       '<span>Analyzing...</span></div>';
   }
   return '<div class="ai-loading" id="' + id + '"><span class="ai-loading-dot"></span><span class="ai-loading-dot"></span><span class="ai-loading-dot"></span><span style="margin-left:4px">Analyzing...</span></div>';
@@ -9669,7 +9681,7 @@ async function loadBriefingCard() {
   if (!container) return;
   if (!isLoggedIn()) { container.innerHTML = aiNoAuthHTML(); return; }
   if (!App.excelData) { container.innerHTML = ''; return; }
-  container.innerHTML = aiLoadingHTML('briefingLoader');
+  container.innerHTML = aiLoadingHTML('briefingLoader', 'dots');
   try {
     const data = await generateAutoInsights();
     if (!data || !data.insights) { container.innerHTML = ''; return; }
