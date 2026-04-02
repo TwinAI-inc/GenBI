@@ -258,9 +258,9 @@ function hideTTDemo() { document.getElementById('ttDemo').style.display = 'none'
   <div class="card"><div class="card-title">Line Chart — Hover Demo</div><canvas id="line-hover"></canvas></div>
 </div>
 
-<div id="hoverTT" style="position:fixed; z-index:700; pointer-events:none; background:rgba(0,0,0,0.88); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:0; opacity:0; transition:opacity 0.12s; max-width:220px; overflow:hidden; font-family:'Outfit',sans-serif;">
-  <div id="hoverTT-header" style="padding:6px 10px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:10px; font-weight:300; color:rgba(255,255,255,0.30);"></div>
-  <div id="hoverTT-body" style="padding:8px 10px;"></div>
+<div id="hoverTT" style="position:fixed; z-index:700; pointer-events:none; background:rgba(0,0,0,0.88); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:0; opacity:0; transition:opacity 0.12s; max-width:240px; overflow:hidden; font-family:'Outfit',sans-serif;">
+  <div id="hoverTT-header" style="padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:10px; font-weight:400; color:rgba(255,255,255,0.30); text-transform:uppercase; letter-spacing:0.04em;"></div>
+  <div id="hoverTT-body" style="padding:10px 12px;"></div>
 </div>
 
 <script>
@@ -269,21 +269,39 @@ const hTT = document.getElementById('hoverTT');
 const hTTH = document.getElementById('hoverTT-header');
 const hTTB = document.getElementById('hoverTT-body');
 
-function showHoverTT(e, label, rows) {
-  hTTH.textContent = label;
-  hTTB.innerHTML = rows.map(r =>
-    '<div style="display:flex; justify-content:space-between; gap:16px; padding:2px 0;">' +
-    '<span style="display:flex; align-items:center; gap:6px; font-size:11px; color:rgba(255,255,255,0.40); font-weight:300;">' +
-    (r.color ? '<span style="width:7px;height:7px;border-radius:50%;border:1.5px solid ' + r.color + ';flex-shrink:0;"></span>' : '') +
+function showHoverTT(e, header, title, rows, opts) {
+  opts = opts || {};
+  hTTH.textContent = header;
+  let html = '';
+  if (title) {
+    html += '<div style="font-size:13px;font-weight:400;margin-bottom:2px;display:flex;align-items:center;gap:6px;">';
+    if (opts.titleColor) html += '<span style="width:8px;height:8px;border-radius:50%;background:' + opts.titleColor + ';flex-shrink:0;"></span>';
+    html += title + '</div>';
+    if (opts.subtitle) html += '<div style="font-size:10px;color:rgba(255,255,255,0.25);margin-bottom:8px;">' + opts.subtitle + '</div>';
+  }
+  // Divider before rows if title present
+  if (title && rows.length) html += '<div style="height:1px;background:rgba(255,255,255,0.04);margin:6px 0 8px;"></div>';
+  html += rows.map(r => {
+    const opac = r.dimmed ? 'opacity:0.4;' : '';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:14px;padding:2px 0;' + opac + '">' +
+    '<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:rgba(255,255,255,0.45);font-weight:300;">' +
+    (r.color ? '<span style="width:7px;height:7px;border-radius:50%;' + (r.ring ? 'border:1.5px solid ' + r.color + ';background:transparent;' : 'background:' + r.color + ';') + 'flex-shrink:0;"></span>' : '') +
     r.label + '</span>' +
-    '<span style="font-size:11px; font-weight:400; color:rgba(255,255,255,0.90);">' + r.value + '</span></div>'
-  ).join('');
-  const ttW = hTT.offsetWidth || 180, ttH = hTT.offsetHeight || 60;
-  let x = e.clientX + 12, y = e.clientY - ttH - 10;
-  if (x + ttW > window.innerWidth - 8) x = e.clientX - ttW - 12;
-  if (y < 4) y = e.clientY + 16;
-  hTT.style.left = x + 'px'; hTT.style.top = y + 'px';
-  hTT.style.opacity = '1';
+    '<span style="font-size:11px;font-weight:400;color:' + (r.valueColor || 'rgba(255,255,255,0.90)') + ';">' + r.value + '</span></div>';
+  }).join('');
+  // Mini bar
+  if (opts.barPct !== undefined) {
+    html += '<div style="height:2px;border-radius:1px;margin-top:8px;background:rgba(255,255,255,0.04);overflow:hidden;"><div style="height:100%;width:' + opts.barPct + '%;background:' + (opts.barColor || 'rgba(6,182,212,0.6)') + ';border-radius:1px;"></div></div>';
+  }
+  hTTB.innerHTML = html;
+  requestAnimationFrame(() => {
+    const ttW = hTT.offsetWidth || 200, ttH = hTT.offsetHeight || 80;
+    let x = e.clientX + 14, y = e.clientY - ttH - 12;
+    if (x + ttW > window.innerWidth - 8) x = e.clientX - ttW - 14;
+    if (y < 4) y = e.clientY + 18;
+    hTT.style.left = x + 'px'; hTT.style.top = y + 'px';
+    hTT.style.opacity = '1';
+  });
 }
 function hideHoverTT() { hTT.style.opacity = '0'; }
 
@@ -349,7 +367,20 @@ function drawBarHover() {
     if (found !== c._hoverIdx) { c._hoverIdx = found; drawBarHover(); }
     if (found >= 0) {
       const a = c._hitAreas[found];
-      showHoverTT(e, a.label, [{ label: 'Revenue', value: '$' + a.value + 'K', color: 'rgba(6,182,212,0.8)' }]);
+      const total = data.reduce((s, v) => s + v, 0);
+      const pct = ((a.value / total) * 100).toFixed(1);
+      const avg = total / data.length;
+      const vsAvg = Math.round(((a.value - avg) / avg) * 100);
+      const sorted = [...data].sort((x, y) => x - y);
+      const rank = data.filter(v => v > a.value).length + 1;
+      const percentile = Math.round((sorted.filter(v => v < a.value).length / sorted.length) * 100);
+      showHoverTT(e, 'Revenue', a.label, [
+        { label: 'Value', value: '$' + a.value + 'K' },
+        { label: '% of Total', value: pct + '%' },
+        { label: 'vs Average', value: (vsAvg >= 0 ? '+' : '') + vsAvg + '%', valueColor: vsAvg >= 0 ? '#2dd4bf' : '#f43f5e' },
+        { label: 'Percentile', value: 'P' + percentile },
+        { label: 'Rank', value: '#' + rank + ' of ' + data.length },
+      ], { titleColor: 'rgba(6,182,212,0.8)', barPct: Math.round((a.value / max) * 100), barColor: 'rgba(6,182,212,0.6)' });
     } else hideHoverTT();
   };
   c.onmouseleave = function() { c._hoverIdx = -1; drawBarHover(); hideHoverTT(); };
@@ -427,10 +458,19 @@ function drawDonutHover() {
     if (found !== c._hoverIdx) { c._hoverIdx = found; drawDonutHover(); }
     if (found >= 0) {
       const s = c._segments[found];
-      showHoverTT(e, s.label, [
-        { label: 'Value', value: s.value, color: s.color },
-        { label: 'Share', value: s.pct + '%' }
-      ]);
+      const rank = data.filter(v => v > s.value).length + 1;
+      const allRows = c._segments.map((seg, si) => ({
+        label: seg.label,
+        value: seg.pct + '%',
+        color: seg.color,
+        ring: true,
+        dimmed: si !== found
+      }));
+      showHoverTT(e, 'Distribution', s.label, [
+        { label: 'Value', value: s.value.toLocaleString() },
+        { label: 'Share', value: s.pct + '%' },
+      ].concat([{ label: '', value: '' }]).concat(allRows),
+      { titleColor: s.color, subtitle: 'Rank #' + rank + ' of ' + data.length });
     } else hideHoverTT();
   };
   c.onmouseleave = function() { c._hoverIdx = -1; drawDonutHover(); hideHoverTT(); };
@@ -525,10 +565,14 @@ function drawLineHover() {
     drawLineHover();
     const idx = Math.round((c._hoverX - padL) / (cw / (labels.length - 1)));
     if (idx >= 0 && idx < labels.length) {
-      showHoverTT(e, labels[idx], [
-        { label: 'Series A', value: '$' + data1[idx] + 'K', color: 'rgba(6,182,212,0.8)' },
-        { label: 'Series B', value: '$' + data2[idx] + 'K', color: 'rgba(103,232,249,0.8)' }
-      ]);
+      const totalAtIdx = data1[idx] + data2[idx];
+      const seriesRows = [
+        { label: 'Revenue', value: '$' + data1[idx] + 'K', color: 'rgba(6,182,212,0.8)', ring: true },
+        { label: 'Expenses', value: '$' + data2[idx] + 'K', color: 'rgba(103,232,249,0.8)', ring: true },
+      ].sort((a, b) => parseFloat(b.value.replace(/[^0-9.]/g,'')) - parseFloat(a.value.replace(/[^0-9.]/g,'')));
+      showHoverTT(e, 'Period: ' + labels[idx], null, [
+        { label: 'Total', value: '$' + totalAtIdx + 'K' },
+      ].concat(seriesRows));
     } else hideHoverTT();
   };
   c.onmouseleave = function() { c._hoverX = undefined; drawLineHover(); hideHoverTT(); };
