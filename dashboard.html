@@ -972,14 +972,17 @@ body.theme-genbi .upload-modal-overlay { background: rgba(0,0,0,0.6); backdrop-f
 body.theme-genbi .project-modal-overlay { background: rgba(0,0,0,0.6); backdrop-filter: blur(8px); }
 
 /* ── GenBI: Charts ── */
-body.theme-genbi .chart-tooltip { background: rgba(0,0,0,0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 4px 16px rgba(0,0,0,0.3); font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 300; border-radius: 8px; max-width: 220px; }
-body.theme-genbi .chart-tooltip-label { font-size: 10px; color: rgba(255,255,255,0.30); }
-body.theme-genbi .chart-tooltip-value { font-family: 'Outfit', sans-serif; font-weight: 400; font-size: 13px; }
+body.theme-genbi .chart-tooltip { background: rgba(0,0,0,0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); box-shadow: 0 4px 16px rgba(0,0,0,0.3); font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 300; border-radius: 10px; max-width: 260px; }
+body.theme-genbi .chart-tooltip-label { font-size: 11px; color: rgba(255,255,255,0.30); }
+body.theme-genbi .chart-tooltip-value { font-family: 'Outfit', sans-serif; font-weight: 400; font-size: 14px; }
 body.theme-genbi .chart-tooltip-bar { height: 2px; opacity: 0.5; }
-body.theme-genbi .tt-header { padding: 6px 10px; border-bottom-color: rgba(255,255,255,0.04); }
-body.theme-genbi .tt-body { padding: 6px 10px; }
-body.theme-genbi .tt-row-label { font-size: 11px; color: rgba(255,255,255,0.35); font-weight: 300; }
-body.theme-genbi .tt-row-value { font-size: 11px; font-weight: 400; }
+body.theme-genbi .tt-header { padding: 8px 12px; border-bottom-color: rgba(255,255,255,0.04); font-size: 11px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.04em; }
+body.theme-genbi .tt-body { padding: 10px 12px; }
+body.theme-genbi .tt-row-label { font-size: 12px; color: rgba(255,255,255,0.40); font-weight: 300; }
+body.theme-genbi .tt-row-value { font-size: 12px; font-weight: 400; }
+body.theme-genbi .tt-dot { width: 7px; height: 7px; border: 1.5px solid currentColor; background: transparent; }
+body.theme-genbi .tt-mini-chart { margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.04); }
+body.theme-genbi .tt-mini-chart canvas { display: block; width: 100%; }
 /* Nav tooltips (collapsed sidebar) */
 body.theme-genbi .sidebar.collapsed .nav-item::after { background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); border-color: rgba(255,255,255,0.06); font-family: 'Outfit', sans-serif; font-weight: 300; font-size: 11px; padding: 4px 10px; border-radius: 6px; }
 body.theme-genbi .chart-legend-item { font-family: 'Outfit', sans-serif; font-weight: 300; }
@@ -7022,6 +7025,89 @@ function _posTooltip(tt, e) {
   tt.style.left = x + 'px';
   tt.style.top = y + 'px';
 }
+
+// ── Mini-Chart Tooltip System (GenBI) ──
+function _appendMiniChart(tt, type, data) {
+  if (!isGenBI()) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'tt-mini-chart';
+  const cv = document.createElement('canvas');
+  const mw = 200, mh = type === 'minibars' ? Math.max(36, (data.items || []).length * 10) : 36;
+  cv.style.width = mw + 'px'; cv.style.height = mh + 'px';
+  wrap.appendChild(cv);
+  tt.querySelector('.tt-body').appendChild(wrap);
+  requestAnimationFrame(() => {
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = mw * dpr; cv.height = mh * dpr;
+    const ctx = cv.getContext('2d');
+    ctx.scale(dpr, dpr);
+    if (type === 'sparkline') _miniSparkline(ctx, mw, mh, data);
+    else if (type === 'minibars') _miniBars(ctx, mw, mh, data);
+    else if (type === 'dotdist') _miniDotDist(ctx, mw, mh, data);
+  });
+}
+function _miniSparkline(ctx, w, h, d) {
+  const vals = d.data, max = Math.max(...vals) * 1.1, min = Math.min(...vals) * 0.9;
+  const range = (max - min) || 1, pad = 4, cw = w - pad * 2, ch = h - pad * 2;
+  const step = cw / (vals.length - 1), rgb = d.color || '6,182,212';
+  const pts = vals.map((v, i) => ({ x: pad + step * i, y: pad + ch - ((v - min) / range) * ch }));
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) { const cp = (pts[i-1].x + pts[i].x) / 2; ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y); }
+  ctx.lineTo(pts[pts.length-1].x, pad + ch); ctx.lineTo(pts[0].x, pad + ch); ctx.closePath();
+  const g = ctx.createLinearGradient(0, pad, 0, pad + ch);
+  g.addColorStop(0, 'rgba(' + rgb + ',0.15)'); g.addColorStop(1, 'rgba(' + rgb + ',0)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) { const cp = (pts[i-1].x + pts[i].x) / 2; ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y); }
+  ctx.strokeStyle = 'rgba(' + rgb + ',0.7)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.stroke();
+  if (d.highlightIdx != null && pts[d.highlightIdx]) {
+    const p = pts[d.highlightIdx];
+    ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#000'; ctx.fill();
+    ctx.strokeStyle = 'rgba(' + rgb + ',1)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.5)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.restore();
+  }
+}
+function _miniBars(ctx, w, h, d) {
+  const items = d.items, max = Math.max(...items.map(i => i.value));
+  const barH = Math.min(6, (h - 4) / items.length - 2), gap = 2, labelW = 36, barArea = w - labelW - 8;
+  items.forEach((item, i) => {
+    const y = i * (barH + gap), bw = (item.value / max) * barArea;
+    const rgb = item.color || '6,182,212', alpha = item.active ? 0.85 : 0.25;
+    ctx.font = (item.active ? '400 ' : '300 ') + "8px 'Outfit',sans-serif";
+    ctx.fillStyle = 'rgba(255,255,255,' + (item.active ? 0.7 : 0.25) + ')';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(item.label.length > 5 ? item.label.substring(0,5) : item.label, labelW, y + barH / 2);
+    const r = barH / 2;
+    ctx.beginPath(); ctx.moveTo(labelW + 6, y); ctx.lineTo(labelW + 6 + bw - r, y);
+    ctx.quadraticCurveTo(labelW + 6 + bw, y, labelW + 6 + bw, y + r);
+    ctx.quadraticCurveTo(labelW + 6 + bw, y + barH, labelW + 6 + bw - r, y + barH);
+    ctx.lineTo(labelW + 6, y + barH); ctx.closePath();
+    ctx.fillStyle = 'rgba(' + rgb + ',' + alpha + ')'; ctx.fill();
+    if (item.active) { ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.3)'; ctx.shadowBlur = 4; ctx.fill(); ctx.restore(); }
+  });
+}
+function _miniDotDist(ctx, w, h, d) {
+  const vals = d.values, cur = d.current, rgb = d.color || '6,182,212';
+  const min = Math.min(...vals), max = Math.max(...vals), range = (max - min) || 1;
+  const pad = 8, cw = w - pad * 2, midY = h / 2;
+  ctx.beginPath(); ctx.moveTo(pad, midY); ctx.lineTo(pad + cw, midY);
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1; ctx.stroke();
+  vals.forEach(v => { const x = pad + ((v - min) / range) * cw; ctx.beginPath(); ctx.arc(x, midY, 2, 0, Math.PI * 2); ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fill(); });
+  const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+  const meanX = pad + ((mean - min) / range) * cw;
+  ctx.beginPath(); ctx.moveTo(meanX, midY - 7); ctx.lineTo(meanX, midY + 7);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = "300 7px 'Outfit',sans-serif"; ctx.fillStyle = 'rgba(255,255,255,0.20)'; ctx.textAlign = 'center'; ctx.fillText('avg', meanX, midY + 15);
+  const curX = pad + ((cur - min) / range) * cw;
+  ctx.beginPath(); ctx.arc(curX, midY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(' + rgb + ',0.10)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(curX, midY, 3.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#000'; ctx.fill();
+  ctx.strokeStyle = 'rgba(' + rgb + ',0.9)'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.5)'; ctx.shadowBlur = 6; ctx.stroke(); ctx.restore();
+}
+
 function handleBarHover(e) {
   const canvas = e.currentTarget;
   const hit = canvas._chartHit;
@@ -7065,6 +7151,8 @@ function handleBarHover(e) {
         '<div class="tt-row"><span class="tt-row-label">Rank</span><span class="tt-row-value">#' + rank + ' of ' + hit.data.length + '</span></div>' +
         '<div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:'+Math.round((a.value/maxVal)*100)+'%;background:rgba('+rgb+',0.8)"></div></div>' +
         '</div>';
+      // AI mini-chart: dot distribution (where this value falls among all bars)
+      _appendMiniChart(tt, 'dotdist', { values: hit.data, current: a.value, color: rgb });
       tt.classList.add('visible');
       _posTooltip(tt, e);
     } else {
@@ -7120,6 +7208,13 @@ function handleDonutHover(e) {
         '<div class="tt-divider"></div>' +
         othersHtml +
         '</div>';
+      // AI mini-chart: mini bars comparing all segments
+      const miniItems = hit.segments.map((s, si) => ({
+        label: s.label, value: s.value,
+        color: s.color.rgb || '6,182,212',
+        active: si === found
+      }));
+      _appendMiniChart(tt, 'minibars', { items: miniItems });
       tt.classList.add('visible');
       _posTooltip(tt, e);
     } else {
@@ -7230,6 +7325,9 @@ function handleMultiLineHover(e) {
     '<div class="tt-divider"></div>' +
     seriesRows +
     '</div>';
+  // AI mini-chart: sparkline of totals across all periods
+  const allTotals = chart.labels.map((_, li) => chart.series.reduce((s, sr) => s + sr.data[li], 0));
+  _appendMiniChart(tt, 'sparkline', { data: allTotals, highlightIdx: idx, color: '6,182,212' });
   _posTooltip(tt, e);
   tt.classList.add('visible');
 }
@@ -7274,6 +7372,8 @@ function handleHbarHover(e) {
         '<div class="tt-row"><span class="tt-row-label">Rank</span><span class="tt-row-value">#' + rank + ' of ' + hit.data.length + '</span></div>' +
         '<div class="tt-bar-wrap"><div class="tt-bar-fill" style="width:'+Math.round((a.value/maxVal)*100)+'%;background:rgba('+rgb+',0.8)"></div></div>' +
         '</div>';
+      // AI mini-chart: dot distribution
+      _appendMiniChart(tt, 'dotdist', { values: hit.data, current: a.value, color: rgb });
       tt.classList.add('visible');
       _posTooltip(tt, e);
     } else {
