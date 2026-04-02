@@ -16,7 +16,7 @@ from extensions import db
 # Emails with unlimited access (comma-separated env var or hardcoded)
 _UNLIMITED_EMAILS = set(
     e.strip().lower() for e in
-    os.environ.get('UNLIMITED_ACCESS_EMAILS', 'm.dehghani@twinai.net,riyask293@gmail.com,riyakapadnis3@gmail.com').split(',')
+    os.environ.get('UNLIMITED_ACCESS_EMAILS', 'm.dehghani@twinai.net,m.dehghani86@gmail.com,riyask293@gmail.com,riyakapadnis3@gmail.com').split(',')
     if e.strip()
 )
 
