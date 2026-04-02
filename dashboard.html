@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="public/js/map-data.js"></script>
 <style>
 :root {
   --glass-bg: hsla(0 0% 6% / 0.65);
@@ -2538,6 +2539,8 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
     <div class="ve-pill" data-val="gauge">Gauge</div>
     <div class="ve-pill" data-val="lollipop">Lollipop</div>
     <div class="ve-pill" data-val="funnel">Funnel</div>
+    <div class="ve-pill" data-val="usmap">US Map</div>
+    <div class="ve-pill" data-val="worldmap">World Map</div>
     <div class="ve-pill" data-val="waterfall">Waterfall</div>
     <div class="ve-pill" data-val="radar">Radar</div>
     <div class="ve-pill" data-val="treemap">Treemap</div>
@@ -8437,6 +8440,14 @@ function animateChartFromPlan(canvas, chart, delay) {
     else if (type === 'treemap') animateTreemapChart(canvas, flatData ? chart.labels : [], flatData || [], {});
     else if (type === 'candlestick') animateCandlestickChart(canvas, chart);
     else if (type === 'sankey') animateSankeyChart(canvas, chart);
+    else if (type === 'usmap' && window.GenBIMaps) {
+      const dataMap = {}; if (chart.labels && flatData) chart.labels.forEach((l, i) => { dataMap[l] = flatData[i]; });
+      window.GenBIMaps.drawUSMapChart(canvas, dataMap, { title: chart.title || axisOpts.yLabel || '', valueLabel: axisOpts.suffix || '' });
+    }
+    else if (type === 'worldmap' && window.GenBIMaps) {
+      const dataMap = {}; if (chart.labels && flatData) chart.labels.forEach((l, i) => { dataMap[l] = flatData[i]; });
+      window.GenBIMaps.drawWorldMapChart(canvas, dataMap, { title: chart.title || axisOpts.yLabel || '', valueLabel: axisOpts.suffix || '' });
+    }
   }, delay || 0);
 }
 
