@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenBI Background Picker</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Outfit', sans-serif; font-weight: 300; background: #000; color: rgba(255,255,255,0.80); }
+
+/* ── Thumbnail strip ── */
+.picker-strip {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(0,0,0,0.92); backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 12px 24px; display: flex; flex-direction: column; gap: 8px;
+}
+.picker-row { display: flex; align-items: center; gap: 10px; }
+.picker-label { font-size: 0.65rem; font-weight: 400; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.25); width: 80px; flex-shrink: 0; }
+.thumbs { display: flex; gap: 8px; overflow-x: auto; }
+.thumb {
+  width: 100px; height: 56px; border-radius: 6px; overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.08); cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.22,1,0.36,1); flex-shrink: 0;
+  position: relative;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb:hover { border-color: rgba(255,255,255,0.20); }
+.thumb.active { border-color: #06b6d4; box-shadow: 0 0 12px rgba(6,182,212,0.3); }
+.thumb-label {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  font-size: 7px; font-weight: 400; color: rgba(255,255,255,0.70);
+  background: rgba(0,0,0,0.7); padding: 2px 4px; text-align: center;
+}
+
+/* ── Full-page preview ── */
+.preview-section { padding: 24px; }
+.preview-title {
+  font-size: 0.7rem; font-weight: 400; text-transform: uppercase;
+  letter-spacing: 0.08em; color: rgba(255,255,255,0.25); margin-bottom: 12px;
+}
+
+/* Dashboard preview */
+.dash-preview {
+  position: relative; width: 100%; aspect-ratio: 16/9;
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.dash-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0.4; transition: opacity 0.4s;
+}
+
+/* Sidebar — matching landing page style */
+.sb {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 210px;
+  background: rgba(0,0,0,0.92); border-right: 1px solid rgba(255,255,255,0.04);
+  padding: 20px 14px; z-index: 5;
+}
+.sb-brand { display: flex; align-items: center; gap: 8px; margin-bottom: 32px; }
+.sb-brand svg { flex-shrink: 0; }
+.sb-brand span { font-weight: 600; font-size: 16px; color: rgba(255,255,255,0.9); letter-spacing: -0.03em; }
+.sb-label { font-size: 0.6rem; font-weight: 400; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.15); margin: 18px 0 8px 10px; }
+.sb-item { padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 300; color: rgba(255,255,255,0.30); margin-bottom: 2px; }
+.sb-item.active { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.95); position: relative; }
+.sb-item.active::before { content: ''; position: absolute; left: -14px; top: 50%; transform: translateY(-50%); width: 3px; height: 16px; border-radius: 2px; background: #06b6d4; }
+.sb-profile {
+  position: absolute; bottom: 14px; left: 14px; right: 14px;
+  padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 8px;
+}
+.sb-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, rgba(6,182,212,0.8), rgba(8,145,178,0.8)); }
+.sb-name { font-size: 10px; font-weight: 400; color: rgba(255,255,255,0.70); }
+.sb-email { font-size: 8px; color: rgba(255,255,255,0.25); }
+
+/* Main content */
+.main {
+  position: absolute; left: 210px; top: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 20px 28px; z-index: 5;
+}
+.stepper { display: flex; gap: 10px; align-items: center; margin-bottom: 20px; }
+.step { font-size: 10px; color: rgba(255,255,255,0.20); display: flex; align-items: center; gap: 5px; }
+.step.active { color: rgba(6,182,212,0.8); }
+.step-num { width: 18px; height: 18px; border-radius: 50%; background: rgba(255,255,255,0.06); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 400; }
+.step.active .step-num { background: rgba(6,182,212,0.15); color: #06b6d4; }
+.step-line { width: 36px; height: 1px; background: rgba(255,255,255,0.06); }
+
+.dropzone {
+  width: 65%; max-width: 500px; padding: 36px 20px;
+  border: 1.5px dashed rgba(255,255,255,0.18); border-radius: 12px;
+  background: rgba(0,0,0,0.50); backdrop-filter: blur(16px);
+  text-align: center;
+}
+.dz-icon { font-size: 22px; color: rgba(255,255,255,0.25); margin-bottom: 8px; }
+.dz-text { font-size: 12px; color: rgba(255,255,255,0.65); font-weight: 300; }
+.dz-hint { font-size: 10px; color: rgba(255,255,255,0.30); margin-top: 4px; }
+.sample-btn {
+  margin-top: 14px; padding: 7px 18px; border-radius: 5rem;
+  background: rgba(0,0,0,0.4); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.60); font-size: 11px; font-family: 'Outfit', sans-serif; font-weight: 300;
+}
+.feat-cards { display: flex; gap: 10px; margin-top: 18px; }
+.feat-card {
+  width: 110px; padding: 12px 10px; border-radius: 10px;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+.feat-icon { width: 22px; height: 22px; border-radius: 6px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); margin-bottom: 6px; }
+.feat-title { font-size: 10px; font-weight: 400; color: rgba(255,255,255,0.80); }
+.feat-desc { font-size: 8px; color: rgba(255,255,255,0.25); margin-top: 2px; }
+
+/* ── Login preview ── */
+.login-preview {
+  position: relative; width: 100%; aspect-ratio: 16/9;
+  border-radius: 12px; overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.login-bg {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: 0.5; transition: opacity 0.4s;
+}
+.login-overlay {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+}
+.login-card {
+  width: 320px; padding: 32px 28px;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(24px);
+  border: 1px solid rgba(255,255,255,0.08); border-radius: 16px;
+}
+.login-logo { display: flex; align-items: center; gap: 6px; justify-content: center; margin-bottom: 20px; }
+.login-logo svg { flex-shrink: 0; }
+.login-logo span { font-weight: 600; font-size: 18px; color: rgba(255,255,255,0.9); letter-spacing: -0.03em; }
+.login-card h3 { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.90); text-align: center; margin-bottom: 4px; }
+.login-card p { font-size: 11px; color: rgba(255,255,255,0.30); text-align: center; margin-bottom: 18px; }
+.login-field {
+  width: 100%; padding: 10px 14px; border-radius: 0.6rem; margin-bottom: 8px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 300;
+  color: rgba(255,255,255,0.80); outline: none;
+}
+.login-field::placeholder { color: rgba(255,255,255,0.20); }
+.login-btn {
+  width: 100%; padding: 10px; border-radius: 5rem; margin-top: 6px;
+  background: rgba(255,255,255,0.90); color: #000; font-weight: 600;
+  font-family: 'Outfit', sans-serif; font-size: 12px; text-align: center;
+  border: none; cursor: pointer;
+}
+.login-link { text-align: center; margin-top: 12px; font-size: 10px; color: rgba(255,255,255,0.25); }
+.login-link a { color: #06b6d4; }
+.login-divider { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+.login-divider span { font-size: 10px; color: rgba(255,255,255,0.20); }
+.login-divider::before, .login-divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
+
+/* GenBI logo SVG inline */
+.genbi-logo { display: inline-block; }
+</style>
+</head>
+<body>
+
+<!-- ── Sticky thumbnail picker ── -->
+<div class="picker-strip">
+  <div class="picker-row">
+    <div class="picker-label">Dashboard</div>
+    <div class="thumbs" id="dashThumbs">
+      <div class="thumb active" onclick="pickDash(this, 'public/images/bg-option-1.png')">
+        <img src="public/images/bg-option-1.png"><div class="thumb-label">Particles</div>
+      </div>
+      <div class="thumb" onclick="pickDash(this, 'public/images/bg-option-2.png')">
+        <img src="public/images/bg-option-2.png"><div class="thumb-label">Data Wave</div>
+      </div>
+      <div class="thumb" onclick="pickDash(this, 'public/images/dashboard-bg.png')">
+        <img src="public/images/dashboard-bg.png"><div class="thumb-label">Float Charts</div>
+      </div>
+      <div class="thumb" onclick="pickDash(this, 'public/images/bg-whitegfx-1.png')">
+        <img src="public/images/bg-whitegfx-1.png"><div class="thumb-label">White Shapes</div>
+      </div>
+      <div class="thumb" onclick="pickDash(this, 'public/images/bg-whitegfx-2.png')">
+        <img src="public/images/bg-whitegfx-2.png"><div class="thumb-label">White Stream</div>
+      </div>
+      <div class="thumb" onclick="pickDash(this, 'public/images/bg-whitegfx-3.png')">
+        <img src="public/images/bg-whitegfx-3.png"><div class="thumb-label">White Portal</div>
+      </div>
+      <div class="thumb" onclick="pickDash(this, '')">
+        <div style="width:100%;height:100%;background:#000;"></div><div class="thumb-label">No Image</div>
+      </div>
+    </div>
+  </div>
+  <div class="picker-row">
+    <div class="picker-label">Login</div>
+    <div class="thumbs" id="loginThumbs">
+      <div class="thumb active" onclick="pickLogin(this, 'public/images/bg-option-3.png')">
+        <img src="public/images/bg-option-3.png"><div class="thumb-label">Constellation</div>
+      </div>
+      <div class="thumb" onclick="pickLogin(this, 'public/images/bg-option-4.png')">
+        <img src="public/images/bg-option-4.png"><div class="thumb-label">Donut Ring</div>
+      </div>
+      <div class="thumb" onclick="pickLogin(this, 'public/images/login-bg.png')">
+        <img src="public/images/login-bg.png"><div class="thumb-label">Cyan Portal</div>
+      </div>
+      <div class="thumb" onclick="pickLogin(this, 'public/images/bg-whitegfx-1.png')">
+        <img src="public/images/bg-whitegfx-1.png"><div class="thumb-label">White Shapes</div>
+      </div>
+      <div class="thumb" onclick="pickLogin(this, 'public/images/bg-whitegfx-2.png')">
+        <img src="public/images/bg-whitegfx-2.png"><div class="thumb-label">White Stream</div>
+      </div>
+      <div class="thumb" onclick="pickLogin(this, 'public/images/bg-whitegfx-3.png')">
+        <img src="public/images/bg-whitegfx-3.png"><div class="thumb-label">White Portal</div>
+      </div>
+      <div class="thumb" onclick="pickLogin(this, '')">
+        <div style="width:100%;height:100%;background:#000;"></div><div class="thumb-label">No Image</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Dashboard Preview ── -->
+<div class="preview-section">
+  <div class="preview-title">Dashboard — Upload Data</div>
+  <div class="dash-preview">
+    <img class="dash-bg" id="dashBg" src="public/images/bg-option-1.png" alt="">
+    <div class="sb">
+      <div class="sb-brand">
+        <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
+          <rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/>
+          <rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/>
+          <rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/>
+          <rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/>
+        </svg>
+        <span>GenBI</span>
+      </div>
+      <div class="sb-label">Main</div>
+      <div class="sb-item active">Analytics</div>
+      <div class="sb-label">Workspace</div>
+      <div class="sb-item">Key Influencers</div>
+      <div class="sb-item">Documents</div>
+      <div class="sb-item">Subscription</div>
+      <div class="sb-item">Settings</div>
+      <div class="sb-label">Projects</div>
+      <div class="sb-item">My Projects</div>
+      <div class="sb-profile">
+        <div class="sb-avatar"></div>
+        <div><div class="sb-name">Mohammad Deh...</div><div class="sb-email">m.dehghani86@gmail.com</div></div>
+      </div>
+    </div>
+    <div class="main">
+      <div class="stepper">
+        <div class="step active"><div class="step-num">1</div>Upload Data</div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">2</div>Analyze</div>
+        <div class="step-line"></div>
+        <div class="step"><div class="step-num">3</div>Visualize</div>
+      </div>
+      <div class="dropzone">
+        <div class="dz-icon">&#8682;</div>
+        <div class="dz-text">Drag & drop files here or click to browse</div>
+        <div class="dz-hint">Supports Excel (.xlsx, .xls), CSV, PDF, images, JSON</div>
+      </div>
+      <div class="sample-btn">Try Sample Dataset</div>
+      <div class="feat-cards">
+        <div class="feat-card"><div class="feat-icon"></div><div class="feat-title">AI-Generated Charts</div><div class="feat-desc">Auto-detect patterns</div></div>
+        <div class="feat-card"><div class="feat-icon"></div><div class="feat-title">Key Influencers</div><div class="feat-desc">Discover drivers</div></div>
+        <div class="feat-card"><div class="feat-icon"></div><div class="feat-title">Smart Insights</div><div class="feat-desc">AI-powered briefings</div></div>
+        <div class="feat-card"><div class="feat-icon"></div><div class="feat-title">Data Quality</div><div class="feat-desc">Detect missing values</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Login Preview ── -->
+<div class="preview-section">
+  <div class="preview-title">Login / Sign Up</div>
+  <div class="login-preview">
+    <img class="login-bg" id="loginBg" src="public/images/bg-option-3.png" alt="">
+    <div class="login-overlay">
+      <div class="login-card">
+        <div class="login-logo">
+          <svg width="22" height="22" viewBox="0 0 40 40" fill="none">
+            <rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/>
+            <rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/>
+            <rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/>
+            <rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/>
+          </svg>
+          <span>GenBI</span>
+        </div>
+        <h3>Welcome back</h3>
+        <p>Sign in to your account to continue</p>
+        <input class="login-field" type="email" placeholder="Email address">
+        <input class="login-field" type="password" placeholder="Password">
+        <div class="login-btn">Sign in</div>
+        <div class="login-divider"><span>or</span></div>
+        <div class="login-btn" style="background:rgba(255,255,255,0.03); color:rgba(255,255,255,0.60); border:1px solid rgba(255,255,255,0.10); font-weight:300;">Continue with Google</div>
+        <div class="login-link">Don't have an account? <a href="#">Sign up free</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function pickDash(thumb, src) {
+  document.querySelectorAll('#dashThumbs .thumb').forEach(t => t.classList.remove('active'));
+  thumb.classList.add('active');
+  const bg = document.getElementById('dashBg');
+  if (src) { bg.src = src; bg.style.opacity = '0.55'; bg.style.display = 'block'; }
+  else { bg.style.display = 'none'; }
+}
+function pickLogin(thumb, src) {
+  document.querySelectorAll('#loginThumbs .thumb').forEach(t => t.classList.remove('active'));
+  thumb.classList.add('active');
+  const bg = document.getElementById('loginBg');
+  if (src) { bg.src = src; bg.style.opacity = '0.6'; bg.style.display = 'block'; }
+  else { bg.style.display = 'none'; }
+}
+</script>
+</body>
+</html>
