@@ -5,12 +5,20 @@ Calls PL/pgSQL functions for correctness; falls back to ORM if functions
 haven't been created yet (e.g., during initial migration).
 """
 
+import os
 from datetime import datetime, timezone
 from functools import wraps
 
 from flask import request, jsonify
 
 from extensions import db
+
+# Emails with unlimited access (comma-separated env var or hardcoded)
+_UNLIMITED_EMAILS = set(
+    e.strip().lower() for e in
+    os.environ.get('UNLIMITED_ACCESS_EMAILS', 'm.dehghani@twinai.net,riyask293@gmail.com,riyakapadnis3@gmail.com').split(',')
+    if e.strip()
+)
 
 
 # ── Feature key constants ──────────────────────────────────────────────────
@@ -70,8 +78,17 @@ def get_usage(user_id, feature_key, period_key=None):
     return row[0] if row else 0
 
 
+def _is_unlimited_user(user_id):
+    """Check if user email is in the unlimited access list."""
+    from auth.models import User
+    user = db.session.get(User, user_id)
+    return user and user.email.lower() in _UNLIMITED_EMAILS
+
+
 def can_consume(user_id, feature_key, amount=1):
     """Check if user can consume amount of feature. Returns dict."""
+    if _is_unlimited_user(user_id):
+        return {'allowed': True, 'reason': None, 'current_usage': 0, 'limit_value': None}
     row = db.session.execute(
         db.text('SELECT allowed, reason, current_usage, limit_val FROM can_consume(:uid, :fk, :amt)'),
         {'uid': user_id, 'fk': feature_key, 'amt': amount},
