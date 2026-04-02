@@ -246,6 +246,298 @@ function showTTDemo(e) { document.getElementById('ttDemo').style.display = 'bloc
 function hideTTDemo() { document.getElementById('ttDemo').style.display = 'none'; }
 </script>
 
+<!-- ══ CHART HOVER TOOLTIP DEMO ══ -->
+<div class="header" style="padding-top:1rem;">
+  <h1>Chart Hover Tooltips</h1>
+  <p>Hover over the chart elements to see the GenBI tooltip design</p>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="card-title">Bar Chart — Hover Demo</div><canvas id="bar-hover"></canvas></div>
+  <div class="card"><div class="card-title">Donut Chart — Hover Demo</div><canvas id="donut-hover"></canvas></div>
+  <div class="card"><div class="card-title">Line Chart — Hover Demo</div><canvas id="line-hover"></canvas></div>
+</div>
+
+<div id="hoverTT" style="position:fixed; z-index:700; pointer-events:none; background:rgba(0,0,0,0.88); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.06); border-radius:8px; padding:0; opacity:0; transition:opacity 0.12s; max-width:220px; overflow:hidden; font-family:'Outfit',sans-serif;">
+  <div id="hoverTT-header" style="padding:6px 10px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:10px; font-weight:300; color:rgba(255,255,255,0.30);"></div>
+  <div id="hoverTT-body" style="padding:8px 10px;"></div>
+</div>
+
+<script>
+// ── Hover Tooltip System ──
+const hTT = document.getElementById('hoverTT');
+const hTTH = document.getElementById('hoverTT-header');
+const hTTB = document.getElementById('hoverTT-body');
+
+function showHoverTT(e, label, rows) {
+  hTTH.textContent = label;
+  hTTB.innerHTML = rows.map(r =>
+    '<div style="display:flex; justify-content:space-between; gap:16px; padding:2px 0;">' +
+    '<span style="display:flex; align-items:center; gap:6px; font-size:11px; color:rgba(255,255,255,0.40); font-weight:300;">' +
+    (r.color ? '<span style="width:7px;height:7px;border-radius:50%;border:1.5px solid ' + r.color + ';flex-shrink:0;"></span>' : '') +
+    r.label + '</span>' +
+    '<span style="font-size:11px; font-weight:400; color:rgba(255,255,255,0.90);">' + r.value + '</span></div>'
+  ).join('');
+  const ttW = hTT.offsetWidth || 180, ttH = hTT.offsetHeight || 60;
+  let x = e.clientX + 12, y = e.clientY - ttH - 10;
+  if (x + ttW > window.innerWidth - 8) x = e.clientX - ttW - 12;
+  if (y < 4) y = e.clientY + 16;
+  hTT.style.left = x + 'px'; hTT.style.top = y + 'px';
+  hTT.style.opacity = '1';
+}
+function hideHoverTT() { hTT.style.opacity = '0'; }
+
+// ── Bar Hover Demo ──
+function drawBarHover() {
+  const { ctx, w, h } = setup('bar-hover');
+  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+  const data = [42, 68, 55, 80, 65, 90];
+  const max = 105;
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const gap = cw / labels.length;
+  const barW = Math.min(gap * 0.55, 36);
+  const rgb = PAL[0].rgb;
+  const c = document.getElementById('bar-hover');
+
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y);
+    ctx.strokeStyle = GRID_COLOR; ctx.lineWidth = 0.4; ctx.stroke();
+  }
+
+  // Store hit areas
+  c._hitAreas = [];
+  data.forEach((v, i) => {
+    const barH = (v / max) * ch;
+    const x = padL + gap * i + (gap - barW) / 2;
+    const y = padT + ch - barH;
+    const r = Math.min(barW / 2, 50);
+    const isHover = c._hoverIdx === i;
+    const alpha = isHover ? 0.95 : (c._hoverIdx >= 0 ? 0.3 : 0.85);
+
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+    ctx.quadraticCurveTo(x + barW, y, x + barW, y + r);
+    ctx.lineTo(x + barW, padT + ch); ctx.lineTo(x, padT + ch);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(0, y, 0, padT + ch);
+    grad.addColorStop(0, 'rgba(' + rgb + ',' + alpha + ')');
+    grad.addColorStop(0.4, 'rgba(' + rgb + ',' + (alpha * 0.6) + ')');
+    grad.addColorStop(1, 'rgba(' + rgb + ',' + (alpha * 0.05) + ')');
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',' + (isHover ? 0.4 : 0.2) + ')'; ctx.shadowBlur = isHover ? 20 : 14; ctx.fill(); ctx.restore();
+
+    if (isHover) {
+      ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + barW - r, y);
+      ctx.strokeStyle = 'rgba(' + rgb + ',0.7)'; ctx.lineWidth = 1.5; ctx.lineCap = 'round'; ctx.stroke();
+    }
+
+    ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA); ctx.textAlign = 'center';
+    ctx.fillText(labels[i], padL + gap * i + gap / 2, h - padB + 8);
+    c._hitAreas.push({ x, y, w: barW, h: barH, label: labels[i], value: v });
+  });
+
+  c.onmousemove = function(e) {
+    const rect = c.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    let found = -1;
+    c._hitAreas.forEach((a, i) => { if (mx >= a.x && mx <= a.x + a.w && my >= a.y && my <= a.y + a.h + 4) found = i; });
+    if (found !== c._hoverIdx) { c._hoverIdx = found; drawBarHover(); }
+    if (found >= 0) {
+      const a = c._hitAreas[found];
+      showHoverTT(e, a.label, [{ label: 'Revenue', value: '$' + a.value + 'K', color: 'rgba(6,182,212,0.8)' }]);
+    } else hideHoverTT();
+  };
+  c.onmouseleave = function() { c._hoverIdx = -1; drawBarHover(); hideHoverTT(); };
+}
+
+// ── Donut Hover Demo ──
+function drawDonutHover() {
+  const { ctx, w, h } = setup('donut-hover');
+  const data = [35, 25, 20, 12, 8];
+  const labels = ['Direct', 'Social', 'Referral', 'Email', 'Other'];
+  const total = data.reduce((a, b) => a + b, 0);
+  const cx = w * 0.42, cy = h / 2;
+  const outerR = Math.min(w, h) * 0.38;
+  const innerR = outerR * 0.68;
+  const c = document.getElementById('donut-hover');
+
+  c._segments = [];
+  let angle = -Math.PI / 2;
+  data.forEach((v, i) => {
+    const slice = (v / total) * Math.PI * 2;
+    const col = PAL[i % PAL.length];
+    const rgb = col.rgb;
+    const isHover = c._hoverIdx === i;
+    const dimAlpha = isHover ? 0.95 : (c._hoverIdx >= 0 ? 0.3 : 0.85);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, angle, angle + slice);
+    ctx.arc(cx, cy, innerR, angle + slice, angle, true);
+    ctx.closePath();
+
+    const segGrad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
+    segGrad.addColorStop(0, 'rgba(' + rgb + ',' + (dimAlpha * 0.5) + ')');
+    segGrad.addColorStop(1, 'rgba(' + rgb + ',' + dimAlpha + ')');
+    ctx.fillStyle = segGrad; ctx.fill();
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',' + (isHover ? 0.5 : 0.2) + ')'; ctx.shadowBlur = isHover ? 18 : 10; ctx.fill(); ctx.restore();
+
+    // Gap
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, angle + slice - 0.01, angle + slice + 0.01);
+    ctx.arc(cx, cy, innerR, angle + slice + 0.01, angle + slice - 0.01, true);
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 3; ctx.stroke();
+
+    c._segments.push({ startAngle: angle, endAngle: angle + slice, label: labels[i], value: v, pct: Math.round(v / total * 100), color: 'rgba(' + rgb + ',0.8)' });
+    angle += slice;
+  });
+
+  // Center
+  ctx.font = "300 24px " + FONT; ctx.fillStyle = textColor(0.90); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(total, cx, cy - 6);
+  ctx.font = "300 10px " + FONT; ctx.fillStyle = textColor(0.25); ctx.fillText('TOTAL', cx, cy + 14);
+
+  // Legend
+  const legX = w * 0.70;
+  labels.forEach((l, i) => {
+    const y = h * 0.22 + i * 22;
+    const rgb = PAL[i % PAL.length].rgb;
+    ctx.beginPath(); ctx.arc(legX, y, 4, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.8)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.font = "300 11px " + FONT; ctx.fillStyle = textColor(0.40); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(l, legX + 12, y);
+    ctx.font = "400 11px " + FONT; ctx.fillStyle = textColor(0.70);
+    ctx.fillText(data[i] + '%', legX + 70, y);
+  });
+
+  c.onmousemove = function(e) {
+    const rect = c.getBoundingClientRect();
+    const mx = e.clientX - rect.left - cx, my = e.clientY - rect.top - cy;
+    const dist = Math.sqrt(mx * mx + my * my);
+    let found = -1;
+    if (dist >= innerR && dist <= outerR) {
+      let a = Math.atan2(my, mx);
+      if (a < -Math.PI / 2) a += Math.PI * 2;
+      c._segments.forEach((s, i) => { if (a >= s.startAngle && a < s.endAngle) found = i; });
+    }
+    if (found !== c._hoverIdx) { c._hoverIdx = found; drawDonutHover(); }
+    if (found >= 0) {
+      const s = c._segments[found];
+      showHoverTT(e, s.label, [
+        { label: 'Value', value: s.value, color: s.color },
+        { label: 'Share', value: s.pct + '%' }
+      ]);
+    } else hideHoverTT();
+  };
+  c.onmouseleave = function() { c._hoverIdx = -1; drawDonutHover(); hideHoverTT(); };
+}
+
+// ── Line Hover Demo (crosshair) ──
+function drawLineHover() {
+  const { ctx, w, h } = setup('line-hover');
+  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+  const data1 = [30, 45, 38, 62, 55, 70, 65, 80];
+  const data2 = [20, 35, 50, 40, 60, 48, 72, 58];
+  const max = 100;
+  const padL = 40, padR = 16, padT = 16, padB = 30;
+  const cw = w - padL - padR, ch = h - padT - padB;
+  const c = document.getElementById('line-hover');
+  const hoverX = c._hoverX;
+
+  // Grid
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (ch / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y);
+    ctx.strokeStyle = GRID_COLOR; ctx.lineWidth = 0.4; ctx.stroke();
+  }
+
+  const series = [
+    { data: data1, color: PAL[0] },
+    { data: data2, color: PAL[1] }
+  ];
+
+  // Find nearest index
+  let nearIdx = -1;
+  if (hoverX !== undefined && hoverX >= padL && hoverX <= w - padR) {
+    nearIdx = Math.round((hoverX - padL) / (cw / (labels.length - 1)));
+    nearIdx = Math.max(0, Math.min(labels.length - 1, nearIdx));
+  }
+
+  series.forEach(s => {
+    const rgb = s.color.rgb;
+    const pts = s.data.map((v, i) => ({
+      x: padL + (cw / (labels.length - 1)) * i,
+      y: padT + ch - (v / max) * ch
+    }));
+
+    // Area
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const cp = (pts[i-1].x + pts[i].x) / 2;
+      ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+    }
+    ctx.lineTo(pts[pts.length-1].x, padT + ch); ctx.lineTo(pts[0].x, padT + ch); ctx.closePath();
+    const aGrad = ctx.createLinearGradient(0, padT, 0, padT + ch);
+    aGrad.addColorStop(0, 'rgba(' + rgb + ',0.12)'); aGrad.addColorStop(1, 'rgba(' + rgb + ',0.0)');
+    ctx.fillStyle = aGrad; ctx.fill();
+
+    // Line glow
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) {
+      const cp = (pts[i-1].x + pts[i].x) / 2;
+      ctx.bezierCurveTo(cp, pts[i-1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+    }
+    ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.4)'; ctx.shadowBlur = 12;
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.85)'; ctx.lineWidth = 2.8; ctx.lineCap = 'round'; ctx.stroke(); ctx.restore();
+
+    // Ring dots
+    pts.forEach((p, i) => {
+      const isActive = i === nearIdx;
+      if (isActive) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(' + rgb + ',0.10)'; ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(p.x, p.y, isActive ? 5 : 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = '#000'; ctx.fill();
+      ctx.strokeStyle = 'rgba(' + rgb + ',' + (isActive ? 1 : 0.6) + ')'; ctx.lineWidth = 1.5; ctx.stroke();
+      if (isActive) { ctx.save(); ctx.shadowColor = 'rgba(' + rgb + ',0.5)'; ctx.shadowBlur = 8; ctx.stroke(); ctx.restore(); }
+    });
+  });
+
+  // Crosshair
+  if (nearIdx >= 0) {
+    const cx2 = padL + (cw / (labels.length - 1)) * nearIdx;
+    ctx.beginPath(); ctx.moveTo(cx2, padT); ctx.lineTo(cx2, padT + ch);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // X labels
+  ctx.font = LABEL_FONT; ctx.fillStyle = textColor(TEXT_ALPHA); ctx.textAlign = 'center';
+  labels.forEach((l, i) => ctx.fillText(l, padL + (cw / (labels.length - 1)) * i, h - padB + 8));
+
+  c.onmousemove = function(e) {
+    const rect = c.getBoundingClientRect();
+    c._hoverX = e.clientX - rect.left;
+    drawLineHover();
+    const idx = Math.round((c._hoverX - padL) / (cw / (labels.length - 1)));
+    if (idx >= 0 && idx < labels.length) {
+      showHoverTT(e, labels[idx], [
+        { label: 'Series A', value: '$' + data1[idx] + 'K', color: 'rgba(6,182,212,0.8)' },
+        { label: 'Series B', value: '$' + data2[idx] + 'K', color: 'rgba(103,232,249,0.8)' }
+      ]);
+    } else hideHoverTT();
+  };
+  c.onmouseleave = function() { c._hoverX = undefined; drawLineHover(); hideHoverTT(); };
+}
+
+window.addEventListener('DOMContentLoaded', () => { drawBarHover(); drawDonutHover(); drawLineHover(); });
+window.addEventListener('resize', () => { drawBarHover(); drawDonutHover(); drawLineHover(); });
+</script>
+
 <div id="tooltip" class="tt"><div class="tt-label" id="ttL"></div><div class="tt-value" id="ttV"></div></div>
 
 <script>
