@@ -5823,8 +5823,8 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
 
   const th = getThemeChartOpts();
   const cx = w * 0.36, cy = h / 2;
-  const outerR = Math.min(cx - 16, cy - 16, 100);
-  const innerR = outerR * th.donutInnerRatio;
+  const outerR = Math.max(20, Math.min(cx - 16, cy - 16, 120));
+  const innerR = Math.max(0, outerR * th.donutInnerRatio);
   const isPBI = document.body.classList.contains('theme-powerbi');
   const defaultColors = isPBI ? [
     { fill: 'rgba(17,141,255,0.85)', rgb: '17,141,255' },
