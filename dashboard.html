@@ -8147,6 +8147,15 @@ function openExplainDrawer(column, value, chartIdx) {
     html += '</div>';
   }
 
+  // Collect chart series colors for breakdowns and sunburst
+  var chartColors = [];
+  if (chart && chart.series) {
+    chartColors = chart.series.map(function(s) { return getColorHex(s.color); });
+  }
+  if (!chartColors.length) {
+    chartColors = ['#00e5ff','#b388ff','#69f0ae','#ffd740','#ff6b9d','#38bdf8','#818cf8','#14b8a6'];
+  }
+
   // Sunburst chart
   if (breakdowns.length >= 1) {
     html += '<div style="margin-bottom:20px">';
@@ -8185,15 +8194,6 @@ function openExplainDrawer(column, value, chartIdx) {
   title.textContent = 'Explain: ' + column.replace(/_/g, ' ') + ' = ' + value;
   body.innerHTML = html;
   panel.classList.add('open');
-
-  // Collect chart series colors for the sunburst
-  var chartColors = [];
-  if (chart && chart.series) {
-    chartColors = chart.series.map(function(s) { return getColorHex(s.color); });
-  }
-  if (!chartColors.length) {
-    chartColors = ['#00e5ff','#b388ff','#69f0ae','#ffd740','#ff6b9d','#38bdf8','#818cf8','#14b8a6'];
-  }
 
   // Draw sunburst after DOM is ready
   if (breakdowns.length >= 1) {
