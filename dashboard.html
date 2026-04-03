@@ -8514,13 +8514,28 @@ function animateChartFromPlan(canvas, chart, delay) {
     else if (type === 'treemap') animateTreemapChart(canvas, flatData ? chart.labels : [], flatData || [], {});
     else if (type === 'candlestick') animateCandlestickChart(canvas, chart);
     else if (type === 'sankey') animateSankeyChart(canvas, chart);
-    else if (type === 'usmap' && window.GenBIMaps) {
+    else if (type === 'usmap' || type === 'worldmap') {
       const dataMap = {}; if (chart.labels && flatData) chart.labels.forEach((l, i) => { dataMap[l] = flatData[i]; });
-      window.GenBIMaps.drawUSMapChart(canvas, dataMap, { title: chart.title || axisOpts.yLabel || '', valueLabel: axisOpts.suffix || '' });
-    }
-    else if (type === 'worldmap' && window.GenBIMaps) {
-      const dataMap = {}; if (chart.labels && flatData) chart.labels.forEach((l, i) => { dataMap[l] = flatData[i]; });
-      window.GenBIMaps.drawWorldMapChart(canvas, dataMap, { title: chart.title || axisOpts.yLabel || '', valueLabel: axisOpts.suffix || '' });
+      const endpoint = type === 'usmap' ? '/api/map/us' : '/api/map/world';
+      const token = localStorage.getItem('genbi-auth-token');
+      // Hide canvas, show map iframe
+      canvas.style.display = 'none';
+      const mapDiv = document.createElement('div');
+      mapDiv.style.cssText = 'width:100%;height:100%;min-height:300px;';
+      mapDiv.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.25);font-size:12px;">Loading map...</div>';
+      canvas.parentElement.appendChild(mapDiv);
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
+        body: JSON.stringify({ data: dataMap, title: chart.title || '', valueLabel: axisOpts.yLabel || 'Value' })
+      }).then(r => r.json()).then(data => {
+        if (data.html) {
+          mapDiv.innerHTML = data.html;
+          // Resize plotly to fit container
+          const plotDiv = mapDiv.querySelector('.plotly-graph-div');
+          if (plotDiv && window.Plotly) { Plotly.relayout(plotDiv, { width: mapDiv.clientWidth, height: Math.max(300, mapDiv.clientHeight) }); }
+        } else { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map unavailable</div>'; }
+      }).catch(() => { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map failed to load</div>'; });
     }
   }, delay || 0);
 }

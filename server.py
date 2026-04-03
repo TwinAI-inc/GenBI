@@ -144,7 +144,7 @@ def create_app():
         response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
         response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://d3js.org https://cdn.jsdelivr.net; "
+            "script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://d3js.org https://cdn.jsdelivr.net https://cdn.plot.ly; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https://*.googleusercontent.com; "
@@ -934,6 +934,98 @@ Rules:
             })
         except Exception as e:
             return _ai_error_response(e)
+
+    @app.route('/api/map/us', methods=['POST'])
+    def render_us_map():
+        """Generate US choropleth map HTML using Plotly."""
+        try:
+            import plotly.express as px
+            import pandas as pd
+            data = request.get_json()
+            state_data = data.get('data', {})  # {"CA": 100, "TX": 200, ...}
+            title = data.get('title', 'US Map')
+            value_label = data.get('valueLabel', 'Value')
+            if not state_data:
+                return jsonify({'error': 'No data'}), 400
+            df = pd.DataFrame([{'State': k, 'Value': v} for k, v in state_data.items()])
+            fig = px.choropleth(
+                df, locations='State', locationmode='USA-states',
+                color='Value', scope='usa',
+                color_continuous_scale=[[0,'rgb(2,20,28)'],[0.25,'rgb(4,80,100)'],[0.5,'rgb(6,145,178)'],[0.75,'rgb(6,182,212)'],[1,'rgb(103,232,249)']],
+                hover_name='State',
+                labels={'Value': value_label}
+            )
+            fig.update_traces(marker_line_color='rgba(0,0,0,0.5)', marker_line_width=0.5,
+                hovertemplate='<b>%{hovertext}</b><br>' + value_label + ': %{z:,.0f}<extra></extra>')
+            fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                geo=dict(bgcolor='rgba(0,0,0,0)', lakecolor='rgba(0,0,0,1)',
+                    landcolor='rgba(255,255,255,0.02)', subunitcolor='rgba(255,255,255,0.06)',
+                    showlakes=True, showframe=False, coastlinecolor='rgba(255,255,255,0.06)'),
+                font=dict(family='Outfit, sans-serif', color='rgba(255,255,255,0.7)', size=11),
+                title=None, margin=dict(l=0, r=0, t=0, b=0),
+                coloraxis_colorbar=dict(title='', thickness=8, len=0.35, x=0.93, y=0.5,
+                    bgcolor='rgba(0,0,0,0)', outlinewidth=0,
+                    tickfont=dict(family='Outfit, sans-serif', size=9, color='rgba(255,255,255,0.30)'),
+                    nticks=4, borderwidth=0),
+                hoverlabel=dict(bgcolor='rgba(0,0,0,0.88)', bordercolor='rgba(255,255,255,0.06)',
+                    font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
+                dragmode=False,
+            )
+            html = fig.to_html(include_plotlyjs='cdn', full_html=False,
+                config={'displayModeBar': False, 'scrollZoom': False, 'responsive': True})
+            return jsonify({'html': html})
+        except ImportError:
+            return jsonify({'error': 'Plotly not available'}), 503
+        except Exception as e:
+            logger.error(f'Map render error: {e}')
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/api/map/world', methods=['POST'])
+    def render_world_map():
+        """Generate world choropleth map HTML using Plotly."""
+        try:
+            import plotly.express as px
+            import pandas as pd
+            data = request.get_json()
+            country_data = data.get('data', {})
+            title = data.get('title', 'World Map')
+            value_label = data.get('valueLabel', 'Value')
+            if not country_data:
+                return jsonify({'error': 'No data'}), 400
+            df = pd.DataFrame([{'Country': k, 'Value': v} for k, v in country_data.items()])
+            fig = px.choropleth(
+                df, locations='Country', locationmode='country names',
+                color='Value',
+                color_continuous_scale=[[0,'rgb(2,20,28)'],[0.25,'rgb(4,80,100)'],[0.5,'rgb(6,145,178)'],[0.75,'rgb(6,182,212)'],[1,'rgb(103,232,249)']],
+                hover_name='Country',
+                labels={'Value': value_label}
+            )
+            fig.update_traces(marker_line_color='rgba(0,0,0,0.3)', marker_line_width=0.3,
+                hovertemplate='<b>%{hovertext}</b><br>' + value_label + ': %{z:,.0f}<extra></extra>')
+            fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                geo=dict(bgcolor='rgba(0,0,0,0)', showframe=False, showcoastlines=True,
+                    coastlinecolor='rgba(255,255,255,0.06)', landcolor='rgba(255,255,255,0.02)',
+                    lakecolor='rgba(0,0,0,1)', projection_type='natural earth'),
+                font=dict(family='Outfit, sans-serif', color='rgba(255,255,255,0.7)', size=11),
+                title=None, margin=dict(l=0, r=0, t=0, b=0),
+                coloraxis_colorbar=dict(title='', thickness=8, len=0.35, x=0.93, y=0.5,
+                    bgcolor='rgba(0,0,0,0)', outlinewidth=0,
+                    tickfont=dict(family='Outfit, sans-serif', size=9, color='rgba(255,255,255,0.30)'),
+                    nticks=4, borderwidth=0),
+                hoverlabel=dict(bgcolor='rgba(0,0,0,0.88)', bordercolor='rgba(255,255,255,0.06)',
+                    font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
+                dragmode=False,
+            )
+            html = fig.to_html(include_plotlyjs='cdn', full_html=False,
+                config={'displayModeBar': False, 'scrollZoom': False, 'responsive': True})
+            return jsonify({'html': html})
+        except ImportError:
+            return jsonify({'error': 'Plotly not available'}), 503
+        except Exception as e:
+            logger.error(f'Map render error: {e}')
+            return jsonify({'error': str(e)}), 500
 
     @app.route('/api/explain-influencer', methods=['POST'])
     @limiter.limit('10/minute')
