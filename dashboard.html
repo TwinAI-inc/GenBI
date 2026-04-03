@@ -1030,6 +1030,8 @@ body.theme-genbi .sidebar.collapsed .nav-item::after { background: rgba(0,0,0,0.
 body.theme-genbi .chart-legend-item { font-family: 'Outfit', sans-serif; font-weight: 300; }
 body.theme-genbi .chart-info-btn { font-family: 'Outfit', sans-serif; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
 body.theme-genbi .chart-actions-menu { background: rgba(0,0,0,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.4rem; }
+body.theme-genbi .chart-clear-btn { color: rgba(255,255,255,0.20); }
+body.theme-genbi .chart-clear-btn:hover { color: rgba(244,63,94,0.85); background: rgba(244,63,94,0.06); border-color: rgba(244,63,94,0.15); }
 body.theme-genbi .chart-bolt-btn { color: rgba(255,255,255,0.40); border-color: rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); box-shadow: none; }
 body.theme-genbi .chart-bolt-btn:hover { color: #06b6d4; background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.2); box-shadow: 0 0 12px rgba(6,182,212,0.15); }
 body.theme-genbi .chart-action-item { font-family: 'Outfit', sans-serif; font-weight: 300; color: rgba(255,255,255,0.60); padding: 0.55rem 0.85rem; border-radius: 6px; transition: all 0.15s; }
@@ -1608,6 +1610,13 @@ body.theme-light .inline-upload-wrap .drop-zone:hover,body.theme-light .inline-u
 .glass-panel:has(.chart-actions-bolt:hover) { z-index: 100; position: relative; }
 .panel-header:has(.chart-actions-bolt:hover),
 .panel-header:has(.chart-actions-menu:hover) { z-index: 10; }
+.chart-clear-btn {
+  width: 24px; height: 24px; border-radius: 6px; border: 1px solid transparent;
+  background: transparent; color: rgba(255,255,255,0.25); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s; flex-shrink: 0; padding: 0;
+}
+.chart-clear-btn:hover { color: rgba(244,63,94,0.9); background: rgba(244,63,94,0.08); border-color: rgba(244,63,94,0.2); }
 .chart-bolt-btn {
   width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--glass-border-bright);
   background: rgba(0,229,255,0.06); color: var(--accent-cyan); cursor: pointer;
@@ -3279,6 +3288,7 @@ function renderAnalytics() {
         const widthCls = chartWidthClass(chart, i, ec.chartPlan.length);
         return '<div class="' + widthCls + '"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + '</h2>' +
           '<div style="display:flex;align-items:center;gap:6px">' +
+          '<button class="chart-clear-btn" onclick="event.stopPropagation();removeChart(' + i + ')" title="Remove chart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
           '<span id="anomalyBadge' + i + '"></span>' +
           '<button class="ask-ai-btn" onclick="openAskAiModal(\'analytics\',' + i + ',event)" title="Ask AI"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ask AI</button>' +
           '<div class="chart-actions-bolt">' +
@@ -5804,14 +5814,14 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     { fill: 'rgba(156,204,101,0.7)', rgb: '156,204,101' },
   ];
   const genbiColors = [
-    { fill: 'rgba(6,182,212,0.90)', rgb: '6,182,212' },
-    { fill: 'rgba(103,232,249,0.85)', rgb: '103,232,249' },
-    { fill: 'rgba(45,212,191,0.85)', rgb: '45,212,191' },
-    { fill: 'rgba(8,145,178,0.85)', rgb: '8,145,178' },
-    { fill: 'rgba(165,243,252,0.80)', rgb: '165,243,252' },
-    { fill: 'rgba(20,184,166,0.80)', rgb: '20,184,166' },
-    { fill: 'rgba(244,63,94,0.85)', rgb: '244,63,94' },
-    { fill: 'rgba(34,211,238,0.80)', rgb: '34,211,238' },
+    { fill: 'rgba(6,182,212,0.92)', rgb: '6,182,212' },
+    { fill: 'rgba(168,85,247,0.90)', rgb: '168,85,247' },
+    { fill: 'rgba(52,211,153,0.90)', rgb: '52,211,153' },
+    { fill: 'rgba(251,191,36,0.90)', rgb: '251,191,36' },
+    { fill: 'rgba(244,63,94,0.90)', rgb: '244,63,94' },
+    { fill: 'rgba(56,189,248,0.88)', rgb: '56,189,248' },
+    { fill: 'rgba(251,146,60,0.88)', rgb: '251,146,60' },
+    { fill: 'rgba(129,140,248,0.88)', rgb: '129,140,248' },
   ];
   let segColors = (th.style === 'genbi' && !isPBI) ? genbiColors : defaultColors;
   if (opts.paletteColors) {
