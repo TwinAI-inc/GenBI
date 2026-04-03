@@ -13385,77 +13385,167 @@ document.addEventListener('click', function(e) {
   async function handleExport() {
     var visual = getSelectedVisual();
     if (!visual || !visual.canvas) { toast('No chart selected', 'error'); return; }
-    var quota = await checkQuota('export');
-    if (!quota.allowed) return;
+    try { await checkQuota('export'); } catch(e) { /* proceed anyway */ }
     var canvas = visual.canvas;
+    var chart = visual.chartRef;
     var titleText = visual.title || 'Chart';
     var safeTitle = titleText.replace(/[^a-zA-Z0-9]/g, '_');
     var ts = new Date().toISOString().slice(0,10);
     var filename = safeTitle + '_' + ts;
     var dpr = window.devicePixelRatio || 1;
-    var isLight = document.body.classList.contains('theme-light');
-    var bgColor = isLight ? '#ffffff' : '#0a0a0f';
-    var textColor = isLight ? '#1a1a2e' : '#f0f0f5';
-    var subtextColor = isLight ? '#888' : 'rgba(255,255,255,0.35)';
 
-    // Layout: padding around chart + title area on top
-    var pad = Math.round(32 * dpr);
-    var titleH = Math.round(48 * dpr);
-    var brandH = Math.round(28 * dpr);
+    // Always export on a clean white background for readability
+    var bgColor = '#ffffff';
+    var textColor = '#0f172a';
+    var subtextColor = '#94a3b8';
+    var accentColor = '#06b6d4';
+
+    // Compute legend height
+    var hasSeries = chart && chart.series && chart.series.length > 0;
+    var legendH = hasSeries ? Math.round(36 * dpr) : 0;
+
+    // Layout
+    var pad = Math.round(36 * dpr);
+    var titleH = Math.round(56 * dpr);
+    var descH = (chart && chart.desc) ? Math.round(28 * dpr) : 0;
+    var axisInfoH = Math.round(24 * dpr);
+    var brandH = Math.round(32 * dpr);
     var chartW = canvas.width;
     var chartH = canvas.height;
     var exportW = chartW + pad * 2;
-    var exportH = titleH + chartH + brandH + pad;
+    var exportH = titleH + descH + chartH + axisInfoH + legendH + brandH + pad;
 
     var exportCanvas = document.createElement('canvas');
     exportCanvas.width = exportW;
     exportCanvas.height = exportH;
     var ectx = exportCanvas.getContext('2d');
 
-    // Background
+    // White background
     ectx.fillStyle = bgColor;
     ectx.fillRect(0, 0, exportW, exportH);
+
+    // Accent line at top
+    ectx.fillStyle = accentColor;
+    ectx.fillRect(0, 0, exportW, Math.round(3 * dpr));
 
     // Title
     ectx.fillStyle = textColor;
     ectx.font = 'bold ' + Math.round(18 * dpr) + 'px Inter, system-ui, sans-serif';
     ectx.textAlign = 'left';
     ectx.textBaseline = 'middle';
-    ectx.fillText(titleText, pad, titleH / 2 + Math.round(4 * dpr));
+    ectx.fillText(titleText, pad, Math.round(3 * dpr) + titleH / 2);
 
-    // Chart
-    ectx.drawImage(canvas, pad, titleH, chartW, chartH);
-
-    // Branding footer
-    if (visual.settings.branding) {
+    // Description
+    var yOff = Math.round(3 * dpr) + titleH;
+    if (chart && chart.desc) {
       ectx.fillStyle = subtextColor;
       ectx.font = Math.round(11 * dpr) + 'px Inter, system-ui, sans-serif';
-      ectx.textAlign = 'right';
-      ectx.textBaseline = 'middle';
-      ectx.fillText('GenBI', exportW - pad, titleH + chartH + brandH / 2);
+      ectx.fillText(chart.desc.length > 120 ? chart.desc.substring(0, 117) + '...' : chart.desc, pad, yOff - Math.round(8 * dpr));
+      yOff += descH;
     }
 
-    if (VE.exportFmt === 'svg') {
-      var logW = Math.round(exportW / dpr);
-      var logH = Math.round(exportH / dpr);
-      var dataUrl = exportCanvas.toDataURL('image/png');
-      var svgStr = '<svg xmlns="http://www.w3.org/2000/svg" width="'+logW+'" height="'+logH+'" viewBox="0 0 '+logW+' '+logH+'"><image href="'+dataUrl+'" width="'+logW+'" height="'+logH+'"/></svg>';
-      var blob = new Blob([svgStr], { type: 'image/svg+xml' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url; a.download = filename + '.svg'; a.click();
-      URL.revokeObjectURL(url);
-    } else {
-      var mime = VE.exportFmt === 'jpg' ? 'image/jpeg' : 'image/png';
-      var ext = VE.exportFmt === 'jpg' ? '.jpg' : '.png';
-      exportCanvas.toBlob(function(blob) {
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url; a.download = filename + ext; a.click();
-        URL.revokeObjectURL(url);
-      }, mime, 0.95);
+    // Re-draw chart on light background
+    var lightCv = document.createElement('canvas');
+    lightCv.width = chartW;
+    lightCv.height = chartH;
+    lightCv._lockedW = canvas._lockedW || Math.round(chartW / dpr);
+    lightCv._lockedH = canvas._lockedH || Math.round(chartH / dpr);
+    var _origTheme = document.body.className;
+    document.body.classList.add('theme-light');
+    document.body.classList.remove('theme-genbi');
+    try {
+      if (chart) {
+        var type = chart._userType || chart.type;
+        var seriesData = hasSeries;
+        var flatData = seriesData
+          ? (chart.labels || []).map(function(_, i) { return chart.series.reduce(function(sum, s) { return sum + (s.data[i] || 0); }, 0); })
+          : chart.data;
+        var axisOpts = { suffix: chart.suffix || '', xLabel: chart.xLabel || '', yLabel: chart.yLabel || '' };
+        if (chart._barPalette && linePalettes[chart._barPalette]) axisOpts.barColors = linePalettes[chart._barPalette];
+        if (type === 'bar') drawBarChart(lightCv, chart.labels || [], flatData || [], chart.color || 'cyan', axisOpts);
+        else if (type === 'hbar') drawHorizontalBarChart(lightCv, chart.labels || [], flatData || [], chart.color || 'cyan', axisOpts);
+        else if (type === 'stacked' && seriesData) drawStackedBarChart(lightCv, chart.labels || [], chart.series, axisOpts);
+        else if (type === 'donut') drawDonutChart(lightCv, chart.labels || [], flatData || [], {});
+        else if (type === 'line') { var ds = buildLineDatasets(chart); drawChart(lightCv, ds, chart.labels || [], axisOpts); }
+        else if (type === 'area') { var ads = buildAreaDatasets(chart); drawAreaChart(lightCv, ads, chart.labels || [], axisOpts); }
+        else if (type === 'gauge') { var gv = flatData && flatData.length ? flatData[0] : 0; drawGaugeChart(lightCv, gv, { color: chart.color, label: chart.title }); }
+        else { var lCtx = lightCv.getContext('2d'); lCtx.drawImage(canvas, 0, 0); }
+      } else {
+        var lCtx2 = lightCv.getContext('2d'); lCtx2.drawImage(canvas, 0, 0);
+      }
+    } catch(e) {
+      var lCtx3 = lightCv.getContext('2d'); lCtx3.drawImage(canvas, 0, 0);
     }
-    toast('Exported ' + filename, 'success');
+    document.body.className = _origTheme;
+
+    ectx.drawImage(lightCv, pad, yOff, chartW, chartH);
+    yOff += chartH;
+
+    // Axis info line
+    if (chart && (chart.xLabel || chart.yLabel)) {
+      ectx.fillStyle = subtextColor;
+      ectx.font = Math.round(10 * dpr) + 'px Inter, system-ui, sans-serif';
+      ectx.textAlign = 'center';
+      var axisText = '';
+      if (chart.xLabel && chart.yLabel) axisText = 'X: ' + chart.xLabel + '  |  Y: ' + chart.yLabel;
+      else if (chart.xLabel) axisText = 'X: ' + chart.xLabel;
+      else axisText = 'Y: ' + chart.yLabel;
+      ectx.fillText(axisText, exportW / 2, yOff + axisInfoH / 2);
+      yOff += axisInfoH;
+    }
+
+    // Series legend
+    if (hasSeries) {
+      var legX = pad;
+      var legY = yOff + Math.round(14 * dpr);
+      ectx.font = Math.round(10 * dpr) + 'px Inter, system-ui, sans-serif';
+      ectx.textBaseline = 'middle';
+      chart.series.forEach(function(s) {
+        var hex = getColorHex(s.color);
+        ectx.fillStyle = hex;
+        ectx.fillRect(legX, legY - Math.round(4 * dpr), Math.round(10 * dpr), Math.round(10 * dpr));
+        ectx.fillStyle = textColor;
+        ectx.textAlign = 'left';
+        ectx.fillText(s.name, legX + Math.round(14 * dpr), legY + Math.round(1 * dpr));
+        legX += ectx.measureText(s.name).width + Math.round(30 * dpr);
+      });
+      yOff += legendH;
+    }
+
+    // Branding footer
+    ectx.fillStyle = subtextColor;
+    ectx.font = Math.round(10 * dpr) + 'px Inter, system-ui, sans-serif';
+    ectx.textAlign = 'left';
+    ectx.fillText('Generated by GenBI', pad, exportH - Math.round(12 * dpr));
+    ectx.textAlign = 'right';
+    ectx.fillText(new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}), exportW - pad, exportH - Math.round(12 * dpr));
+
+    // Download
+    try {
+      if (VE.exportFmt === 'svg') {
+        var logW = Math.round(exportW / dpr);
+        var logH = Math.round(exportH / dpr);
+        var dataUrl = exportCanvas.toDataURL('image/png');
+        var svgStr = '<svg xmlns="http://www.w3.org/2000/svg" width="'+logW+'" height="'+logH+'" viewBox="0 0 '+logW+' '+logH+'"><image href="'+dataUrl+'" width="'+logW+'" height="'+logH+'"/></svg>';
+        var blob = new Blob([svgStr], { type: 'image/svg+xml' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url; a.download = filename + '.svg'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else {
+        var mime = VE.exportFmt === 'jpg' ? 'image/jpeg' : 'image/png';
+        var ext = VE.exportFmt === 'jpg' ? '.jpg' : '.png';
+        exportCanvas.toBlob(function(blob) {
+          if (!blob) { toast('Export failed — empty image', 'error'); return; }
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement('a'); a.href = url; a.download = filename + ext; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, mime, 0.95);
+      }
+      toast('Exported ' + filename, 'success');
+    } catch(e) {
+      console.error('Export error:', e);
+      toast('Export failed: ' + e.message, 'error');
+    }
   }
 
   // ── Global event listeners ────────────────────────────────────────────
