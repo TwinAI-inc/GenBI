@@ -9843,7 +9843,7 @@ async function generateKPIInsights() {
       const sorted = [...vals].sort((a,b) => a-b);
       stats[m] = { sum: Math.round(sum), avg: Math.round(avg*100)/100, min: sorted[0], max: sorted[sorted.length-1], count: vals.length };
     });
-    const prompt = 'For each metric below, write ONE short surprising insight (max 15 words). Be specific with numbers. Sound like a smart analyst, not a label.\n\nMetrics:\n' +
+    const prompt = 'For each metric below, write ONE short surprising insight (max 15 words). Be specific with numbers. Sound like a smart analyst.\n\nRULES:\n- Use abbreviated formats: $1.2M, $450K, 3.5B, 82%, 4.2x\n- Never write full numbers like 12,500,000 — always abbreviate\n- Use $ for currency metrics (Revenue, Cost, Profit, Sales, Price)\n- Use % for rate/score metrics\n- Be surprising or comparative, not just restating the number\n\nMetrics:\n' +
       Object.entries(stats).map(([k,v]) => k.replace(/_/g,' ') + ': sum=' + v.sum + ', avg=' + v.avg + ', min=' + v.min + ', max=' + v.max + ', n=' + v.count).join('\n') +
       '\n\nRespond as JSON: {"insights": {"metric_name": "your insight text"}}';
     const data = await fetchAI('/api/auto-insights', {

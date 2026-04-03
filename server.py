@@ -666,7 +666,9 @@ Rules:
 - Focus on actionable business insights
 - Include a mix of types (trends, outliers, correlations, patterns)
 - Each insight should be 1-2 sentences
-- severity=high for critical findings, medium for notable, low for informational"""
+- severity=high for critical findings, medium for notable, low for informational
+- ALWAYS use abbreviated numbers: $1.2M, $450K, 3.5B, 82%, 4.2x — NEVER write full numbers like 12,500,000
+- Use $ prefix for currency metrics (Revenue, Cost, Profit, Sales, Price)"""
         try:
             parsed, _usage = _call_ai(prompt)
             return jsonify(parsed)
@@ -732,7 +734,9 @@ Respond with ONLY valid JSON:
 
 Rules:
 - Mention the key takeaway (highest value, trend direction, notable comparisons)
-- Be specific with numbers
+- ALWAYS use abbreviated numbers: $1.2M, $450K, 3.5B, 82%, 4.2x — NEVER write full numbers
+- Use $ prefix for currency metrics (Revenue, Cost, Profit, Sales)
+- Be surprising or comparative, not just restating the data
 - Keep it under 30 words"""
         try:
             parsed, _usage = _call_ai(prompt)
