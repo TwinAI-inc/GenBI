@@ -13040,15 +13040,19 @@ document.addEventListener('click', function(e) {
         break;
       }
       case 'info': {
-        var datasetName = App.excelData && App.excelData.fileName ? App.excelData.fileName : 'N/A';
+        var datasetName = (App.uploadedFiles && App.uploadedFiles.length > 0) ? App.uploadedFiles[0].name : (App.excelData && App.excelData.sheetName ? App.excelData.sheetName : 'Uploaded Dataset');
         var cols = [chart.xLabel, chart.yLabel].filter(Boolean).join(', ') || 'N/A';
         var updated = new Date().toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+        var dataPoints = chart.labels ? chart.labels.length : (chart.data ? chart.data.length : 0);
+        if (chart.series && chart.series.length > 0 && chart.labels) {
+          dataPoints = chart.labels.length + ' x ' + chart.series.length + ' series';
+        }
         var infoEl = document.getElementById('veInfoTable');
         if (infoEl) infoEl.innerHTML =
           '<div class="ve-info-row"><span class="ve-info-key">Dataset</span><span class="ve-info-val">' + datasetName + '</span></div>' +
           '<div class="ve-info-row"><span class="ve-info-key">Chart Type</span><span class="ve-info-val">' + curType.charAt(0).toUpperCase() + curType.slice(1) + '</span></div>' +
           '<div class="ve-info-row"><span class="ve-info-key">Columns</span><span class="ve-info-val">' + cols + '</span></div>' +
-          '<div class="ve-info-row"><span class="ve-info-key">Data Points</span><span class="ve-info-val">' + (chart.data ? chart.data.length : 0) + '</span></div>' +
+          '<div class="ve-info-row"><span class="ve-info-key">Data Points</span><span class="ve-info-val">' + dataPoints + '</span></div>' +
           '<div class="ve-info-row"><span class="ve-info-key">Last Updated</span><span class="ve-info-val">' + updated + '</span></div>';
         break;
       }
