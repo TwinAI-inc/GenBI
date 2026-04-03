@@ -8012,14 +8012,30 @@ function openExplainDrawer(column, value, chartIdx) {
     }, 900); // after animation completes (700ms + buffer)
   }
 
-  // Filter to clicked point — try exact column name, then case-insensitive fallback
+  // Filter to clicked point — try exact column, case-insensitive, _origXCol, then search all columns
   let resolvedColumn = column;
   const allKeys = Object.keys(rows[0] || {});
   if (rows.length && !(column in rows[0])) {
     const ciMatch = allKeys.find(k => k.toLowerCase() === column.toLowerCase());
     if (ciMatch) resolvedColumn = ciMatch;
   }
-  const pointRows = rows.filter(r => String(r[resolvedColumn] || '').trim() === value);
+  // Also try _origXCol from chart if available
+  if (chart && chart._origXCol && chart._origXCol in (rows[0] || {})) {
+    resolvedColumn = chart._origXCol;
+  }
+  let pointRows = rows.filter(r => String(r[resolvedColumn] || '').trim() === value);
+  // If no match, try finding any column that contains this value
+  if (!pointRows.length && rows.length) {
+    for (let ki = 0; ki < allKeys.length; ki++) {
+      const tryCol = allKeys[ki];
+      const tryRows = rows.filter(r => String(r[tryCol] || '').trim() === value);
+      if (tryRows.length > 0 && tryRows.length < rows.length) {
+        resolvedColumn = tryCol;
+        pointRows = tryRows;
+        break;
+      }
+    }
+  }
   if (!pointRows.length) return;
   column = resolvedColumn;
 
