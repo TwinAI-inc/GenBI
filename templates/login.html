@@ -76,6 +76,9 @@
 
   // Handle Google OAuth callback
   if (window.location.pathname === '/auth/google/callback') {
+    // Hide login form immediately so it doesn't flash while processing
+    document.querySelector('.auth-card').style.display = 'none';
+    document.querySelector('.auth-wave').style.display = 'none';
     handleGoogleCallback();
   } else {
     // Redirect if already logged in
