@@ -3294,6 +3294,8 @@ function renderAnalytics() {
               '<button class="chart-action-item" onclick="veSelectChart(' + i + ');veShowSection(\'branding\')" title="Branding"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Branding</button>' +
               '<button class="chart-action-item" onclick="veSelectChart(' + i + ');veShowSection(\'sync\')" title="Caption"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Caption</button>' +
               '<button class="chart-action-item" onclick="veSelectChart(' + i + ');veShowSection(\'info\')" title="Info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Info</button>' +
+              '<div style="height:1px;background:var(--glass-border);margin:3px 6px"></div>' +
+              '<button class="chart-action-item danger" onclick="removeChart(' + i + ')" title="Remove chart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Clear</button>' +
             '</div>' +
           '</div>' +
           '</div></div>' +
@@ -11269,6 +11271,14 @@ function removeCustomChart(idx) {
   App.customCharts.splice(idx, 1);
   navigate('analytics');
   setTimeout(() => drawCustomCharts(), 200);
+  toast('Chart removed', 'info');
+}
+
+function removeChart(idx) {
+  const ec = App.excelChartConfig;
+  if (!ec || !ec.chartPlan || idx < 0 || idx >= ec.chartPlan.length) return;
+  ec.chartPlan.splice(idx, 1);
+  navigate('analytics');
   toast('Chart removed', 'info');
 }
 
