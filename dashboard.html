@@ -12200,6 +12200,24 @@ function autoMapExcelData(rows) {
   // Hard limit: 6 charts for diverse dashboard
   chartPlan.splice(6);
 
+  // Filter out empty or invalid charts
+  for (let ci = chartPlan.length - 1; ci >= 0; ci--) {
+    const c = chartPlan[ci];
+    const cType = c._userType || c.type;
+    const hasLabels = c.labels && c.labels.length > 0 && c.labels.some(l => l !== undefined && l !== null && l !== 'undefined');
+    const hasSeries = c.series && c.series.length > 0;
+    const hasData = (c.data && c.data.length > 0 && c.data.some(v => v > 0)) || hasSeries;
+    // Remove charts with no meaningful data
+    if (!hasLabels && cType !== 'gauge') { chartPlan.splice(ci, 1); continue; }
+    if (!hasData && cType !== 'gauge') { chartPlan.splice(ci, 1); continue; }
+    // Remove map charts that won't render (no map data endpoint available in static mode)
+    if (cType === 'worldmap') { chartPlan.splice(ci, 1); continue; }
+    // Clean up undefined labels
+    if (c.labels) {
+      c.labels = c.labels.map(l => (l === undefined || l === null) ? '' : l);
+    }
+  }
+
   // Store original column references for cross-filter rebuilds
   chartPlan.forEach(chart => {
     if (chart.xLabel) chart._origXCol = allHeaders.find(h => h.replace(/_/g,' ') === chart.xLabel) || allHeaders.find(h => h.replace(/_/g,' ').toLowerCase() === chart.xLabel.toLowerCase()) || chart.xLabel.replace(/ /g,'_');
