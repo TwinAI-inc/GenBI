@@ -5921,7 +5921,8 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     angle += slice;
   });
 
-  // Center text — themed font
+  // Center text — only show if there's a hole (donut, not pie)
+  if (innerR < 5) { /* Full pie — skip center text */ } else {
   const centerFont = th.fontFamily;
   ctx.textBaseline = 'middle';
   if (highlightIdx >= 0) {
@@ -5937,6 +5938,7 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     ctx.fillStyle = chartTextColor(0.35); ctx.font = '11px ' + centerFont;
     ctx.fillText('Total', cx, cy + 14);
   }
+  } // end center text guard
 
   // Legend
   const legX = w * 0.64, legStartY = cy - (labels.length * 24) / 2;
@@ -9797,10 +9799,11 @@ async function enhanceDashboardWithAI() {
           label: k.label, icon: k.icon || inferKPIIcon(k.col || k.label), color: k.format === 'currency' ? 'cyan' : k.format === 'percent' ? 'violet' : 'emerald',
           format: k.format === 'currency' ? { currency: true, abbreviate: true } : k.format === 'percent' ? { percent: true } : { abbreviate: true },
           value: (() => {
-            if (k.aggFn === 'count' || !k.col) return App.excelData.rows.length;
+            if (!k.col) return App.excelData.rows.length;
             if (!ec.colMeta[k.col] || !ec.colMeta[k.col].vals) return App.excelData.rows.length;
             const vals = ec.colMeta[k.col].vals;
-            if (!vals.length) return 0;
+            if (!vals.length) return App.excelData.rows.length;
+            if (k.aggFn === 'count') return vals.filter(v => v != null && v !== 0).length || App.excelData.rows.length;
             if (k.aggFn === 'avg') return vals.reduce((a,b)=>a+b,0) / vals.length;
             if (k.aggFn === 'max') return Math.max(...vals);
             return vals.reduce((a,b)=>a+b,0);
