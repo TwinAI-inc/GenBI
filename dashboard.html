@@ -2695,10 +2695,10 @@ const icons = {
 };
 const colorMap = { cyan: '--accent-cyan', violet: '--accent-violet', emerald: '--accent-emerald', amber: '--accent-amber', rose: '--accent-rose' };
 const colorRgba = {
-  cyan:'6,182,212', violet:'8,145,178', emerald:'45,212,191', amber:'103,232,249', rose:'244,63,94',
-  sky:'34,211,238', blue:'20,184,166', indigo:'165,243,252', navy:'6,182,212', slate:'148,163,184',
-  red:'244,63,94', orange:'251,146,60', gold:'103,232,249', lime:'45,212,191', coral:'244,63,94',
-  teal:'45,212,191', mint:'165,243,252', forest:'20,184,166', lavender:'8,145,178', blush:'244,63,94'
+  cyan:'0,229,255', violet:'179,136,255', emerald:'105,240,174', amber:'255,215,64', rose:'255,107,157',
+  sky:'56,189,248', blue:'96,165,250', indigo:'129,140,248', navy:'99,102,241', slate:'148,163,184',
+  red:'248,113,113', orange:'251,146,60', gold:'250,204,21', lime:'163,230,53', coral:'255,127,127',
+  teal:'45,212,191', mint:'110,231,183', forest:'34,197,94', lavender:'196,181,253', blush:'253,164,175'
 };
 function hexToRgb(hex) { const m = hex.replace('#','').match(/.{2}/g); return m ? m.map(x => parseInt(x,16)).join(',') : '0,229,255'; }
 function getColorRgb(name) { return colorRgba[name] || (name && name.startsWith('#') ? hexToRgb(name) : '0,229,255'); }
@@ -13002,21 +13002,24 @@ document.addEventListener('click', function(e) {
           swatch.classList.add('active');
           visual.chartRef.color = color;
           visual.chartRef._userColor = color;
-          // For multi-series charts, find the palette group and apply all colors to series
+          // For multi-series charts, find the palette group and apply all hex colors to series
           if (visual.chartRef.series && visual.chartRef.series.length > 0) {
             var allGroups = [
-              ['cyan','violet','emerald','amber','rose'],
-              ['sky','blue','indigo','navy','slate'],
-              ['red','orange','gold','lime','coral'],
-              ['teal','mint','forest','lavender','blush']
+              { names: ['cyan','violet','emerald','amber','rose'], hexes: ['#00e5ff','#b388ff','#69f0ae','#ffd740','#ff6b9d'] },
+              { names: ['sky','blue','indigo','navy','slate'], hexes: ['#38bdf8','#60a5fa','#818cf8','#6366f1','#94a3b8'] },
+              { names: ['red','orange','gold','lime','coral'], hexes: ['#f87171','#fb923c','#facc15','#a3e635','#ff7f7f'] },
+              { names: ['teal','mint','forest','lavender','blush'], hexes: ['#2dd4bf','#6ee7b7','#22c55e','#c4b5fd','#fda4af'] }
             ];
-            var matchGroup = allGroups.find(function(g) { return g.indexOf(color) >= 0; });
+            var matchGroup = allGroups.find(function(g) { return g.names.indexOf(color) >= 0; });
             if (matchGroup) {
-              visual.chartRef.series.forEach(function(s, i) { s.color = matchGroup[i % matchGroup.length]; });
+              visual.chartRef.series.forEach(function(s, i) {
+                var hex = matchGroup.hexes[i % matchGroup.hexes.length];
+                s.color = hex;
+              });
               var card = visual.canvas.closest('.glass-panel');
               if (card) {
                 var legendDots = card.querySelectorAll('.legend-dot');
-                visual.chartRef.series.forEach(function(s, i) { if (legendDots[i]) legendDots[i].style.background = getColorHex(s.color); });
+                visual.chartRef.series.forEach(function(s, i) { if (legendDots[i]) legendDots[i].style.background = s.color; });
               }
             }
           }
