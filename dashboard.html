@@ -9819,11 +9819,55 @@ async function enhanceDashboardWithAI() {
           aggType: k.aggFn === 'avg' ? 'Avg' : k.aggFn === 'max' ? 'Max' : k.aggFn === 'count' ? 'Count' : 'Total'
         }));
         kpiRow.outerHTML = renderKPICards(kpis);
+        setTimeout(initKPISparklines, 100);
       }
     }
+    // Generate insightful KPI tooltips via AI
+    setTimeout(() => generateKPIInsights(), 500);
   } catch(e) {
     // Silently fall back to client-side KPIs
   }
+}
+
+async function generateKPIInsights() {
+  if (!App.excelData || !isLoggedIn()) return;
+  try {
+    const ec = App.excelChartConfig;
+    const metrics = (ec.metrics || []).slice(0, 6);
+    const stats = {};
+    metrics.forEach(m => {
+      const vals = (ec.colMeta[m] && ec.colMeta[m].vals) || [];
+      if (!vals.length) return;
+      const sum = vals.reduce((a,b) => a+b, 0);
+      const avg = sum / vals.length;
+      const sorted = [...vals].sort((a,b) => a-b);
+      stats[m] = { sum: Math.round(sum), avg: Math.round(avg*100)/100, min: sorted[0], max: sorted[sorted.length-1], count: vals.length };
+    });
+    const prompt = 'For each metric below, write ONE short surprising insight (max 15 words). Be specific with numbers. Sound like a smart analyst, not a label.\n\nMetrics:\n' +
+      Object.entries(stats).map(([k,v]) => k.replace(/_/g,' ') + ': sum=' + v.sum + ', avg=' + v.avg + ', min=' + v.min + ', max=' + v.max + ', n=' + v.count).join('\n') +
+      '\n\nRespond as JSON: {"insights": {"metric_name": "your insight text"}}';
+    const data = await fetchAI('/api/auto-insights', {
+      columns: App.excelData.headers,
+      colMeta: Object.fromEntries(Object.entries(ec.colMeta).map(([k,v]) => [k, {isMetric:v.isMetric}])),
+      sampleRows: App.excelData.rows.slice(0,3),
+      summary: { rowCount: App.excelData.rows.length, numericStats: stats }
+    });
+    if (data && data.insights) {
+      // Update KPI card tooltips with AI insights
+      document.querySelectorAll('.kpi-card-v2').forEach(card => {
+        const label = card.querySelector('.kpi-label');
+        if (!label) return;
+        const metricName = label.textContent.replace(/^(Total|Avg|Max|Count)\s*/i, '').trim();
+        // Find matching insight
+        const insight = Object.entries(data.insights).find(([k]) =>
+          k.toLowerCase().includes(metricName.toLowerCase()) || metricName.toLowerCase().includes(k.toLowerCase().replace(/_/g,' '))
+        );
+        if (insight && insight[1]) {
+          card.setAttribute('onmouseenter', "showKpiTip(event,'" + insight[1].replace(/'/g, "\\'") + "')");
+        }
+      });
+    }
+  } catch(e) { /* silent — keep client-side tooltips */ }
 }
 
 function buildDataSummary() {
