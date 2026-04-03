@@ -893,6 +893,42 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/ai/chart-plan', methods=['POST'])
+    @limiter.limit('5/minute')
+    def ai_chart_plan():
+        """LLM-driven chart plan generation from data profile."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        try:
+            from services.chart_intelligence import profile_data, generate_chart_plan
+            data = request.get_json()
+            headers = data.get('headers', [])
+            rows = data.get('rows', [])[:200]  # Cap at 200 rows for profiling
+            if not headers or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+
+            # Profile the data
+            profile = profile_data(headers, rows)
+
+            # Generate chart plan via LLM
+            chart_plan = generate_chart_plan(profile, max_charts=8)
+
+            return jsonify({
+                'chart_plan': chart_plan,
+                'profile': {
+                    'row_count': profile.get('row_count'),
+                    'column_count': profile.get('column_count'),
+                    'correlations': profile.get('correlations', []),
+                    'column_types': {k: v['type'] for k, v in profile.get('columns', {}).items()}
+                }
+            })
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/explain-influencer', methods=['POST'])
     @limiter.limit('10/minute')
     def explain_influencer():
