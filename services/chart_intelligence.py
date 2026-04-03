@@ -216,12 +216,15 @@ Generate 8-12 total candidates. The top {max_charts} by insight_score will be di
         result = chat_completion_json(
             [{'role': 'user', 'content': prompt}],
             temperature=0.3,
-            max_tokens=3000
+            max_tokens=4500
         )
         content = result.get('content', '') if isinstance(result, dict) else str(result)
+        logger.info(f'LLM raw response length: {len(content)} chars')
+        logger.info(f'LLM response preview: {content[:200]}...')
 
         # Parse JSON from response — LLM may return array or object wrapping array
         parsed = json.loads(content) if isinstance(content, str) else content
+        logger.info(f'Parsed type: {type(parsed).__name__}, keys: {list(parsed.keys()) if isinstance(parsed, dict) else "N/A"}')
         if isinstance(parsed, list):
             chart_plan = parsed
         elif isinstance(parsed, dict):
