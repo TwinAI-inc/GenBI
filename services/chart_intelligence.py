@@ -384,8 +384,13 @@ def _detect_geographic(col_name, unique_vals):
 
 def _is_id_column(col_name, is_numeric, unique_vals, total_vals):
     import re
+    # Explicit ID column names
     if re.search(r'\b(id|index|#|row|sr|sno|serial|code|sku)\b', col_name, re.I):
         return True
-    if is_numeric and len(unique_vals) > total_vals * 0.9:
+    # High cardinality numeric BUT not if it looks like a metric
+    metric_patterns = r'revenue|sales|cost|price|profit|income|amount|total|score|rate|percent|pct|count|deals|customers|churn|nps|satisfaction|risk|efficacy|enrollment|salary|budget|expense|margin|growth|roi|yield'
+    if re.search(metric_patterns, col_name, re.I):
+        return False  # Never treat metrics as IDs
+    if is_numeric and len(unique_vals) > total_vals * 0.95 and total_vals > 20:
         return True
     return False
