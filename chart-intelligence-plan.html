@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenBI Chart Intelligence Plan + Questionnaire</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Outfit',sans-serif;font-weight:300;background:#000;color:rgba(255,255,255,0.80);line-height:1.6;}
+.container{max-width:900px;margin:0 auto;padding:2rem;}
+h1{font-size:1.8rem;font-weight:300;color:rgba(255,255,255,0.95);margin-bottom:0.5rem;letter-spacing:-0.025em;}
+h2{font-size:1.1rem;font-weight:400;color:rgba(6,182,212,0.8);margin:2rem 0 1rem;padding-bottom:0.5rem;border-bottom:1px solid rgba(255,255,255,0.06);}
+h3{font-size:0.85rem;font-weight:400;color:rgba(255,255,255,0.70);margin:1.5rem 0 0.75rem;}
+p{font-size:0.85rem;color:rgba(255,255,255,0.50);margin-bottom:1rem;}
+.subtitle{font-size:0.85rem;color:rgba(255,255,255,0.30);margin-bottom:2rem;}
+
+/* Plan section */
+.plan-box{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1.25rem;margin-bottom:1rem;}
+.plan-box h4{font-size:0.75rem;font-weight:400;color:rgba(6,182,212,0.7);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;}
+.plan-box ul{padding-left:1.25rem;}
+.plan-box li{font-size:0.82rem;color:rgba(255,255,255,0.60);margin-bottom:0.4rem;}
+.plan-box li strong{color:rgba(255,255,255,0.85);font-weight:400;}
+.badge{display:inline-block;padding:0.15rem 0.5rem;border-radius:5rem;font-size:0.6rem;font-weight:500;margin-left:0.5rem;}
+.badge-new{background:rgba(6,182,212,0.15);color:#06b6d4;border:1px solid rgba(6,182,212,0.2);}
+.badge-fix{background:rgba(244,63,94,0.15);color:#f43f5e;border:1px solid rgba(244,63,94,0.2);}
+.badge-improve{background:rgba(45,212,191,0.15);color:#2dd4bf;border:1px solid rgba(45,212,191,0.2);}
+
+/* Questions */
+.question{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1.25rem;margin-bottom:1rem;}
+.q-num{font-size:0.65rem;font-weight:500;color:rgba(6,182,212,0.6);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.5rem;}
+.q-text{font-size:0.88rem;font-weight:400;color:rgba(255,255,255,0.90);margin-bottom:0.75rem;}
+.q-options{display:flex;flex-direction:column;gap:0.4rem;}
+.q-option{display:flex;align-items:flex-start;gap:0.5rem;cursor:pointer;padding:0.5rem 0.75rem;border-radius:8px;transition:background 0.15s;}
+.q-option:hover{background:rgba(255,255,255,0.03);}
+.q-option input[type="radio"]{margin-top:3px;accent-color:#06b6d4;}
+.q-option label{font-size:0.82rem;color:rgba(255,255,255,0.65);cursor:pointer;}
+
+/* Copy button */
+.copy-btn{position:fixed;bottom:2rem;right:2rem;padding:0.6rem 1.5rem;border-radius:5rem;background:rgba(255,255,255,0.90);color:#000;font-family:'Outfit',sans-serif;font-weight:600;font-size:0.85rem;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}
+.copy-btn:hover{transform:scale(1.03);box-shadow:0 0 20px rgba(255,255,255,0.1);}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>GenBI Chart Intelligence Pipeline</h1>
+<p class="subtitle">Concrete plan + 25 design questions to align on the smart chart generation system</p>
+
+<!-- ══════════════════════════════════════ -->
+<h2>Part 1: The Problem</h2>
+
+<div class="plan-box">
+<h4>Current Issues</h4>
+<ul>
+<li><strong>Donut with 12 quarters</strong> — too many categories, nearly invisible segments. Should be a line chart or bar chart instead.</li>
+<li><strong>All bars</strong> — chart diversity is poor. Multiple bar charts when scatter, treemap, radar would be better.</li>
+<li><strong>No data preprocessing</strong> — LLM doesn't extract month from date, create bins, or derive boolean flags.</li>
+<li><strong>No chart suitability rules</strong> — donut with 12+ categories, bar with 50 bars, scatter with 2 identical columns.</li>
+<li><strong>Template-based, not intelligence-based</strong> — charts generated from column types, not from data patterns.</li>
+<li><strong>No Moiré prevention</strong> — too many bars causes visual interference.</li>
+<li><strong>Equal distribution detection</strong> — 25%/25%/25%/25% donut is useless, should be a table or nothing.</li>
+</ul>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<h2>Part 2: Proposed Pipeline</h2>
+
+<div class="plan-box">
+<h4>Stage 1: Data Profiling <span class="badge badge-new">NEW</span></h4>
+<ul>
+<li><strong>Column classification</strong> — numeric, categorical, date, boolean, text, ordinal, ID</li>
+<li><strong>Distribution analysis</strong> — skewness, outliers, cardinality, null ratio per column</li>
+<li><strong>Relationship detection</strong> — correlation matrix between numeric columns</li>
+<li><strong>Feature derivation</strong> — extract month/year from dates, bin numeric into ranges, create True/False flags</li>
+<li><strong>Data summary</strong> — row count, column count, date range, unique values per categorical</li>
+</ul>
+</div>
+
+<div class="plan-box">
+<h4>Stage 2: Chart Candidate Generation <span class="badge badge-improve">IMPROVE</span></h4>
+<ul>
+<li><strong>Rule engine</strong> — each chart type has preconditions (min/max categories, data types needed)</li>
+<li><strong>Insight scoring</strong> — rank candidates by information value (variance, correlation, trend strength)</li>
+<li><strong>Anti-patterns</strong> — reject donut with >8 categories, bar with >12 bars, scatter with identical columns</li>
+<li><strong>Diversity requirement</strong> — no two charts of same type, spread across chart families</li>
+<li><strong>Priority metric selection</strong> — most important metric first (revenue > count > rate)</li>
+</ul>
+</div>
+
+<div class="plan-box">
+<h4>Stage 3: Chart Rules & Guardrails <span class="badge badge-new">NEW</span></h4>
+<ul>
+<li><strong>Donut/Pie</strong> — max 6-8 segments, min segment >3%, no near-equal distributions</li>
+<li><strong>Bar chart</strong> — max 10-12 bars, sort descending, aggregate "Other" for rest</li>
+<li><strong>Line chart</strong> — needs time axis, min 4 data points, max 6 series</li>
+<li><strong>Scatter</strong> — needs 2 different numeric columns with correlation, min 20 data points</li>
+<li><strong>Heatmap</strong> — needs 2 categoricals + 1 numeric, max 10x10 grid</li>
+<li><strong>Treemap</strong> — needs hierarchical or size-based data, 3-15 items</li>
+<li><strong>Radar</strong> — needs 4-8 metrics on comparable scales</li>
+<li><strong>Map</strong> — needs geographic column (state/country names)</li>
+<li><strong>Gauge</strong> — needs rate/percentage/score metric</li>
+<li><strong>Funnel</strong> — needs sequential/stage data with decreasing values</li>
+</ul>
+</div>
+
+<div class="plan-box">
+<h4>Stage 4: Data Formatting <span class="badge badge-new">NEW</span></h4>
+<ul>
+<li><strong>Aggregation</strong> — auto-group by category, compute sum/avg/count as appropriate</li>
+<li><strong>Sorting</strong> — bars sorted by value, time series sorted chronologically</li>
+<li><strong>Binning</strong> — continuous data grouped into meaningful ranges</li>
+<li><strong>Truncation</strong> — top N items + "Other" bucket for long-tail distributions</li>
+<li><strong>Label formatting</strong> — shorten long labels, format currencies, format dates</li>
+<li><strong>Scale normalization</strong> — radar chart axes normalized to 0-100</li>
+</ul>
+</div>
+
+<div class="plan-box">
+<h4>Stage 5: AI Enhancement (Post-render) <span class="badge badge-improve">IMPROVE</span></h4>
+<ul>
+<li><strong>Narrative captions</strong> — LLM generates insight text per chart</li>
+<li><strong>Anomaly detection</strong> — flag unusual data points</li>
+<li><strong>Suggested questions</strong> — generate relevant follow-up questions</li>
+<li><strong>Chart recommendations</strong> — suggest alternative views</li>
+</ul>
+</div>
+
+<!-- ══════════════════════════════════════ -->
+<h2>Part 3: Design Questions (25)</h2>
+<p>Please select one answer per question. Click "Copy Answers" at bottom to get plain text.</p>
+
+<div class="question" data-q="1">
+<div class="q-num">Question 1 — Chart Generation Approach</div>
+<div class="q-text">How should the initial chart set be generated?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q1" id="q1a" value="A"><label for="q1a"><strong>A)</strong> Pure rule-based engine (fast, no API call, use data profiling rules)</label></div>
+<div class="q-option"><input type="radio" name="q1" id="q1b" value="B"><label for="q1b"><strong>B)</strong> LLM-driven (send data summary to AI, get chart plan back)</label></div>
+<div class="q-option"><input type="radio" name="q1" id="q1c" value="C"><label for="q1c"><strong>C)</strong> Hybrid: rule engine for initial charts (instant), then LLM refines/adds more (async)</label></div>
+<div class="q-option"><input type="radio" name="q1" id="q1d" value="D"><label for="q1d"><strong>D)</strong> Rule engine only, but with a "Suggest Better Charts" button that calls LLM on demand</label></div>
+</div></div>
+
+<div class="question" data-q="2">
+<div class="q-num">Question 2 — Number of Auto-Generated Charts</div>
+<div class="q-text">How many charts should appear automatically after data upload?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q2" id="q2a" value="A"><label for="q2a"><strong>A)</strong> 4 charts (focused, clean)</label></div>
+<div class="q-option"><input type="radio" name="q2" id="q2b" value="B"><label for="q2b"><strong>B)</strong> 6 charts (current, good overview)</label></div>
+<div class="q-option"><input type="radio" name="q2" id="q2c" value="C"><label for="q2c"><strong>C)</strong> 8 charts (comprehensive, dashboard-like)</label></div>
+<div class="q-option"><input type="radio" name="q2" id="q2d" value="D"><label for="q2d"><strong>D)</strong> Dynamic — depends on how many meaningful charts the data supports</label></div>
+</div></div>
+
+<div class="question" data-q="3">
+<div class="q-num">Question 3 — Donut/Pie Chart Limits</div>
+<div class="q-text">What's the maximum number of segments for a donut chart?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q3" id="q3a" value="A"><label for="q3a"><strong>A)</strong> 5 segments max + "Other" bucket</label></div>
+<div class="q-option"><input type="radio" name="q3" id="q3b" value="B"><label for="q3b"><strong>B)</strong> 6-8 segments max + "Other" bucket</label></div>
+<div class="q-option"><input type="radio" name="q3" id="q3c" value="C"><label for="q3c"><strong>C)</strong> Never show donut if >6 categories — switch to horizontal bar instead</label></div>
+<div class="q-option"><input type="radio" name="q3" id="q3d" value="D"><label for="q3d"><strong>D)</strong> Dynamic — donut for ≤6, treemap for 7-15, hbar for 16+</label></div>
+</div></div>
+
+<div class="question" data-q="4">
+<div class="q-num">Question 4 — Bar Chart Limits</div>
+<div class="q-text">Maximum bars before aggregating or switching chart type?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q4" id="q4a" value="A"><label for="q4a"><strong>A)</strong> 8 bars max, top N + "Other"</label></div>
+<div class="q-option"><input type="radio" name="q4" id="q4b" value="B"><label for="q4b"><strong>B)</strong> 10-12 bars max, top N + "Other"</label></div>
+<div class="q-option"><input type="radio" name="q4" id="q4c" value="C"><label for="q4c"><strong>C)</strong> Switch to horizontal bar after 8 bars (better readability)</label></div>
+<div class="q-option"><input type="radio" name="q4" id="q4d" value="D"><label for="q4d"><strong>D)</strong> 10 for vertical, unlimited for horizontal (scrollable)</label></div>
+</div></div>
+
+<div class="question" data-q="5">
+<div class="q-num">Question 5 — Equal Distribution Detection</div>
+<div class="q-text">If all categories have nearly equal values (e.g., 25%/25%/25%/25%), what should happen?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q5" id="q5a" value="A"><label for="q5a"><strong>A)</strong> Skip the chart entirely — equal distribution isn't insightful</label></div>
+<div class="q-option"><input type="radio" name="q5" id="q5b" value="B"><label for="q5b"><strong>B)</strong> Show it but add a note: "Distribution is nearly uniform"</label></div>
+<div class="q-option"><input type="radio" name="q5" id="q5c" value="C"><label for="q5c"><strong>C)</strong> Switch to a table or KPI card instead of a chart</label></div>
+<div class="q-option"><input type="radio" name="q5" id="q5d" value="D"><label for="q5d"><strong>D)</strong> Show as bar chart (easier to spot small differences) with note</label></div>
+</div></div>
+
+<div class="question" data-q="6">
+<div class="q-num">Question 6 — Feature Derivation</div>
+<div class="q-text">Should the system auto-derive new columns from existing data?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q6" id="q6a" value="A"><label for="q6a"><strong>A)</strong> Yes — extract month/year from dates, bin numerics, create True/False flags automatically</label></div>
+<div class="q-option"><input type="radio" name="q6" id="q6b" value="B"><label for="q6b"><strong>B)</strong> Only extract date parts (month, quarter, year) — no other derivations</label></div>
+<div class="q-option"><input type="radio" name="q6" id="q6c" value="C"><label for="q6c"><strong>C)</strong> No auto-derivation — only use columns as-is</label></div>
+<div class="q-option"><input type="radio" name="q6" id="q6d" value="D"><label for="q6d"><strong>D)</strong> Let AI decide what to derive based on data patterns</label></div>
+</div></div>
+
+<div class="question" data-q="7">
+<div class="q-num">Question 7 — Metric Priority</div>
+<div class="q-text">How should the system rank which metrics to visualize first?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q7" id="q7a" value="A"><label for="q7a"><strong>A)</strong> Revenue/Sales > Profit > Count > Rate/Score > Other</label></div>
+<div class="q-option"><input type="radio" name="q7" id="q7b" value="B"><label for="q7b"><strong>B)</strong> Highest variance first (most interesting data patterns)</label></div>
+<div class="q-option"><input type="radio" name="q7" id="q7c" value="C"><label for="q7c"><strong>C)</strong> Let AI rank by business importance based on column names</label></div>
+<div class="q-option"><input type="radio" name="q7" id="q7d" value="D"><label for="q7d"><strong>D)</strong> Combine: name-based priority + variance weighting</label></div>
+</div></div>
+
+<div class="question" data-q="8">
+<div class="q-num">Question 8 — Chart Family Diversity</div>
+<div class="q-text">What chart diversity rule should apply?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q8" id="q8a" value="A"><label for="q8a"><strong>A)</strong> Strict: one chart per type only (1 bar, 1 line, 1 donut, 1 scatter, etc.)</label></div>
+<div class="q-option"><input type="radio" name="q8" id="q8b" value="B"><label for="q8b"><strong>B)</strong> One per family: 1 comparison (bar/hbar), 1 trend (line/area), 1 composition (donut/treemap), 1 relationship (scatter), 1 distribution (gauge/boxplot)</label></div>
+<div class="q-option"><input type="radio" name="q8" id="q8c" value="C"><label for="q8c"><strong>C)</strong> Allow max 2 of same family if data warrants it</label></div>
+<div class="q-option"><input type="radio" name="q8" id="q8d" value="D"><label for="q8d"><strong>D)</strong> No hard rule — pick whatever best represents the data</label></div>
+</div></div>
+
+<div class="question" data-q="9">
+<div class="q-num">Question 9 — Time Series Detection</div>
+<div class="q-text">How aggressively should the system detect and use time-based data?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q9" id="q9a" value="A"><label for="q9a"><strong>A)</strong> Always make the first chart a time-trend if any date column exists</label></div>
+<div class="q-option"><input type="radio" name="q9" id="q9b" value="B"><label for="q9b"><strong>B)</strong> Only if date column has >4 unique values and a clear time ordering</label></div>
+<div class="q-option"><input type="radio" name="q9" id="q9c" value="C"><label for="q9c"><strong>C)</strong> Auto-detect, but let other charts come first if they have higher insight score</label></div>
+<div class="q-option"><input type="radio" name="q9" id="q9d" value="D"><label for="q9d"><strong>D)</strong> Extract year/quarter/month from dates, then decide based on granularity</label></div>
+</div></div>
+
+<div class="question" data-q="10">
+<div class="q-num">Question 10 — Map Chart Triggering</div>
+<div class="q-text">When should a map chart be auto-generated?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q10" id="q10a" value="A"><label for="q10a"><strong>A)</strong> Always if State/Country column detected — map is high priority</label></div>
+<div class="q-option"><input type="radio" name="q10" id="q10b" value="B"><label for="q10b"><strong>B)</strong> Only if geographic column has >5 unique values with numeric data</label></div>
+<div class="q-option"><input type="radio" name="q10" id="q10c" value="C"><label for="q10c"><strong>C)</strong> As a candidate with medium priority — may or may not appear</label></div>
+<div class="q-option"><input type="radio" name="q10" id="q10d" value="D"><label for="q10d"><strong>D)</strong> Only when user asks "show on map" — never auto-generated</label></div>
+</div></div>
+
+<div class="question" data-q="11">
+<div class="q-num">Question 11 — Aggregation Default</div>
+<div class="q-text">When grouping data by category, what aggregation should be default?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q11" id="q11a" value="A"><label for="q11a"><strong>A)</strong> Sum for amounts (revenue, cost), Average for rates (%, scores)</label></div>
+<div class="q-option"><input type="radio" name="q11" id="q11b" value="B"><label for="q11b"><strong>B)</strong> Always sum</label></div>
+<div class="q-option"><input type="radio" name="q11" id="q11c" value="C"><label for="q11c"><strong>C)</strong> Let AI decide based on column name semantics</label></div>
+<div class="q-option"><input type="radio" name="q11" id="q11d" value="D"><label for="q11d"><strong>D)</strong> Show both sum and average, let user toggle</label></div>
+</div></div>
+
+<div class="question" data-q="12">
+<div class="q-num">Question 12 — Scatter Chart Requirements</div>
+<div class="q-text">What conditions must be met for a scatter plot?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q12" id="q12a" value="A"><label for="q12a"><strong>A)</strong> 2 different numeric columns with correlation coefficient >0.3</label></div>
+<div class="q-option"><input type="radio" name="q12" id="q12b" value="B"><label for="q12b"><strong>B)</strong> Any 2 numeric columns, min 20 data points</label></div>
+<div class="q-option"><input type="radio" name="q12" id="q12c" value="C"><label for="q12c"><strong>C)</strong> Only when AI detects a meaningful relationship between columns</label></div>
+<div class="q-option"><input type="radio" name="q12" id="q12d" value="D"><label for="q12d"><strong>D)</strong> 2 numeric columns with different distributions (not identical ranges)</label></div>
+</div></div>
+
+<div class="question" data-q="13">
+<div class="q-num">Question 13 — KPI Card Intelligence</div>
+<div class="q-text">What should KPI cards show?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q13" id="q13a" value="A"><label for="q13a"><strong>A)</strong> Top 4 metrics: total, average, count, max — with sparklines</label></div>
+<div class="q-option"><input type="radio" name="q13" id="q13b" value="B"><label for="q13b"><strong>B)</strong> AI-selected most important metrics with trend + comparison</label></div>
+<div class="q-option"><input type="radio" name="q13" id="q13c" value="C"><label for="q13c"><strong>C)</strong> Business metrics (revenue, profit, growth) prioritized over counts</label></div>
+<div class="q-option"><input type="radio" name="q13" id="q13d" value="D"><label for="q13d"><strong>D)</strong> Dynamic: 3-6 KPIs based on data richness, each with context (vs avg, trend)</label></div>
+</div></div>
+
+<div class="question" data-q="14">
+<div class="q-num">Question 14 — Chart Title Intelligence</div>
+<div class="q-text">How should chart titles be generated?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q14" id="q14a" value="A"><label for="q14a"><strong>A)</strong> Template: "[Metric] by [Category]" — simple, predictable</label></div>
+<div class="q-option"><input type="radio" name="q14" id="q14b" value="B"><label for="q14b"><strong>B)</strong> AI-generated insight titles: "Revenue Peaks in Q4, Led by Enterprise"</label></div>
+<div class="q-option"><input type="radio" name="q14" id="q14c" value="C"><label for="q14c"><strong>C)</strong> Template initially, then AI replaces with insight title after analysis</label></div>
+<div class="q-option"><input type="radio" name="q14" id="q14d" value="D"><label for="q14d"><strong>D)</strong> Short factual title + highlighted key terms in cyan</label></div>
+</div></div>
+
+<div class="question" data-q="15">
+<div class="q-num">Question 15 — Stacked vs Multi-line</div>
+<div class="q-text">For time series with multiple categories, which default?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q15" id="q15a" value="A"><label for="q15a"><strong>A)</strong> Multi-line (easier to compare individual trends)</label></div>
+<div class="q-option"><input type="radio" name="q15" id="q15b" value="B"><label for="q15b"><strong>B)</strong> Stacked area (shows total + composition)</label></div>
+<div class="q-option"><input type="radio" name="q15" id="q15c" value="C"><label for="q15c"><strong>C)</strong> Multi-line for ≤4 series, stacked for 5+</label></div>
+<div class="q-option"><input type="radio" name="q15" id="q15d" value="D"><label for="q15d"><strong>D)</strong> Depends on data: multi-line if trends diverge, stacked if parts-of-whole</label></div>
+</div></div>
+
+<div class="question" data-q="16">
+<div class="q-num">Question 16 — Color Assignment</div>
+<div class="q-text">How should chart colors be assigned?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q16" id="q16a" value="A"><label for="q16a"><strong>A)</strong> Fixed GenBI cyan palette only — all charts use same 8 colors</label></div>
+<div class="q-option"><input type="radio" name="q16" id="q16b" value="B"><label for="q16b"><strong>B)</strong> Semantic: green for positive, red for negative, cyan for neutral</label></div>
+<div class="q-option"><input type="radio" name="q16" id="q16c" value="C"><label for="q16c"><strong>C)</strong> GenBI palette default, but AI can override for semantic meaning</label></div>
+<div class="q-option"><input type="radio" name="q16" id="q16d" value="D"><label for="q16d"><strong>D)</strong> Consistent across charts: same category always gets same color</label></div>
+</div></div>
+
+<div class="question" data-q="17">
+<div class="q-num">Question 17 — Empty/Missing Data</div>
+<div class="q-text">How should missing or null values be handled in charts?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q17" id="q17a" value="A"><label for="q17a"><strong>A)</strong> Exclude from visualization, note "X% missing" in caption</label></div>
+<div class="q-option"><input type="radio" name="q17" id="q17b" value="B"><label for="q17b"><strong>B)</strong> Show as zero with different styling (dashed/transparent)</label></div>
+<div class="q-option"><input type="radio" name="q17" id="q17c" value="C"><label for="q17c"><strong>C)</strong> Interpolate/fill for line charts, exclude for others</label></div>
+<div class="q-option"><input type="radio" name="q17" id="q17d" value="D"><label for="q17d"><strong>D)</strong> Show a data quality warning card before charts if >10% missing</label></div>
+</div></div>
+
+<div class="question" data-q="18">
+<div class="q-num">Question 18 — Tooltip Intelligence Level</div>
+<div class="q-text">How rich should chart tooltips be?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q18" id="q18a" value="A"><label for="q18a"><strong>A)</strong> Basic: value + label only</label></div>
+<div class="q-option"><input type="radio" name="q18" id="q18b" value="B"><label for="q18b"><strong>B)</strong> Rich: value, %, rank, vs average (current implementation)</label></div>
+<div class="q-option"><input type="radio" name="q18" id="q18c" value="C"><label for="q18c"><strong>C)</strong> Rich + mini-chart (sparkline/distribution) inside tooltip</label></div>
+<div class="q-option"><input type="radio" name="q18" id="q18d" value="D"><label for="q18d"><strong>D)</strong> Context-aware: tooltip content varies by chart type and data</label></div>
+</div></div>
+
+<div class="question" data-q="19">
+<div class="q-num">Question 19 — Chart Interaction</div>
+<div class="q-text">What interactions should charts support?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q19" id="q19a" value="A"><label for="q19a"><strong>A)</strong> Hover tooltip only</label></div>
+<div class="q-option"><input type="radio" name="q19" id="q19b" value="B"><label for="q19b"><strong>B)</strong> Hover + click to cross-filter other charts</label></div>
+<div class="q-option"><input type="radio" name="q19" id="q19c" value="C"><label for="q19c"><strong>C)</strong> Hover + click + drill-down into subcategories</label></div>
+<div class="q-option"><input type="radio" name="q19" id="q19d" value="D"><label for="q19d"><strong>D)</strong> Full: hover + cross-filter + drill-down + ask AI about clicked element</label></div>
+</div></div>
+
+<div class="question" data-q="20">
+<div class="q-num">Question 20 — Chart Layout (Standard Mode)</div>
+<div class="q-text">Default chart layout in standard view?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q20" id="q20a" value="A"><label for="q20a"><strong>A)</strong> Full-width stacked vertically (one chart at a time, focused)</label></div>
+<div class="q-option"><input type="radio" name="q20" id="q20b" value="B"><label for="q20b"><strong>B)</strong> 2-column grid (compact, dashboard-like)</label></div>
+<div class="q-option"><input type="radio" name="q20" id="q20c" value="C"><label for="q20c"><strong>C)</strong> Smart: first chart full-width (hero), rest in 2-column grid</label></div>
+<div class="q-option"><input type="radio" name="q20" id="q20d" value="D"><label for="q20d"><strong>D)</strong> Masonry layout — charts sized by importance/complexity</label></div>
+</div></div>
+
+<div class="question" data-q="21">
+<div class="q-num">Question 21 — Loading Strategy</div>
+<div class="q-text">How should charts appear after data upload?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q21" id="q21a" value="A"><label for="q21a"><strong>A)</strong> All at once after processing (current — blank then boom)</label></div>
+<div class="q-option"><input type="radio" name="q21" id="q21b" value="B"><label for="q21b"><strong>B)</strong> Progressive: KPIs first, then charts one by one with animation</label></div>
+<div class="q-option"><input type="radio" name="q21" id="q21c" value="C"><label for="q21c"><strong>C)</strong> Skeleton loading: show empty card outlines, fill in as ready</label></div>
+<div class="q-option"><input type="radio" name="q21" id="q21d" value="D"><label for="q21d"><strong>D)</strong> Two-phase: instant rule-based charts, then AI enhances titles/insights async</label></div>
+</div></div>
+
+<div class="question" data-q="22">
+<div class="q-num">Question 22 — Data Preview</div>
+<div class="q-text">Should a data table preview be shown alongside charts?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q22" id="q22a" value="A"><label for="q22a"><strong>A)</strong> Yes — always show first 10 rows below charts</label></div>
+<div class="q-option"><input type="radio" name="q22" id="q22b" value="B"><label for="q22b"><strong>B)</strong> Collapsed by default, expandable</label></div>
+<div class="q-option"><input type="radio" name="q22" id="q22c" value="C"><label for="q22c"><strong>C)</strong> Only on demand — button to "View Raw Data"</label></div>
+<div class="q-option"><input type="radio" name="q22" id="q22d" value="D"><label for="q22d"><strong>D)</strong> Show a smart summary card (columns, types, ranges) instead of raw rows</label></div>
+</div></div>
+
+<div class="question" data-q="23">
+<div class="q-num">Question 23 — Multi-Line Series Limit</div>
+<div class="q-text">Maximum number of lines/series in a multi-line chart?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q23" id="q23a" value="A"><label for="q23a"><strong>A)</strong> 4 lines max — top 4 by total value</label></div>
+<div class="q-option"><input type="radio" name="q23" id="q23b" value="B"><label for="q23b"><strong>B)</strong> 6 lines max — current default</label></div>
+<div class="q-option"><input type="radio" name="q23" id="q23c" value="C"><label for="q23c"><strong>C)</strong> Dynamic: show all if ≤4, top 4 + "Other" if more</label></div>
+<div class="q-option"><input type="radio" name="q23" id="q23d" value="D"><label for="q23d"><strong>D)</strong> 3 lines max for clarity, with dropdown to switch which categories shown</label></div>
+</div></div>
+
+<div class="question" data-q="24">
+<div class="q-num">Question 24 — Pharma/Scientific Data</div>
+<div class="q-text">For pharma pipeline data, what special chart intelligence is needed?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q24" id="q24a" value="A"><label for="q24a"><strong>A)</strong> Auto-detect phase/stage columns → funnel chart</label></div>
+<div class="q-option"><input type="radio" name="q24" id="q24b" value="B"><label for="q24b"><strong>B)</strong> Risk score → gauge, Phase progression → waterfall, Enrollment → bar</label></div>
+<div class="q-option"><input type="radio" name="q24" id="q24c" value="C"><label for="q24c"><strong>C)</strong> Let AI detect domain (pharma, sales, etc.) and apply domain-specific chart rules</label></div>
+<div class="q-option"><input type="radio" name="q24" id="q24d" value="D"><label for="q24d"><strong>D)</strong> Domain-agnostic: same rules for all data, rely on column types not names</label></div>
+</div></div>
+
+<div class="question" data-q="25">
+<div class="q-num">Question 25 — User Chart Customization</div>
+<div class="q-text">How much control should users have over auto-generated charts?</div>
+<div class="q-options">
+<div class="q-option"><input type="radio" name="q25" id="q25a" value="A"><label for="q25a"><strong>A)</strong> View-only — can't modify auto-generated charts, only add new custom ones</label></div>
+<div class="q-option"><input type="radio" name="q25" id="q25b" value="B"><label for="q25b"><strong>B)</strong> Can change chart type, colors, and which columns are used</label></div>
+<div class="q-option"><input type="radio" name="q25" id="q25c" value="C"><label for="q25c"><strong>C)</strong> Full visual editor: type, colors, columns, aggregation, filters, sorting</label></div>
+<div class="q-option"><input type="radio" name="q25" id="q25d" value="D"><label for="q25d"><strong>D)</strong> Natural language: "Change this to a line chart" or "Show only top 5"</label></div>
+</div></div>
+
+</div>
+
+<button class="copy-btn" onclick="copyAnswers()">Copy Answers to Clipboard</button>
+
+<script>
+function copyAnswers() {
+  let text = 'GenBI Chart Intelligence — Questionnaire Answers\n';
+  text += '='.repeat(50) + '\n\n';
+  for (let i = 1; i <= 25; i++) {
+    const selected = document.querySelector('input[name="q' + i + '"]:checked');
+    const qEl = document.querySelector('[data-q="' + i + '"]');
+    const qText = qEl ? qEl.querySelector('.q-text').textContent : '';
+    const answer = selected ? selected.value : '(no answer)';
+    const ansLabel = selected ? selected.parentElement.querySelector('label').textContent.trim() : '';
+    text += 'Q' + i + ': ' + qText + '\n';
+    text += '  Answer: ' + answer + ') ' + ansLabel.replace(/^[A-D]\)\s*/, '') + '\n\n';
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector('.copy-btn');
+    btn.textContent = 'Copied!';
+    btn.style.background = '#06b6d4';
+    btn.style.color = '#000';
+    setTimeout(() => { btn.textContent = 'Copy Answers to Clipboard'; btn.style.background = ''; btn.style.color = ''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>
