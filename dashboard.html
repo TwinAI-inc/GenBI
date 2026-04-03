@@ -11476,7 +11476,7 @@ function loadSampleDataset(which) {
   App.hasExcelData = true;
   App.uploadedFiles.push({ name: fileName, size: rows.length * 150, type: 'text/csv' });
   // Use LLM-driven chart intelligence (falls back to rule engine)
-  smartAutoMap(rows).then(() => navigate('analytics'));
+  smartAutoMap(rows).then(() => navigate('analytics')).catch(() => navigate('analytics'));
   toast('Loaded ' + fileName + ' — ' + rows.length + ' rows, ' + Object.keys(rows[0]).length + ' columns', 'success');
 }
 
@@ -11549,6 +11549,9 @@ function handleFiles(files) {
             App._forecastCache = {}; App._narrativeCache = {};
             // Use LLM-driven chart intelligence (falls back to rule engine)
             smartAutoMap(json).then(() => {
+              renderUploadPreview();
+              showUploadSuccess(json.length, file.name);
+            }).catch(() => {
               renderUploadPreview();
               showUploadSuccess(json.length, file.name);
             });
