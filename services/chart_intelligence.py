@@ -189,7 +189,9 @@ Respond with ONLY valid JSON array of chart objects:
   }}
 ]
 
-Return between 4 and {max_charts} charts. Only include charts that provide genuine insight."""
+Return between 4 and {max_charts} charts. Only include charts that provide genuine insight.
+
+IMPORTANT: Wrap your response as {{"charts": [...]}} since JSON mode requires an object."""
 
     try:
         result = chat_completion_json(
@@ -197,13 +199,23 @@ Return between 4 and {max_charts} charts. Only include charts that provide genui
             temperature=0.3,
             max_tokens=3000
         )
-        content = result.get('content', '')
+        content = result.get('content', '') if isinstance(result, dict) else str(result)
 
-        # Parse JSON from response
-        chart_plan = json.loads(content)
-        if not isinstance(chart_plan, list):
-            logger.warning('Chart plan is not a list, wrapping')
-            chart_plan = [chart_plan]
+        # Parse JSON from response — LLM may return array or object wrapping array
+        parsed = json.loads(content) if isinstance(content, str) else content
+        if isinstance(parsed, list):
+            chart_plan = parsed
+        elif isinstance(parsed, dict):
+            # LLM wrapped in object — find the array
+            chart_plan = (
+                parsed.get('charts') or parsed.get('chart_plan') or
+                parsed.get('plan') or parsed.get('data') or
+                next((v for v in parsed.values() if isinstance(v, list)), [])
+            )
+        else:
+            chart_plan = []
+
+        logger.info(f'LLM returned {len(chart_plan)} charts')
 
         # Validate and enforce guardrails
         chart_plan = _validate_guardrails(chart_plan, profile)
