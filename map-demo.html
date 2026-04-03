@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>GenBI Map Test</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<style>
+body { background: #000; margin: 0; padding: 20px; font-family: 'Outfit', sans-serif; color: #fff; }
+h2 { font-weight: 300; font-size: 18px; color: rgba(255,255,255,0.8); margin: 10px 0; }
+#status { color: rgba(255,255,255,0.4); font-size: 12px; margin: 10px 0; }
+svg { background: #0a0a0a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<h2>US Map</h2>
+<div id="status">Loading...</div>
+<div id="usContainer"></div>
+
+<h2>World Map</h2>
+<div id="worldContainer"></div>
+
+<script>
+const FIPS = {'01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California','08':'Colorado','09':'Connecticut','10':'Delaware','11':'DC','12':'Florida','13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois','18':'Indiana','19':'Iowa','20':'Kansas','21':'Kentucky','22':'Louisiana','23':'Maine','24':'Maryland','25':'Massachusetts','26':'Michigan','27':'Minnesota','28':'Mississippi','29':'Missouri','30':'Montana','31':'Nebraska','32':'Nevada','33':'New Hampshire','34':'New Jersey','35':'New Mexico','36':'New York','37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma','41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina','46':'South Dakota','47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont','51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'};
+
+const usData = {'California':886,'Texas':720,'New York':650,'Florida':580,'Illinois':490,'Washington':520,'Massachusetts':480,'Colorado':440,'Louisiana':770,'Oregon':380,'Connecticut':360,'Minnesota':350,'New Jersey':340,'Virginia':330,'Nevada':320,'Maryland':310,'Arizona':310,'Tennessee':290,'Utah':280,'Indiana':275,'Missouri':260,'Wisconsin':250,'South Carolina':240,'Alabama':220,'Kentucky':210,'Oklahoma':200,'New Hampshire':200,'Iowa':190,'Kansas':185,'Arkansas':175,'New Mexico':170,'Nebraska':165,'Mississippi':160,'Idaho':155,'Alaska':150,'Hawaii':145,'Delaware':140,'Maine':135,'Rhode Island':130,'Montana':125,'North Dakota':120,'South Dakota':115,'West Virginia':110,'Vermont':105,'Wyoming':100,'Pennsylvania':445,'Ohio':410,'Georgia':395,'Michigan':370,'North Carolina':355};
+
+const status = document.getElementById('status');
+
+// ── US MAP ──
+async function loadUS() {
+  try {
+    status.textContent = 'Fetching US data...';
+    const resp = await fetch('/public/data/us-states.json');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const us = await resp.json();
+    status.textContent = 'Parsing TopoJSON...';
+
+    const states = topojson.feature(us, us.objects.states);
+    const borders = topojson.mesh(us, us.objects.states, (a, b) => a !== b);
+
+    status.textContent = 'Drawing ' + states.features.length + ' states...';
+
+    const vals = Object.values(usData);
+    const mn = Math.min(...vals), mx = Math.max(...vals);
+
+    // us-atlas@3 is PRE-PROJECTED (Albers USA, 960x600) — use null projection
+    const path = d3.geoPath();
+
+    const svg = d3.select('#usContainer').append('svg')
+      .attr('width', 960).attr('height', 600)
+      .attr('viewBox', '0 0 960 600')
+      .style('max-width', '100%').style('height', 'auto');
+
+    svg.selectAll('path')
+      .data(states.features)
+      .join('path')
+      .attr('d', path)
+      .attr('fill', d => {
+        const name = FIPS[String(d.id).padStart(2, '0')];
+        const v = usData[name];
+        if (v == null) return 'rgba(255,255,255,0.03)';
+        const t = (v - mn) / (mx - mn);
+        return 'rgba(6,182,212,' + (0.15 + t * 0.75).toFixed(2) + ')';
+      })
+      .attr('stroke', 'rgba(0,0,0,0.5)')
+      .attr('stroke-width', 0.5)
+      .style('cursor', 'pointer')
+      .on('mouseenter', function(e, d) {
+        d3.select(this).attr('stroke', '#67e8f9').attr('stroke-width', 1.5);
+        const name = FIPS[String(d.id).padStart(2, '0')] || '?';
+        status.textContent = name + ': $' + (usData[name] || 0) + 'K';
+      })
+      .on('mouseleave', function() {
+        d3.select(this).attr('stroke', 'rgba(0,0,0,0.5)').attr('stroke-width', 0.5);
+        status.textContent = 'Hover a state';
+      });
+
+    // Border mesh
+    svg.append('path')
+      .datum(borders)
+      .attr('d', path)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(255,255,255,0.1)')
+      .attr('stroke-width', 0.5)
+      .style('pointer-events', 'none');
+
+    status.textContent = 'US map rendered (' + states.features.length + ' states). Hover a state.';
+  } catch (err) {
+    status.textContent = 'US ERROR: ' + err.message;
+    console.error('US map error:', err);
+  }
+}
+
+// ── WORLD MAP ──
+async function loadWorld() {
+  try {
+    const resp = await fetch('/public/data/world-countries.json');
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const world = await resp.json();
+
+    const countries = topojson.feature(world, world.objects.countries);
+    const borders = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
+
+    // World atlas is NOT pre-projected — need a projection
+    const projection = d3.geoNaturalEarth1().scale(155).translate([480, 260]);
+    const path = d3.geoPath(projection);
+
+    const svg = d3.select('#worldContainer').append('svg')
+      .attr('width', 960).attr('height', 500)
+      .attr('viewBox', '0 0 960 500')
+      .style('max-width', '100%').style('height', 'auto');
+
+    // Graticule
+    svg.append('path')
+      .datum(d3.geoGraticule10())
+      .attr('d', path)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(255,255,255,0.03)')
+      .attr('stroke-width', 0.3);
+
+    svg.selectAll('path.country')
+      .data(countries.features)
+      .join('path')
+      .attr('class', 'country')
+      .attr('d', path)
+      .attr('fill', 'rgba(6,182,212,0.15)')
+      .attr('stroke', 'rgba(0,0,0,0.3)')
+      .attr('stroke-width', 0.3)
+      .style('cursor', 'pointer')
+      .on('mouseenter', function() {
+        d3.select(this).attr('stroke', '#67e8f9').attr('stroke-width', 1);
+      })
+      .on('mouseleave', function() {
+        d3.select(this).attr('stroke', 'rgba(0,0,0,0.3)').attr('stroke-width', 0.3);
+      });
+
+    // Border mesh
+    svg.append('path')
+      .datum(borders)
+      .attr('d', path)
+      .attr('fill', 'none')
+      .attr('stroke', 'rgba(255,255,255,0.06)')
+      .attr('stroke-width', 0.3)
+      .style('pointer-events', 'none');
+
+  } catch (err) {
+    console.error('World map error:', err);
+  }
+}
+
+loadUS();
+loadWorld();
+</script>
+</body>
+</html>
