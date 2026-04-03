@@ -6348,7 +6348,7 @@ function drawGaugeChart(canvas, value, opts = {}) {
   ctx.clearRect(0, 0, w, h);
 
   const cx = w / 2, cy = h * 0.58;
-  const radius = Math.min(cx - 30, cy - 20, 110);
+  const radius = Math.max(10, Math.min(cx - 30, cy - 20, 110));
   const lineW = Math.max(12, radius * 0.15);
   const minVal = opts.min || 0, maxVal = opts.max || 100;
   const pct = Math.max(0, Math.min(1, (value - minVal) / (maxVal - minVal)));
