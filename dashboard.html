@@ -1222,7 +1222,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#050508;color:var(--tex
 .sidebar.collapsed .nav-text,
 .sidebar.collapsed .profile-info,
 .sidebar.collapsed .sidebar-profile>svg,
-.sidebar.collapsed .nav-project-indicator{display:none;}
+.sidebar.collapsed .nav-project-indicator{display:none !important;}
 .sidebar.collapsed .sidebar-brand{justify-content:center;padding:8px 0;margin-bottom:24px;}
 .sidebar.collapsed .nav-item{justify-content:center;padding:10px;border-radius:12px;}
 .sidebar.collapsed .nav-item.active::before{left:-10px;}
@@ -8906,7 +8906,14 @@ function serializeProjectData() {
     hasExcelData: App.hasExcelData,
     dashChartIdx: App.dashChartIdx,
     crossFilter: App.crossFilter,
-    drillStates: App.drillStates
+    drillStates: App.drillStates,
+    _cachedInsights: App._cachedInsights,
+    _cachedAnomalies: App._cachedAnomalies,
+    _cachedQuality: App._cachedQuality,
+    _cachedDescriptions: App._cachedDescriptions,
+    _cachedSuggestions: App._cachedSuggestions,
+    _narrativeCache: App._narrativeCache,
+    _forecastCache: App._forecastCache
   };
 }
 
@@ -8921,6 +8928,13 @@ function restoreProjectData(data) {
   App.dashChartIdx = data.dashChartIdx || 0;
   App.crossFilter = data.crossFilter || null;
   App.drillStates = data.drillStates || {};
+  App._cachedInsights = data._cachedInsights || null;
+  App._cachedAnomalies = data._cachedAnomalies || null;
+  App._cachedQuality = data._cachedQuality || null;
+  App._cachedDescriptions = data._cachedDescriptions || null;
+  App._cachedSuggestions = data._cachedSuggestions || null;
+  App._narrativeCache = data._narrativeCache || {};
+  App._forecastCache = data._forecastCache || {};
 }
 
 function downloadProjectToDevice(name, meta) {
