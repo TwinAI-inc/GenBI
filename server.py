@@ -15,6 +15,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_cors import CORS
+from werkzeug.middleware.proxy_fix import ProxyFix
 import json
 
 from extensions import db, migrate
@@ -27,6 +28,11 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     app = Flask(__name__, static_folder='.', static_url_path='')
+
+    # ── Proxy fix (Azure reverse proxy) ──────────────────────────────────
+    # Trust X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host headers
+    # so request.host_url returns the correct custom domain (e.g. genbi.co)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # ── Config ────────────────────────────────────────────────────────────
     cfg = get_config()
