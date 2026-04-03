@@ -8790,6 +8790,18 @@ function initAnalyticsCharts() {
       animateChartFromPlan(canvas, chartData, i * 150);
     });
   }
+  // Hide chart cards that failed to render (no _chartHit means draw didn't complete)
+  setTimeout(function() {
+    ec.chartPlan.forEach(function(chart, i) {
+      var cv = document.getElementById('analyticsChart' + i);
+      if (!cv) return;
+      // If canvas has zero dimensions or no chart hit data, the chart didn't render
+      if (cv.width === 0 || cv.height === 0 || !cv._chartHit) {
+        var card = cv.closest('.glass-panel');
+        if (card && card.parentElement) card.parentElement.style.display = 'none';
+      }
+    });
+  }, 1500);
   // Draw custom user-created charts
   drawCustomCharts();
   // Register charts in Visual Editor after render
