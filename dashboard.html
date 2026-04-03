@@ -8648,7 +8648,8 @@ function animateChartFromPlan(canvas, chart, delay) {
       mapDiv.style.cssText = 'width:100%;height:100%;min-height:300px;';
       mapDiv.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.25);font-size:12px;">Loading map...</div>';
       canvas.parentElement.appendChild(mapDiv);
-      fetch(endpoint, {
+      // Delay map fetch to avoid browser throttling (other API calls fire first)
+      setTimeout(() => { fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
         body: JSON.stringify({ data: dataMap, title: chart.title || '', valueLabel: axisOpts.yLabel || 'Value' })
@@ -8660,6 +8661,7 @@ function animateChartFromPlan(canvas, chart, delay) {
           if (plotDiv && window.Plotly) { Plotly.relayout(plotDiv, { width: mapDiv.clientWidth, height: Math.max(300, mapDiv.clientHeight) }); }
         } else { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map unavailable</div>'; }
       }).catch(() => { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map failed to load</div>'; });
+      }, 3000); // 3s delay to avoid browser throttling
     }
   }, delay || 0);
 }
