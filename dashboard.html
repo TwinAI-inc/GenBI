@@ -7936,13 +7936,10 @@ function handleChartClick(e) {
         break;
       }
     }
-    // Determine the column from chart xLabel
-    clickedColumn = hit.opts?.xLabel?.replace(/ /g,'_') || null;
-    if (!clickedColumn) {
-      const ec = App.excelChartConfig;
-      const chart = ec.chartPlan[chartIdx];
-      if (chart) clickedColumn = chart._origXCol || chart.xLabel?.replace(/ /g,'_');
-    }
+    // Determine the column — prefer _origXCol (exact header match) over display xLabel
+    const ec1 = App.excelChartConfig;
+    const chart1 = chartIdx >= 0 ? ec1.chartPlan[chartIdx] : null;
+    clickedColumn = (chart1 && chart1._origXCol) || hit.opts?.xLabel?.replace(/ /g,'_') || null;
   } else if (hit.type === 'stacked') {
     for (let i = hit.areas.length - 1; i >= 0; i--) {
       const a = hit.areas[i];
@@ -7950,12 +7947,9 @@ function handleChartClick(e) {
         clickedLabel = a.label; break;
       }
     }
-    clickedColumn = hit.opts?.xLabel?.replace(/ /g,'_') || null;
-    if (!clickedColumn) {
-      const ec = App.excelChartConfig;
-      const chart = ec.chartPlan[chartIdx];
-      if (chart) clickedColumn = chart._origXCol || chart.xLabel?.replace(/ /g,'_');
-    }
+    const ec2 = App.excelChartConfig;
+    const chart2 = chartIdx >= 0 ? ec2.chartPlan[chartIdx] : null;
+    clickedColumn = (chart2 && chart2._origXCol) || hit.opts?.xLabel?.replace(/ /g,'_') || null;
   } else if (hit.type === 'donut') {
     const dx = mx - hit.cx, dy = my - hit.cy;
     const dist = Math.sqrt(dx*dx + dy*dy);
@@ -8018,9 +8012,16 @@ function openExplainDrawer(column, value, chartIdx) {
     }, 900); // after animation completes (700ms + buffer)
   }
 
-  // Filter to clicked point
-  const pointRows = rows.filter(r => String(r[column] || '').trim() === value);
+  // Filter to clicked point — try exact column name, then case-insensitive fallback
+  let resolvedColumn = column;
+  const allKeys = Object.keys(rows[0] || {});
+  if (rows.length && !(column in rows[0])) {
+    const ciMatch = allKeys.find(k => k.toLowerCase() === column.toLowerCase());
+    if (ciMatch) resolvedColumn = ciMatch;
+  }
+  const pointRows = rows.filter(r => String(r[resolvedColumn] || '').trim() === value);
   if (!pointRows.length) return;
+  column = resolvedColumn;
 
   // Find categorical columns for breakdown (exclude clicked col and measure)
   const allHeaders = Object.keys(rows[0] || {});
@@ -12170,8 +12171,8 @@ function autoMapExcelData(rows) {
 
   // Store original column references for cross-filter rebuilds
   chartPlan.forEach(chart => {
-    if (chart.xLabel) chart._origXCol = allHeaders.find(h => h.replace(/_/g,' ') === chart.xLabel) || chart.xLabel.replace(/ /g,'_');
-    if (chart.yLabel) chart._origYCol = allHeaders.find(h => h.replace(/_/g,' ') === chart.yLabel) || chart.yLabel.replace(/ /g,'_');
+    if (chart.xLabel) chart._origXCol = allHeaders.find(h => h.replace(/_/g,' ') === chart.xLabel) || allHeaders.find(h => h.replace(/_/g,' ').toLowerCase() === chart.xLabel.toLowerCase()) || chart.xLabel.replace(/ /g,'_');
+    if (chart.yLabel) chart._origYCol = allHeaders.find(h => h.replace(/_/g,' ') === chart.yLabel) || allHeaders.find(h => h.replace(/_/g,' ').toLowerCase() === chart.yLabel.toLowerCase()) || chart.yLabel.replace(/ /g,'_');
     chart._origAggFn = chart.title.startsWith('Avg') ? 'avg' : chart.title.startsWith('Max') ? 'max' : 'sum';
   });
 
