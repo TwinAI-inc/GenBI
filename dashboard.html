@@ -1611,10 +1611,11 @@ body.theme-light .inline-upload-wrap .drop-zone:hover,body.theme-light .inline-u
 .panel-header:has(.chart-actions-bolt:hover),
 .panel-header:has(.chart-actions-menu:hover) { z-index: 10; }
 .chart-clear-btn {
-  width: 24px; height: 24px; border-radius: 6px; border: 1px solid transparent;
+  height: 26px; border-radius: 6px; border: 1px solid transparent;
   background: transparent; color: rgba(255,255,255,0.25); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all .15s; flex-shrink: 0; padding: 0;
+  transition: all .15s; flex-shrink: 0; padding: 0 8px;
+  font-size: 11px; font-family: 'Inter', system-ui, sans-serif; font-weight: 500; gap: 2px;
 }
 .chart-clear-btn:hover { color: rgba(244,63,94,0.9); background: rgba(244,63,94,0.08); border-color: rgba(244,63,94,0.2); }
 .chart-bolt-btn {
@@ -3288,7 +3289,7 @@ function renderAnalytics() {
         const widthCls = chartWidthClass(chart, i, ec.chartPlan.length);
         return '<div class="' + widthCls + '"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + '</h2>' +
           '<div style="display:flex;align-items:center;gap:6px">' +
-          '<button class="chart-clear-btn" onclick="event.stopPropagation();removeChart(' + i + ')" title="Remove chart"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' +
+          '<button class="chart-clear-btn" onclick="event.stopPropagation();removeChart(' + i + ')" title="Remove chart"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>' +
           '<span id="anomalyBadge' + i + '"></span>' +
           '<button class="ask-ai-btn" onclick="openAskAiModal(\'analytics\',' + i + ',event)" title="Ask AI"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ask AI</button>' +
           '<div class="chart-actions-bolt">' +
