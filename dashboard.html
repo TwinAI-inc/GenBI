@@ -12124,7 +12124,7 @@ function autoMapExcelData(rows) {
 
   // CANDIDATE: US Map — if State column exists
   const stateCol = allHeaders.find(h => /^state$/i.test(h.trim()));
-  if (stateCol && primaryMetric && window.GenBIMaps) {
+  if (stateCol && primaryMetric) {
     const agg = aggByCategory(stateCol, primaryMetric, /score|rate|percent/i.test(primaryMetric) ? 'avg' : 'sum').filter(a => a.value > 0);
     if (agg.length >= 3) {
       candidates.push({ type: 'usmap', insight: 9, title: primaryMetric.replace(/_/g,' ') + ' by State',
@@ -12135,7 +12135,7 @@ function autoMapExcelData(rows) {
 
   // CANDIDATE: World Map — if Country column exists
   const countryCol = allHeaders.find(h => /^country$|^nation$|^location$/i.test(h.trim()));
-  if (countryCol && primaryMetric && window.GenBIMaps) {
+  if (countryCol && primaryMetric) {
     const agg = aggByCategory(countryCol, primaryMetric, /score|rate|percent/i.test(primaryMetric) ? 'avg' : 'sum').filter(a => a.value > 0);
     if (agg.length >= 2) {
       candidates.push({ type: 'worldmap', insight: 8, title: primaryMetric.replace(/_/g,' ') + ' by ' + countryCol.replace(/_/g,' '),
