@@ -8931,13 +8931,13 @@ function downloadProjectToDevice(name, meta) {
     chartPlan.forEach(function(chart, i) {
       var cv = document.getElementById('analyticsChart' + i);
       if (cv && cv.width > 0 && cv.height > 0) {
-        canvases.push({ title: chart.title || 'Chart ' + (i+1), desc: chart.desc || '', canvas: cv });
+        canvases.push({ title: chart.title || 'Chart ' + (i+1), desc: chart.desc || '', canvas: cv, chartRef: chart });
       }
     });
     (App.customCharts || []).forEach(function(chart, i) {
       var cv = document.getElementById('customChart' + i);
       if (cv && cv.width > 0 && cv.height > 0) {
-        canvases.push({ title: chart.title || 'Custom Chart ' + (i+1), desc: chart.desc || '', canvas: cv });
+        canvases.push({ title: chart.title || 'Custom Chart ' + (i+1), desc: chart.desc || '', canvas: cv, chartRef: chart });
       }
     });
     var askCv = document.getElementById('askChartCanvas');
@@ -8981,6 +8981,11 @@ function downloadProjectToDevice(name, meta) {
       '.chart-desc{font-size:12px;color:#94a3b8;font-weight:300;margin-top:3px;line-height:1.4;}' +
       '.chart-img-wrap{padding:16px 20px 20px;background:#fafbfc;}' +
       '.chart-img{width:100%;display:block;border-radius:6px;}' +
+      '.chart-table-wrap{padding:0 20px 16px;background:#fafbfc;}' +
+      '.data-table{width:100%;border-collapse:collapse;font-size:11px;color:#475569;}' +
+      '.data-table th{text-align:left;padding:6px 10px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:0.04em;color:#06b6d4;border-bottom:2px solid #e2e8f0;background:#f1f5f9;}' +
+      '.data-table td{padding:5px 10px;border-bottom:1px solid #f1f5f9;}' +
+      '.data-table tr:nth-child(even){background:#f8fafc;}' +
 
       /* KPI summary bar */
       '.kpi-bar{display:flex;gap:16px;margin-bottom:28px;}' +
@@ -9020,17 +9025,105 @@ function downloadProjectToDevice(name, meta) {
       html += '</div>';
     }
 
-    // Chart cards
-    canvases.forEach(function(c, i) {
-      var imgData = c.canvas.toDataURL('image/png');
+    // Re-render charts on light backgrounds for PDF clarity
+    var _origTheme = document.body.className;
+    document.body.classList.add('theme-light');
+    document.body.classList.remove('theme-genbi');
+
+    canvases.forEach(function(c, ci) {
+      // Create off-screen canvas for light-mode redraw
+      var srcCv = c.canvas;
+      var pdfCv = document.createElement('canvas');
+      var dpr = window.devicePixelRatio || 1;
+      var cw = srcCv._lockedW || srcCv.parentElement.getBoundingClientRect().width || 600;
+      var ch = srcCv._lockedH || srcCv.parentElement.getBoundingClientRect().height || 240;
+      pdfCv.width = cw * 2;
+      pdfCv.height = ch * 2;
+      pdfCv.style.width = cw + 'px';
+      pdfCv.style.height = ch + 'px';
+      pdfCv._lockedW = cw;
+      pdfCv._lockedH = ch;
+      var pCtx = pdfCv.getContext('2d');
+      pCtx.setTransform(2, 0, 0, 2, 0, 0);
+
+      // White background
+      pCtx.fillStyle = '#ffffff';
+      pCtx.fillRect(0, 0, cw, ch);
+
+      // Re-draw chart on light canvas
+      var chart = c.chartRef;
+      if (chart) {
+        var type = chart._userType || chart.type;
+        var hasSeries = chart.series && chart.series.length > 0;
+        var flatData = hasSeries
+          ? (chart.labels || []).map(function(_, i) { return chart.series.reduce(function(sum, s) { return sum + (s.data[i] || 0); }, 0); })
+          : chart.data;
+        var axisOpts = { suffix: chart.suffix || '', xLabel: chart.xLabel || '', yLabel: chart.yLabel || '' };
+        if (chart._barPalette && linePalettes[chart._barPalette]) axisOpts.barColors = linePalettes[chart._barPalette];
+        try {
+          if (type === 'bar') drawBarChart(pdfCv, chart.labels || [], flatData || [], chart.color || 'cyan', axisOpts);
+          else if (type === 'hbar') drawHorizontalBarChart(pdfCv, chart.labels || [], flatData || [], chart.color || 'cyan', axisOpts);
+          else if (type === 'donut') {
+            var donutOpts = {};
+            if (chart._barPalette && linePalettes[chart._barPalette]) donutOpts.paletteColors = linePalettes[chart._barPalette];
+            drawDonutChart(pdfCv, chart.labels || [], flatData || [], donutOpts);
+          }
+          else if (type === 'stacked' && hasSeries) drawStackedBarChart(pdfCv, chart.labels || [], chart.series, axisOpts);
+          else if (type === 'line') { var ds = buildLineDatasets(chart); drawChart(pdfCv, ds, chart.labels || [], axisOpts); }
+          else if (type === 'area') { var ads = buildAreaDatasets(chart); drawAreaChart(pdfCv, ads, chart.labels || [], axisOpts); }
+          else if (type === 'gauge') {
+            var gVal = flatData && flatData.length ? flatData[0] : (chart.value || 0);
+            drawGaugeChart(pdfCv, gVal, { color: chart.color, label: chart.title, min: chart.min || 0, max: chart.max || 100 });
+          }
+          else if (type === 'scatter') drawScatterChart(pdfCv, chart.xData || [], chart.yData || [], chart.color || 'cyan', axisOpts);
+          else if (type === 'boxplot') drawBoxplotChart(pdfCv, chart);
+          else if (type === 'treemap') drawTreemapChart(pdfCv, chart.labels || [], flatData || [], {});
+          else {
+            // Fallback: copy original canvas
+            pCtx.drawImage(srcCv, 0, 0, srcCv.width, srcCv.height, 0, 0, cw, ch);
+          }
+        } catch(e) {
+          // Fallback: copy original canvas
+          pCtx.drawImage(srcCv, 0, 0, srcCv.width, srcCv.height, 0, 0, cw, ch);
+        }
+      } else {
+        // No chart ref — copy original canvas
+        pCtx.drawImage(srcCv, 0, 0, srcCv.width, srcCv.height, 0, 0, cw, ch);
+      }
+
+      var imgData = pdfCv.toDataURL('image/png');
+
+      // Build data table for the chart
+      var tableHTML = '';
+      if (chart && chart.labels && chart.labels.length > 0) {
+        var tData = chart.series && chart.series.length > 0
+          ? chart.labels.map(function(_, i) { return chart.series.reduce(function(s, sr) { return s + (sr.data[i] || 0); }, 0); })
+          : (chart.data || []);
+        if (tData.length > 0) {
+          var xName = chart.xLabel || 'Category';
+          var yName = chart.yLabel || 'Value';
+          tableHTML = '<table class="data-table"><thead><tr><th>' + xName + '</th><th style="text-align:right">' + yName + '</th></tr></thead><tbody>';
+          chart.labels.slice(0, 12).forEach(function(lbl, li) {
+            var val = tData[li] || 0;
+            tableHTML += '<tr><td>' + lbl + '</td><td style="text-align:right">' + formatNumber(val, {abbreviate: val >= 1e5, decimals: 1}) + '</td></tr>';
+          });
+          if (chart.labels.length > 12) tableHTML += '<tr><td colspan="2" style="color:#94a3b8;font-style:italic">+ ' + (chart.labels.length - 12) + ' more rows</td></tr>';
+          tableHTML += '</tbody></table>';
+        }
+      }
+
       html += '<div class="chart-block">' +
         '<div class="chart-block-header">' +
         '<div class="chart-title">' + c.title + '</div>' +
         (c.desc ? '<div class="chart-desc">' + c.desc + '</div>' : '') +
         '</div>' +
         '<div class="chart-img-wrap"><img class="chart-img" src="' + imgData + '"></div>' +
+        (tableHTML ? '<div class="chart-table-wrap">' + tableHTML + '</div>' : '') +
         '</div>';
     });
+
+    // Restore original theme
+    document.body.className = _origTheme;
 
     html += '</div>' +
 
