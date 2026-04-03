@@ -2707,7 +2707,7 @@ function getColorHex(name) { if (name && name.startsWith('#')) return name; cons
 
 // ── Line chart palettes (Flourish-style) ──────────────────────────
 const linePalettes = {
-  'GenBI':     ['#06b6d4','#67e8f9','#0891b2','#2dd4bf','#a5f3fc','#f43f5e','#22d3ee','#14b8a6'],
+  'GenBI':     ['#06b6d4','#67e8f9','#0891b2','#2dd4bf','#a5f3fc','#0e7490','#22d3ee','#14b8a6'],
   'Vivid':     ['#4dc9f6','#f67019','#f53794','#537bc4','#acc236','#166a8f','#00a950','#58595b'],
   'Ocean':     ['#0ea5e9','#6366f1','#8b5cf6','#06b6d4','#3b82f6','#a78bfa','#22d3ee','#818cf8'],
   'Sunset':    ['#f97316','#ef4444','#f59e0b','#ec4899','#f43f5e','#d946ef','#fb923c','#fbbf24'],
@@ -8182,8 +8182,8 @@ function _drawExplainSunburst(breakdowns, fmtVal) {
   const cx = w / 2, cy = h / 2;
   const innerR = 40, midR = 85, outerR = 115;
   const colors = [
-    'rgba(0,229,255,0.75)','rgba(179,136,255,0.75)','rgba(105,240,174,0.7)','rgba(255,215,64,0.7)',
-    'rgba(255,107,157,0.7)','rgba(96,165,250,0.7)','rgba(45,212,191,0.7)','rgba(251,146,60,0.7)'
+    'rgba(6,182,212,0.8)','rgba(103,232,249,0.75)','rgba(8,145,178,0.75)','rgba(45,212,191,0.7)',
+    'rgba(165,243,252,0.7)','rgba(14,116,144,0.75)','rgba(34,211,238,0.7)','rgba(20,184,166,0.7)'
   ];
 
   // Inner ring: first breakdown dimension
@@ -9359,7 +9359,7 @@ function getThemeChartOpts() {
     // Candlestick: rounded bodies
     candleRadius: 3, candleGlow: 6,
     // GenBI palette for multi-color charts
-    palette: ['6,182,212','103,232,249','8,145,178','45,212,191','165,243,252','244,63,94','34,211,238','20,184,166'],
+    palette: ['6,182,212','103,232,249','8,145,178','45,212,191','165,243,252','14,116,144','34,211,238','20,184,166'],
   };
   if (isLiquidGlass()) return {
     style: 'liquid',
