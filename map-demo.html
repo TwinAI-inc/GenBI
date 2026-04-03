@@ -1,157 +1,150 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>GenBI Map Test</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenBI US State Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap" rel="stylesheet">
 <style>
-body { background: #000; margin: 0; padding: 20px; font-family: 'Outfit', sans-serif; color: #fff; }
-h2 { font-weight: 300; font-size: 18px; color: rgba(255,255,255,0.8); margin: 10px 0; }
-#status { color: rgba(255,255,255,0.4); font-size: 12px; margin: 10px 0; }
-svg { background: #0a0a0a; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Outfit',sans-serif;font-weight:300;background:#000;color:rgba(255,255,255,0.80);padding:2rem;}
+h1{font-size:1.5rem;font-weight:300;color:rgba(255,255,255,0.90);text-align:center;margin-bottom:0.3rem;}
+p{font-size:0.8rem;color:rgba(255,255,255,0.30);text-align:center;margin-bottom:1.5rem;}
+.map-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1.5rem;max-width:960px;margin:0 auto;}
+.map-title{font-size:0.85rem;font-weight:400;color:rgba(255,255,255,0.80);margin-bottom:0.5rem;}
+#mapContainer{position:relative;}
+#mapContainer svg{width:100%;height:auto;}
+/* Style all state paths */
+#mapContainer svg path{transition:opacity 0.15s,stroke 0.15s;cursor:pointer;stroke:#000;stroke-width:0.5;}
+#mapContainer svg path:hover{stroke:rgba(103,232,249,0.9)!important;stroke-width:1.5!important;filter:brightness(1.3);}
+.tooltip{position:fixed;z-index:100;pointer-events:none;background:rgba(0,0,0,0.88);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;font-size:12px;opacity:0;transition:opacity 0.12s;}
+.tooltip.visible{opacity:1;}
+.tooltip .name{font-weight:400;color:rgba(255,255,255,0.90);}
+.tooltip .val{font-size:11px;color:rgba(255,255,255,0.45);margin-top:2px;}
+.legend{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:12px;}
+.legend-bar{width:160px;height:8px;border-radius:4px;}
+.legend-label{font-size:9px;color:rgba(255,255,255,0.25);}
+#status{text-align:center;font-size:11px;color:rgba(255,255,255,0.30);margin-top:8px;}
 </style>
 </head>
 <body>
+<h1>US Revenue by State</h1>
+<p>Real SVG map — hover states to explore</p>
 
-<h2>US Map</h2>
-<div id="status">Loading...</div>
-<div id="usContainer"></div>
+<div class="map-card">
+  <div id="mapContainer">Loading map...</div>
+  <div class="legend">
+    <span class="legend-label">$100K</span>
+    <div class="legend-bar" id="legendBar"></div>
+    <span class="legend-label">$886K</span>
+  </div>
+  <div id="status"></div>
+</div>
 
-<h2>World Map</h2>
-<div id="worldContainer"></div>
+<div class="tooltip" id="tooltip">
+  <div class="name" id="ttName"></div>
+  <div class="val" id="ttVal"></div>
+</div>
 
 <script>
-const FIPS = {'01':'Alabama','02':'Alaska','04':'Arizona','05':'Arkansas','06':'California','08':'Colorado','09':'Connecticut','10':'Delaware','11':'DC','12':'Florida','13':'Georgia','15':'Hawaii','16':'Idaho','17':'Illinois','18':'Indiana','19':'Iowa','20':'Kansas','21':'Kentucky','22':'Louisiana','23':'Maine','24':'Maryland','25':'Massachusetts','26':'Michigan','27':'Minnesota','28':'Mississippi','29':'Missouri','30':'Montana','31':'Nebraska','32':'Nevada','33':'New Hampshire','34':'New Jersey','35':'New Mexico','36':'New York','37':'North Carolina','38':'North Dakota','39':'Ohio','40':'Oklahoma','41':'Oregon','42':'Pennsylvania','44':'Rhode Island','45':'South Carolina','46':'South Dakota','47':'Tennessee','48':'Texas','49':'Utah','50':'Vermont','51':'Virginia','53':'Washington','54':'West Virginia','55':'Wisconsin','56':'Wyoming'};
+const STATE_NAMES = {
+  al:'Alabama',ak:'Alaska',az:'Arizona',ar:'Arkansas',ca:'California',
+  co:'Colorado',ct:'Connecticut',de:'Delaware',fl:'Florida',ga:'Georgia',
+  hi:'Hawaii',id:'Idaho',il:'Illinois','in':'Indiana',ia:'Iowa',
+  ks:'Kansas',ky:'Kentucky',la:'Louisiana',me:'Maine',md:'Maryland',
+  ma:'Massachusetts',mi:'Michigan',mn:'Minnesota',ms:'Mississippi',
+  mo:'Missouri',mt:'Montana',ne:'Nebraska',nv:'Nevada',nh:'New Hampshire',
+  nj:'New Jersey',nm:'New Mexico',ny:'New York',nc:'North Carolina',
+  nd:'North Dakota',oh:'Ohio',ok:'Oklahoma',or:'Oregon',pa:'Pennsylvania',
+  ri:'Rhode Island',sc:'South Carolina',sd:'South Dakota',tn:'Tennessee',
+  tx:'Texas',ut:'Utah',vt:'Vermont',va:'Virginia',wa:'Washington',
+  wv:'West Virginia',wi:'Wisconsin',wy:'Wyoming',dc:'DC'
+};
 
-const usData = {'California':886,'Texas':720,'New York':650,'Florida':580,'Illinois':490,'Washington':520,'Massachusetts':480,'Colorado':440,'Louisiana':770,'Oregon':380,'Connecticut':360,'Minnesota':350,'New Jersey':340,'Virginia':330,'Nevada':320,'Maryland':310,'Arizona':310,'Tennessee':290,'Utah':280,'Indiana':275,'Missouri':260,'Wisconsin':250,'South Carolina':240,'Alabama':220,'Kentucky':210,'Oklahoma':200,'New Hampshire':200,'Iowa':190,'Kansas':185,'Arkansas':175,'New Mexico':170,'Nebraska':165,'Mississippi':160,'Idaho':155,'Alaska':150,'Hawaii':145,'Delaware':140,'Maine':135,'Rhode Island':130,'Montana':125,'North Dakota':120,'South Dakota':115,'West Virginia':110,'Vermont':105,'Wyoming':100,'Pennsylvania':445,'Ohio':410,'Georgia':395,'Michigan':370,'North Carolina':355};
+const DATA = {
+  'California':886,'Texas':720,'New York':650,'Florida':580,
+  'Illinois':490,'Pennsylvania':445,'Ohio':410,'Georgia':395,
+  'Michigan':370,'North Carolina':355,'New Jersey':340,
+  'Virginia':330,'Washington':520,'Arizona':310,'Massachusetts':480,
+  'Tennessee':290,'Indiana':275,'Missouri':260,'Maryland':310,
+  'Wisconsin':250,'Colorado':440,'Minnesota':350,'South Carolina':240,
+  'Alabama':220,'Louisiana':770,'Kentucky':210,'Oregon':380,
+  'Oklahoma':200,'Connecticut':360,'Utah':280,'Iowa':190,
+  'Nevada':320,'Arkansas':175,'Mississippi':160,'Kansas':185,
+  'New Mexico':170,'Nebraska':165,'Idaho':155,'Hawaii':145,
+  'Maine':135,'Montana':125,'Delaware':140,'South Dakota':115,
+  'Alaska':150,'North Dakota':120,'Vermont':105,'Wyoming':100,
+  'Rhode Island':130,'New Hampshire':200,'West Virginia':110
+};
 
-const status = document.getElementById('status');
+const vals = Object.values(DATA);
+const mn = Math.min(...vals), mx = Math.max(...vals);
 
-// ── US MAP ──
-async function loadUS() {
+const tt = document.getElementById('tooltip');
+
+function colorForValue(v) {
+  if (v == null) return 'rgba(255,255,255,0.05)';
+  const t = (v - mn) / (mx - mn);
+  // Cyan gradient: dark teal → bright cyan
+  const r = Math.round(6 + (1 - t) * 2);
+  const g = Math.round(100 + t * 132);
+  const b = Math.round(150 + t * 62);
+  return `rgb(${r},${g},${b})`;
+}
+
+// Build legend gradient
+const legendBar = document.getElementById('legendBar');
+legendBar.style.background = `linear-gradient(to right, ${colorForValue(mn)}, ${colorForValue((mn+mx)/2)}, ${colorForValue(mx)})`;
+
+// Load the SVG
+async function loadMap() {
   try {
-    status.textContent = 'Fetching US data...';
-    const resp = await fetch('/public/data/us-states.json');
+    const resp = await fetch('public/data/us-map.svg');
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const us = await resp.json();
-    status.textContent = 'Parsing TopoJSON...';
+    const svgText = await resp.text();
 
-    const states = topojson.feature(us, us.objects.states);
-    const borders = topojson.mesh(us, us.objects.states, (a, b) => a !== b);
+    const container = document.getElementById('mapContainer');
+    container.innerHTML = svgText;
 
-    status.textContent = 'Drawing ' + states.features.length + ' states...';
+    const svg = container.querySelector('svg');
+    // Set dark background
+    svg.style.background = 'transparent';
 
-    const vals = Object.values(usData);
-    const mn = Math.min(...vals), mx = Math.max(...vals);
+    // Remove any existing fills, set background rect to transparent
+    svg.querySelectorAll('rect').forEach(r => r.setAttribute('fill', 'transparent'));
 
-    // us-atlas@3 is PRE-PROJECTED (Albers USA, 960x600) — use null projection
-    const path = d3.geoPath();
+    // Color each state
+    let colored = 0;
+    svg.querySelectorAll('path').forEach(path => {
+      const classes = path.getAttribute('class') || '';
+      const stateCode = classes.split(' ').find(c => c.length === 2 && STATE_NAMES[c]);
+      if (stateCode) {
+        const name = STATE_NAMES[stateCode];
+        const val = DATA[name];
+        path.setAttribute('fill', colorForValue(val));
+        path.setAttribute('stroke', 'rgba(0,0,0,0.6)');
+        path.setAttribute('stroke-width', '0.5');
 
-    const svg = d3.select('#usContainer').append('svg')
-      .attr('width', 960).attr('height', 600)
-      .attr('viewBox', '0 0 960 600')
-      .style('max-width', '100%').style('height', 'auto');
+        path.addEventListener('mousemove', (e) => {
+          document.getElementById('ttName').textContent = name;
+          document.getElementById('ttVal').textContent = val ? '$' + val + 'K' : 'No data';
+          tt.style.left = (e.clientX + 14) + 'px';
+          tt.style.top = (e.clientY - 40) + 'px';
+          tt.classList.add('visible');
+        });
+        path.addEventListener('mouseleave', () => tt.classList.remove('visible'));
+        colored++;
+      }
+    });
 
-    svg.selectAll('path')
-      .data(states.features)
-      .join('path')
-      .attr('d', path)
-      .attr('fill', d => {
-        const name = FIPS[String(d.id).padStart(2, '0')];
-        const v = usData[name];
-        if (v == null) return 'rgba(255,255,255,0.03)';
-        const t = (v - mn) / (mx - mn);
-        return 'rgba(6,182,212,' + (0.15 + t * 0.75).toFixed(2) + ')';
-      })
-      .attr('stroke', 'rgba(0,0,0,0.5)')
-      .attr('stroke-width', 0.5)
-      .style('cursor', 'pointer')
-      .on('mouseenter', function(e, d) {
-        d3.select(this).attr('stroke', '#67e8f9').attr('stroke-width', 1.5);
-        const name = FIPS[String(d.id).padStart(2, '0')] || '?';
-        status.textContent = name + ': $' + (usData[name] || 0) + 'K';
-      })
-      .on('mouseleave', function() {
-        d3.select(this).attr('stroke', 'rgba(0,0,0,0.5)').attr('stroke-width', 0.5);
-        status.textContent = 'Hover a state';
-      });
+    document.getElementById('status').textContent = colored + ' states colored. Hover to explore.';
 
-    // Border mesh
-    svg.append('path')
-      .datum(borders)
-      .attr('d', path)
-      .attr('fill', 'none')
-      .attr('stroke', 'rgba(255,255,255,0.1)')
-      .attr('stroke-width', 0.5)
-      .style('pointer-events', 'none');
-
-    status.textContent = 'US map rendered (' + states.features.length + ' states). Hover a state.';
   } catch (err) {
-    status.textContent = 'US ERROR: ' + err.message;
-    console.error('US map error:', err);
+    document.getElementById('mapContainer').innerHTML = '<div style="padding:3rem;text-align:center;color:rgba(255,255,255,0.3)">Error: ' + err.message + '</div>';
   }
 }
 
-// ── WORLD MAP ──
-async function loadWorld() {
-  try {
-    const resp = await fetch('/public/data/world-countries.json');
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const world = await resp.json();
-
-    const countries = topojson.feature(world, world.objects.countries);
-    const borders = topojson.mesh(world, world.objects.countries, (a, b) => a !== b);
-
-    // World atlas is NOT pre-projected — need a projection
-    const projection = d3.geoNaturalEarth1().scale(155).translate([480, 260]);
-    const path = d3.geoPath(projection);
-
-    const svg = d3.select('#worldContainer').append('svg')
-      .attr('width', 960).attr('height', 500)
-      .attr('viewBox', '0 0 960 500')
-      .style('max-width', '100%').style('height', 'auto');
-
-    // Graticule
-    svg.append('path')
-      .datum(d3.geoGraticule10())
-      .attr('d', path)
-      .attr('fill', 'none')
-      .attr('stroke', 'rgba(255,255,255,0.03)')
-      .attr('stroke-width', 0.3);
-
-    svg.selectAll('path.country')
-      .data(countries.features)
-      .join('path')
-      .attr('class', 'country')
-      .attr('d', path)
-      .attr('fill', 'rgba(6,182,212,0.15)')
-      .attr('stroke', 'rgba(0,0,0,0.3)')
-      .attr('stroke-width', 0.3)
-      .style('cursor', 'pointer')
-      .on('mouseenter', function() {
-        d3.select(this).attr('stroke', '#67e8f9').attr('stroke-width', 1);
-      })
-      .on('mouseleave', function() {
-        d3.select(this).attr('stroke', 'rgba(0,0,0,0.3)').attr('stroke-width', 0.3);
-      });
-
-    // Border mesh
-    svg.append('path')
-      .datum(borders)
-      .attr('d', path)
-      .attr('fill', 'none')
-      .attr('stroke', 'rgba(255,255,255,0.06)')
-      .attr('stroke-width', 0.3)
-      .style('pointer-events', 'none');
-
-  } catch (err) {
-    console.error('World map error:', err);
-  }
-}
-
-loadUS();
-loadWorld();
+loadMap();
 </script>
 </body>
 </html>
