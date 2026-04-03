@@ -7927,8 +7927,19 @@ function toggleDrill(chartIdx) {
 // Click handler for chart cross-filtering and drill-down
 function handleChartClick(e) {
   const canvas = e.currentTarget;
-  const hit = canvas._chartHit;
-  if (!hit || !App.hasExcelData) return;
+  let hit = canvas._chartHit;
+  if (!App.hasExcelData) return;
+  // For charts without _chartHit (gauge, boxplot, treemap), create a minimal hit
+  if (!hit) {
+    const cId = canvas.id;
+    let cIdx = -1;
+    if (cId.startsWith('analyticsChart')) cIdx = parseInt(cId.replace('analyticsChart',''));
+    if (cIdx >= 0 && App.excelChartConfig && App.excelChartConfig.chartPlan[cIdx]) {
+      const c = App.excelChartConfig.chartPlan[cIdx];
+      hit = { type: c._userType || c.type || 'unknown', labels: c.labels || [] };
+    }
+    if (!hit) return;
+  }
 
   // Determine which chart index this is
   const id = canvas.id;
@@ -7983,6 +7994,48 @@ function handleChartClick(e) {
       const vals = [...new Set(App.excelData.rows.map(r2 => String(r2[c]||'').trim()))];
       return hit.labels.some(l => vals.includes(l));
     });
+  } else if (hit.type === 'scatter' && hit.points) {
+    // Find closest point to click
+    let minDist = Infinity;
+    for (let i = 0; i < hit.points.length; i++) {
+      const p = hit.points[i];
+      const d = Math.sqrt((mx - p.x) * (mx - p.x) + (my - p.y) * (my - p.y));
+      if (d < minDist && d < 20) { minDist = d; clickedLabel = hit.labels[i] || String(i); }
+    }
+    const ecS = App.excelChartConfig;
+    const chartS = chartIdx >= 0 ? ecS.chartPlan[chartIdx] : null;
+    clickedColumn = (chartS && chartS._origXCol) || hit.opts?.xLabel?.replace(/ /g,'_') || null;
+  } else if (hit.type === 'multiline') {
+    // For line/area charts, find the nearest x-axis label
+    const chartML = hit.chart;
+    if (chartML && chartML.labels && chartML.labels.length > 0) {
+      const cw = canvas.width / (window.devicePixelRatio || 1);
+      const padL = 50, padR = 20;
+      const plotW = cw - padL - padR;
+      const step = plotW / Math.max(1, chartML.labels.length - 1);
+      let closestIdx = Math.round((mx - padL) / step);
+      closestIdx = Math.max(0, Math.min(closestIdx, chartML.labels.length - 1));
+      clickedLabel = chartML.labels[closestIdx];
+    }
+    const ecML = App.excelChartConfig;
+    const chartRef = chartIdx >= 0 ? ecML.chartPlan[chartIdx] : null;
+    clickedColumn = (chartRef && chartRef._origXCol) || null;
+  }
+
+  // Generic fallback: for any chart type without specific hit detection (gauge, boxplot, treemap, etc.)
+  if (!clickedLabel && chartIdx >= 0) {
+    const ecG = App.excelChartConfig;
+    const chartG = ecG.chartPlan[chartIdx];
+    if (chartG && chartG.labels && chartG.labels.length > 0) {
+      // Open drawer with the first/primary label
+      clickedLabel = chartG.labels[0];
+      clickedColumn = (chartG && chartG._origXCol) || chartG.xLabel?.replace(/ /g,'_') || null;
+      // For single-value charts (gauge), use the chart title context instead
+      if (!clickedColumn) {
+        const cats = ecG.categoricals || [];
+        if (cats.length > 0) clickedColumn = cats[0];
+      }
+    }
   }
 
   if (!clickedLabel || !clickedColumn) return;
@@ -8791,6 +8844,17 @@ function initAnalyticsCharts() {
       animateChartFromPlan(canvas, chartData, i * 150);
     });
   }
+  // Ensure all chart canvases have a click handler for the explain drawer
+  setTimeout(function() {
+    ec.chartPlan.forEach(function(chart, i) {
+      var cv = document.getElementById('analyticsChart' + i);
+      if (!cv) return;
+      if (!cv._hasChartClick) {
+        cv._hasChartClick = true;
+        cv.addEventListener('click', handleChartClick);
+      }
+    });
+  }, 1000);
   // Hide chart cards that failed to render (no _chartHit means draw didn't complete)
   setTimeout(function() {
     ec.chartPlan.forEach(function(chart, i) {
