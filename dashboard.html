@@ -3242,13 +3242,20 @@ function renderKPICards(kpis) {
     const trendUp = k.trend >= 0;
     const trendStr = k.trend != null ? ((trendUp ? '+' : '') + k.trend.toFixed(1) + '%') : '';
     const trendColor = trendUp ? 'var(--accent-emerald)' : 'var(--accent-rose)';
-    // Build insight tooltip text
+    // Build insightful tooltip — cool facts not boring labels
     const fmtVal = formatNumber(k.value, {...k.format, abbreviate: false});
     const metricName = k.label.replace(/_/g, ' ');
-    const aggLabel = k.aggType ? k.aggType + ' ' : '';
-    let insightTip = aggLabel + metricName + ': ' + fmtVal;
-    if (k.trend != null) insightTip += ' (' + (k.trend >= 0 ? '+' : '') + k.trend.toFixed(1) + '% trend)';
-    if (k.min != null && k.max != null) insightTip += ' | Range: ' + formatNumber(k.min, {abbreviate:true}) + ' – ' + formatNumber(k.max, {abbreviate:true});
+    const insights = [];
+    if (k.trend != null) {
+      const t = k.trend;
+      const phrase = t >= 10 ? 'Strong growth' : t >= 3 ? 'Steady climb' : t >= 0 ? 'Holding steady' : t >= -5 ? 'Slight dip' : 'Notable decline';
+      insights.push(phrase + ': ' + (t >= 0 ? '+' : '') + t.toFixed(1) + '%');
+    }
+    if (k.max != null && k.min != null && k.min > 0) insights.push('Top is ' + (k.max / k.min).toFixed(1) + 'x the lowest');
+    if (k.value >= 1000000) insights.push((k.value / 1000000).toFixed(1) + 'M total');
+    else if (k.value >= 1000) { const nR = App.excelData ? App.excelData.rows.length : 1; insights.push('~' + formatNumber(Math.round(k.value / Math.max(1, nR)), {abbreviate:true}) + ' per record'); }
+    if (!insights.length) insights.push(metricName + ': ' + fmtVal);
+    let insightTip = insights.join(' | ');
 
     return `<div class="kpi-card-v2" onmouseenter="showKpiTip(event,'${insightTip.replace(/'/g,'&#39;')}')" onmouseleave="hideKpiTip()">
       <div class="kpi-top-row">
