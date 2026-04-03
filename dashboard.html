@@ -8141,12 +8141,14 @@ function openExplainDrawer(column, value, chartIdx) {
     html += '<div style="margin-bottom:20px">';
     html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px">Breakdown by ' + bd.dim.replace(/_/g, ' ') + '</div>';
     const maxEntry = bd.entries[0][1];
-    bd.entries.forEach(([name, val]) => {
+    bd.entries.forEach(([name, val], ei) => {
       const pct = maxEntry > 0 ? Math.round(val / maxEntry * 100) : 0;
+      const barHex = chartColors[ei % chartColors.length];
+      const br = parseInt(barHex.slice(1,3),16), bg = parseInt(barHex.slice(3,5),16), bb = parseInt(barHex.slice(5,7),16);
       html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
       html += '<div style="width:80px;font-size:11px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + name + '">' + name + '</div>';
       html += '<div style="flex:1;height:16px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden">';
-      html += '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,rgba(0,229,255,0.7),rgba(0,229,255,0.3));border-radius:4px;transition:width .3s"></div>';
+      html += '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,rgba(' + br + ',' + bg + ',' + bb + ',0.7),rgba(' + br + ',' + bg + ',' + bb + ',0.3));border-radius:4px;transition:width .3s"></div>';
       html += '</div>';
       html += '<div style="width:60px;font-size:11px;font-weight:600;color:var(--text-primary);text-align:right">' + fmtVal(val) + '</div>';
       html += '</div>';
@@ -8165,13 +8167,22 @@ function openExplainDrawer(column, value, chartIdx) {
   body.innerHTML = html;
   panel.classList.add('open');
 
+  // Collect chart series colors for the sunburst
+  var chartColors = [];
+  if (chart && chart.series) {
+    chartColors = chart.series.map(function(s) { return getColorHex(s.color); });
+  }
+  if (!chartColors.length) {
+    chartColors = ['#00e5ff','#b388ff','#69f0ae','#ffd740','#ff6b9d','#38bdf8','#818cf8','#14b8a6'];
+  }
+
   // Draw sunburst after DOM is ready
   if (breakdowns.length >= 1) {
-    setTimeout(function() { _drawExplainSunburst(breakdowns, fmtVal); }, 100);
+    setTimeout(function() { _drawExplainSunburst(breakdowns, fmtVal, chartColors); }, 100);
   }
 }
 
-function _drawExplainSunburst(breakdowns, fmtVal) {
+function _drawExplainSunburst(breakdowns, fmtVal, chartColors) {
   const canvas = document.getElementById('explainSunburst');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -8184,10 +8195,10 @@ function _drawExplainSunburst(breakdowns, fmtVal) {
 
   const cx = w / 2, cy = h / 2;
   const innerR = 40, midR = 85, outerR = 115;
-  const colors = [
-    'rgba(6,182,212,0.8)','rgba(103,232,249,0.75)','rgba(8,145,178,0.75)','rgba(45,212,191,0.7)',
-    'rgba(165,243,252,0.7)','rgba(14,116,144,0.75)','rgba(34,211,238,0.7)','rgba(20,184,166,0.7)'
-  ];
+  const colors = chartColors.map(function(hex) {
+    var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',0.8)';
+  });
 
   // Inner ring: first breakdown dimension
   const bd1 = breakdowns[0];
@@ -8236,7 +8247,7 @@ function _drawExplainSunburst(breakdowns, fmtVal) {
       ctx.arc(cx, cy, outerR, angle, endAngle);
       ctx.arc(cx, cy, midR + 2, endAngle, angle, true);
       ctx.closePath();
-      ctx.fillStyle = colors[(i + 3) % colors.length].replace('0.7', '0.5').replace('0.75', '0.5');
+      ctx.fillStyle = colors[(i + 3) % colors.length].replace('0.8)', '0.5)');
       ctx.fill();
       ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1; ctx.stroke();
 
