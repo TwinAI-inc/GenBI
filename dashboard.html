@@ -2428,7 +2428,7 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
     <div class="brand-icon"><svg width="18" height="18" viewBox="0 0 40 40" fill="none"><rect x="6" y="26" width="6" height="10" rx="1.5" fill="#06b6d4" opacity="0.3"/><rect x="14" y="20" width="6" height="16" rx="1.5" fill="#06b6d4" opacity="0.5"/><rect x="22" y="14" width="6" height="22" rx="1.5" fill="#06b6d4" opacity="0.7"/><rect x="30" y="6" width="6" height="30" rx="1.5" fill="#06b6d4"/></svg></div>
     <span class="brand-name">GenBI</span>
   </div>
-  <div class="nav-section">
+  <div class="nav-section" id="navSectionMain">
     <div class="nav-label">Main</div>
     <div class="nav-item active" data-page="dashboard" data-tooltip="Dashboard" onclick="navigate('dashboard')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span class="nav-text">Dashboard</span>
@@ -2437,7 +2437,7 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="nav-text">Analytics</span>
     </div>
   </div>
-  <div class="nav-section">
+  <div class="nav-section" id="navSectionWorkspace">
     <div class="nav-label">Workspace</div>
     <div class="nav-item" data-page="influencers" data-tooltip="Key Influencers" onclick="navigate('influencers')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg></span><span class="nav-text">Key Influencers</span>
@@ -2452,7 +2452,7 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span class="nav-text">Settings</span>
     </div>
   </div>
-  <div class="nav-section">
+  <div class="nav-section" id="navSectionProjects">
     <div class="nav-label">Projects</div>
     <div class="nav-item" data-tooltip="My Projects" onclick="openProjectManager()">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><span class="nav-text">My Projects</span>
@@ -2461,12 +2461,12 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
   </div>
   <div class="sidebar-spacer"></div>
   <div class="sidebar-auth-buttons" id="sidebarAuthButtons" style="padding:12px 16px;display:flex;flex-direction:column;gap:8px;">
-    <button onclick="window.location.href='/login'" style="width:100%;padding:10px;border-radius:8px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.2);color:#06b6d4;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    <button onclick="window.location.href='/login'" style="width:100%;padding:11px;border-radius:8px;background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.15);color:rgba(6,182,212,0.9);font-family:'Outfit',sans-serif;font-size:13px;font-weight:400;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s cubic-bezier(0.22,1,0.36,1);letter-spacing:0.01em;" onmouseover="this.style.background='rgba(6,182,212,0.15)';this.style.borderColor='rgba(6,182,212,0.3)'" onmouseout="this.style.background='rgba(6,182,212,0.08)';this.style.borderColor='rgba(6,182,212,0.15)'">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
       Sign in
     </button>
-    <button onclick="window.location.href='/signup'" style="width:100%;padding:10px;border-radius:8px;background:#06b6d4;border:none;color:#000;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .2s;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+    <button onclick="window.location.href='/signup'" style="width:100%;padding:11px;border-radius:8px;background:rgba(6,182,212,0.9);border:none;color:#000;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .3s cubic-bezier(0.22,1,0.36,1);letter-spacing:0.01em;" onmouseover="this.style.background='rgba(6,182,212,1)'" onmouseout="this.style.background='rgba(6,182,212,0.9)'">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
       Sign up
     </button>
   </div>
@@ -12454,13 +12454,15 @@ document.addEventListener('click', function(e) {
     document.body.classList.remove('landing-mode');
     document.body.classList.add('app-mode');
     if (token && user) {
-      App.user = user;
-      const profileName = document.querySelector('.profile-name');
-      const profileRole = document.querySelector('.profile-role');
-      const profileAvatar = document.querySelector('.profile-avatar');
-      if (profileName) profileName.textContent = user.name || 'User';
-      if (profileRole) profileRole.textContent = user.email || '';
-      if (profileAvatar) profileAvatar.textContent = (user.name || 'U').charAt(0).toUpperCase();
+      enterAppMode();
+    } else {
+      // Not logged in: hide nav sections, show only sign in/up
+      var navMain = document.getElementById('navSectionMain');
+      var navWork = document.getElementById('navSectionWorkspace');
+      var navProj = document.getElementById('navSectionProjects');
+      if (navMain) navMain.style.display = 'none';
+      if (navWork) navWork.style.display = 'none';
+      if (navProj) navProj.style.display = 'none';
     }
     if (authBar) authBar.innerHTML = '';
     navigate('pricing');
