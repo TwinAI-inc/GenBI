@@ -1136,6 +1136,10 @@ body.theme-genbi .empty-state p { color: rgba(255,255,255,0.45); }
 body.theme-genbi .billing-card { font-family: 'Outfit', sans-serif; }
 body.theme-genbi .billing-spinner { border-color: rgba(255,255,255,0.06); border-top-color: #06b6d4; }
 body.theme-genbi .anomaly-badge { background: rgba(255,107,157,0.06); border-color: rgba(255,107,157,0.12); }
+
+/* ── GenBI: Insight score badge ── */
+.insight-score { display: inline-flex; align-items: center; justify-content: center; margin-left: 8px; padding: 2px 7px; border-radius: 5rem; font-size: 0.6rem; font-weight: 500; font-family: 'Outfit', sans-serif; background: rgba(6,182,212,0.10); color: rgba(6,182,212,0.8); border: 1px solid rgba(6,182,212,0.15); vertical-align: middle; }
+.chart-cat-badge { display: inline-flex; align-items: center; margin-left: 6px; padding: 2px 7px; border-radius: 5rem; font-size: 0.55rem; font-weight: 400; font-family: 'Outfit', sans-serif; background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.06); vertical-align: middle; }
 body.theme-genbi .forecast-btn { font-family: 'Outfit', sans-serif; }
 body.theme-genbi .sample-data-btn { font-family: 'Outfit', sans-serif; background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); color: rgba(255,255,255,0.40); border-radius: 5rem; }
 body.theme-genbi .sample-data-btn:hover { background: rgba(6,182,212,0.05); border-color: rgba(6,182,212,0.2); color: rgba(255,255,255,0.80); }
@@ -3287,7 +3291,9 @@ function renderAnalytics() {
         const desc = (chart.desc || '').replace(/'/g, '&#39;');
         const isLine = (curType === 'line');
         const widthCls = chartWidthClass(chart, i, ec.chartPlan.length);
-        return '<div class="' + widthCls + '"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + '</h2>' +
+        const scoreHtml = chart.insight_score ? '<span class="insight-score" title="Insight Score: ' + chart.insight_score.toFixed(1) + '/10">' + chart.insight_score.toFixed(1) + '</span>' : '';
+        const catBadge = chart.category ? '<span class="chart-cat-badge">' + ({A_single:'Single',B_combined:'Combined',C_derived:'Derived'}[chart.category] || '') + '</span>' : '';
+        return '<div class="' + widthCls + '"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + scoreHtml + catBadge + '</h2>' +
           '<div style="display:flex;align-items:center;gap:6px">' +
           '<button class="chart-clear-btn" onclick="event.stopPropagation();removeChart(' + i + ')" title="Remove chart"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>' +
           '<span id="anomalyBadge' + i + '"></span>' +
@@ -11904,6 +11910,8 @@ async function smartAutoMap(rows) {
 
       return {
         type, title: chart.title, desc: chart.desc || '',
+        insight_score: chart.insight_score || null, category: chart.category || null,
+        scores: chart.scores || null,
         labels, data: chartData, series,
         color: chart.color || 'cyan', suffix: '',
         xCol: xCol, yCol: yCol, groupCol: groupCol, aggFn: aggFn,

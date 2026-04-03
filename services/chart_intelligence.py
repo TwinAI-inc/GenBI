@@ -134,7 +134,7 @@ def generate_chart_plan(profile, max_charts=8):
             entry['granularity'] = info['date_granularity']
         col_summary[name] = entry
 
-    prompt = f"""You are a BI chart selection expert. Analyze this dataset and create an optimal chart plan.
+    prompt = f"""You are an expert BI analyst. Analyze this dataset and generate chart candidates ranked by insight value.
 
 DATASET PROFILE:
 - Rows: {profile['row_count']}
@@ -142,56 +142,75 @@ DATASET PROFILE:
 - Column details: {json.dumps(col_summary, default=str)}
 - Correlations: {json.dumps(profile.get('correlations', []), default=str)}
 
-CHART SELECTION RULES:
-1. ONE chart per family maximum:
-   - comparison (bar/hbar)
-   - trend (line/multiline/area/stacked)
-   - composition (donut/treemap/funnel)
-   - relationship (scatter) — ONLY if correlation >0.3 exists
-   - distribution (gauge/boxplot/radar)
-   - geographic (usmap/worldmap) — ALWAYS if geographic column detected
-2. Donut: max 6 categories. If 7-15, use treemap. If 16+, use hbar.
-3. Bar: max 8 bars, aggregate rest as "Other"
-4. Equal distribution (all values within 5% of each other): use bar with note, NOT donut
-5. Multi-line: max 4 series. If more, pick top 4 by total.
-6. Scatter: ONLY if 2 numeric columns have correlation >0.3
-7. Maps: ALWAYS include if State/Country column detected
-8. Rank metrics by business importance (revenue > profit > count > rate)
-9. Auto-derive features: extract month/year from dates if useful
-10. Generate INSIGHT titles, not template titles. E.g., "Revenue Peaks in Q4, Led by Enterprise" not "Revenue by Quarter"
+══ PIPELINE: Generate 3 categories of chart candidates ══
 
-AGGREGATION RULES:
-- Revenue/Sales/Cost/Profit/Price → SUM
-- Rate/Score/Percent/Satisfaction → AVERAGE
-- Count/Number → SUM
-- Let column name semantics guide the choice
+CATEGORY A — SINGLE FACTOR CHARTS (generate 4-5):
+Charts based on ONE metric vs ONE category/dimension.
+Examples: Revenue by Channel, Risk Score by Phase, Deals by Month.
 
-DOMAIN DETECTION:
-- Pharma: look for Phase, Molecule, Trial, Efficacy, Risk → use funnel for phases, gauge for rates
-- Sales: look for Revenue, Channel, Region, Rep → use map for geography, trend for time
-- Supply Chain: look for Facility, Defect, Lead Time → use gauge for rates, hbar for comparison
+CATEGORY B — COMBINED FACTOR CHARTS (generate 2-3):
+Charts combining 2+ dimensions for deeper analysis.
+Examples: Revenue Trend by Region (time + category), Correlation between Revenue and Deals (2 metrics), Stacked composition over time.
 
-Respond with ONLY valid JSON array of chart objects:
-[
-  {{
-    "type": "multiline|bar|hbar|donut|treemap|scatter|gauge|boxplot|radar|usmap|worldmap|funnel|stacked|area",
-    "title": "Insight-driven title (not template)",
-    "xCol": "column_name or null",
-    "yCol": "column_name or null",
-    "groupCol": "column_name for series/groups or null",
-    "aggFn": "sum|avg|count",
-    "maxItems": 8,
-    "color": "cyan|teal|emerald|rose",
-    "desc": "One sentence insight about what this chart reveals",
-    "guardrail_notes": "Any data preprocessing needed (binning, top-N, etc.)",
-    "derived_column": "If a new column should be extracted (e.g., 'Month from Quarter'), describe it here, else null",
-    "family": "comparison|trend|composition|relationship|distribution|geographic"
-  }}
-]
+CATEGORY C — DECOMPOSED/DERIVED FACTOR CHARTS (generate 1-3):
+Charts using derived features, new categories, or innovative decomposition.
+Examples: Bin Revenue into High/Medium/Low → donut, Extract Quarter from Date → seasonal pattern, Create Boolean "Above Average" flag → comparison, Group long-tail into Top 5 + Other.
 
-Return between 4 and {max_charts} charts. Only include charts that provide genuine insight.
+══ INSIGHT SCORING (rate each chart 1-10 on each criterion) ══
 
-IMPORTANT: Wrap your response as {{"charts": [...]}} since JSON mode requires an object."""
+Score every chart on these 6 criteria:
+1. **Information Density**: How much useful info does this chart pack? (1=trivial, 10=rich)
+2. **Actionability**: Can a decision-maker act on this insight? (1=decorative, 10=directly actionable)
+3. **Surprise Factor**: Does it reveal something non-obvious? (1=expected, 10=surprising pattern)
+4. **Visual Clarity**: Is this the RIGHT chart type for this data? (1=wrong type, 10=perfect fit)
+5. **Data Coverage**: How much of the dataset does it use? (1=tiny slice, 10=comprehensive)
+6. **Business Relevance**: How important is this metric/dimension? (1=trivial, 10=critical KPI)
+
+Total insight_score = average of 6 criteria (1.0 to 10.0).
+
+══ CHART RULES ══
+- Donut: max 6 categories. If 7-15 use treemap. If 16+ use hbar.
+- Bar: max 8 bars, rest as "Other"
+- Multi-line: max 4 series
+- Scatter: ONLY if correlation >0.3
+- Maps: ALWAYS if State/Country column detected (high priority)
+- Equal distribution: use bar with note, NOT donut
+- Titles must be INSIGHT-DRIVEN: "Revenue Peaks in Q4, Led by Enterprise" NOT "Revenue by Quarter"
+- Aggregation: SUM for amounts, AVG for rates/scores, COUNT for records
+
+══ DOMAIN DETECTION ══
+Auto-detect domain and apply domain-specific intelligence:
+- Pharma: phases→funnel, risk→gauge, efficacy→scatter
+- Sales: geography→map, time→trend, channels→comparison
+- Supply Chain: defects→gauge, facilities→hbar, time→trend
+
+══ OUTPUT FORMAT ══
+Return JSON: {{"charts": [...]}} with each chart object:
+{{
+  "type": "bar|hbar|multiline|stacked|donut|treemap|scatter|gauge|boxplot|radar|usmap|worldmap|funnel|area",
+  "category": "A_single|B_combined|C_derived",
+  "title": "Insight-driven title",
+  "xCol": "column or null",
+  "yCol": "column or null",
+  "groupCol": "column for grouping or null",
+  "aggFn": "sum|avg|count",
+  "maxItems": 8,
+  "color": "cyan|teal|emerald|rose",
+  "desc": "One sentence insight",
+  "derived_column": "description of derived feature or null",
+  "family": "comparison|trend|composition|relationship|distribution|geographic",
+  "scores": {{
+    "information_density": 7,
+    "actionability": 8,
+    "surprise_factor": 5,
+    "visual_clarity": 9,
+    "data_coverage": 6,
+    "business_relevance": 8
+  }},
+  "insight_score": 7.2
+}}
+
+Generate 8-12 total candidates. The top {max_charts} by insight_score will be displayed."""
 
     try:
         result = chat_completion_json(
@@ -220,6 +239,11 @@ IMPORTANT: Wrap your response as {{"charts": [...]}} since JSON mode requires an
         # Validate and enforce guardrails
         chart_plan = _validate_guardrails(chart_plan, profile)
 
+        # Sort by insight score descending, pick top N
+        chart_plan.sort(key=lambda c: c.get('insight_score', 0), reverse=True)
+        chart_plan = chart_plan[:max_charts]
+
+        logger.info(f'Final chart plan: {len(chart_plan)} charts, scores: {[c.get("insight_score", 0) for c in chart_plan]}')
         return chart_plan
 
     except json.JSONDecodeError as e:
