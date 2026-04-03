@@ -11429,8 +11429,8 @@ function loadSampleDataset(which) {
   App.excelData = { headers: Object.keys(rows[0]), rows: rows };
   App.hasExcelData = true;
   App.uploadedFiles.push({ name: fileName, size: rows.length * 150, type: 'text/csv' });
-  autoMapExcelData(rows);
-  navigate('analytics');
+  // Use LLM-driven chart intelligence (falls back to rule engine)
+  smartAutoMap(rows).then(() => navigate('analytics'));
   toast('Loaded ' + fileName + ' — ' + rows.length + ' rows, ' + Object.keys(rows[0]).length + ' columns', 'success');
 }
 
@@ -11501,9 +11501,11 @@ function handleFiles(files) {
             App._cachedInsights = null; App._cachedAnomalies = null; App._cachedQuality = null;
             App._cachedDescriptions = null; App._cachedSuggestions = null;
             App._forecastCache = {}; App._narrativeCache = {};
-            autoMapExcelData(json);
-            renderUploadPreview();
-            showUploadSuccess(json.length, file.name);
+            // Use LLM-driven chart intelligence (falls back to rule engine)
+            smartAutoMap(json).then(() => {
+              renderUploadPreview();
+              showUploadSuccess(json.length, file.name);
+            });
           }
         } catch(err) {
           toast('Error reading file: ' + err.message, 'error');
@@ -11517,6 +11519,172 @@ function handleFiles(files) {
     }
   });
   renderUploadFileList();
+}
+
+// ── LLM-Driven Chart Intelligence ──
+async function smartAutoMap(rows) {
+  if (!rows.length) return autoMapExcelData(rows); // fallback
+  const token = localStorage.getItem('genbi-auth-token');
+  if (!token) return autoMapExcelData(rows); // no auth, use rule engine
+
+  try {
+    const resp = await fetch('/api/ai/chart-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ headers: Object.keys(rows[0]), rows: rows.slice(0, 200) })
+    });
+    if (!resp.ok) throw new Error('API error ' + resp.status);
+    const data = await resp.json();
+    if (!data.chart_plan || !data.chart_plan.length) throw new Error('Empty plan');
+
+    // Build chart config from LLM plan
+    const allHeaders = Object.keys(rows[0]);
+    const chartPlan = data.chart_plan.map(chart => {
+      const xCol = chart.xCol || chart.groupCol;
+      const yCol = chart.yCol;
+      const groupCol = chart.groupCol;
+      const aggFn = chart.aggFn || 'sum';
+      const maxItems = chart.maxItems || 8;
+      const type = chart.type || 'bar';
+
+      // Build chart data based on type
+      let labels = [], chartData = [], series = null;
+
+      if (type === 'usmap' || type === 'worldmap') {
+        // Map: aggregate by geographic column
+        const geoCol = xCol;
+        if (geoCol) {
+          const agg = {};
+          rows.forEach(r => {
+            const k = String(r[geoCol] || '').trim();
+            if (!k) return;
+            const v = yCol ? (parseFloat(r[yCol]) || 0) : 1;
+            agg[k] = (agg[k] || 0) + (aggFn === 'count' ? 1 : v);
+          });
+          if (aggFn === 'avg') {
+            const counts = {};
+            rows.forEach(r => { const k = String(r[geoCol] || '').trim(); if (k) counts[k] = (counts[k] || 0) + 1; });
+            Object.keys(agg).forEach(k => { agg[k] = agg[k] / (counts[k] || 1); });
+          }
+          const sorted = Object.entries(agg).sort((a, b) => b[1] - a[1]);
+          labels = sorted.map(e => e[0]);
+          chartData = sorted.map(e => Math.round(e[1] * 100) / 100);
+        }
+      } else if (type === 'multiline' || type === 'stacked') {
+        // Multi-series: group by groupCol, x-axis from xCol
+        if (xCol && yCol && groupCol) {
+          const grouped = {};
+          rows.forEach(r => {
+            const g = String(r[groupCol] || '').trim();
+            const x = String(r[xCol] || '').trim();
+            if (!g || !x) return;
+            if (!grouped[g]) grouped[g] = {};
+            if (!grouped[g][x]) grouped[g][x] = [];
+            grouped[g][x].push(parseFloat(r[yCol]) || 0);
+          });
+          const allX = [...new Set(rows.map(r => String(r[xCol] || '').trim()).filter(Boolean))].sort();
+          const groupTotals = {};
+          Object.entries(grouped).forEach(([g, xmap]) => {
+            groupTotals[g] = Object.values(xmap).flat().reduce((a, b) => a + b, 0);
+          });
+          const topGroups = Object.entries(groupTotals).sort((a, b) => b[1] - a[1]).slice(0, maxItems).map(e => e[0]);
+          const seriesColors = linePalettes['GenBI'];
+          series = topGroups.map((g, i) => ({
+            name: g,
+            data: allX.map(x => {
+              const vals = (grouped[g] && grouped[g][x]) || [];
+              if (!vals.length) return 0;
+              return aggFn === 'avg' ? vals.reduce((a, b) => a + b, 0) / vals.length : vals.reduce((a, b) => a + b, 0);
+            }),
+            color: seriesColors[i % seriesColors.length]
+          }));
+          labels = allX;
+        }
+      } else if (type === 'scatter') {
+        // Scatter: raw x/y values
+        const xData = rows.map(r => parseFloat(r[xCol]) || 0);
+        const yData = rows.map(r => parseFloat(r[yCol]) || 0);
+        return {
+          type: 'scatter', title: chart.title, desc: chart.desc || '',
+          xData, yData, labels: [], data: xData, color: chart.color || 'cyan',
+          xLabel: (xCol || '').replace(/_/g, ' '), yLabel: (yCol || '').replace(/_/g, ' '),
+          xCol, yCol
+        };
+      } else if (type === 'gauge') {
+        const vals = rows.map(r => parseFloat(r[yCol || xCol]) || 0).filter(v => v > 0);
+        const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+        return {
+          type: 'gauge', title: chart.title, desc: chart.desc || '',
+          labels: [yCol || xCol], data: [avg], value: avg, color: chart.color || 'cyan',
+          min: 0, max: /percent|pct|rate/i.test(yCol || xCol || '') ? 100 : Math.ceil(Math.max(...vals) * 1.2)
+        };
+      } else {
+        // Bar, hbar, donut, treemap, funnel, etc: aggregate by category
+        const catCol = xCol || groupCol;
+        const metricCol = yCol || xCol;
+        if (catCol && metricCol) {
+          const agg = {};
+          const counts = {};
+          rows.forEach(r => {
+            const k = String(r[catCol] || '').trim();
+            if (!k) return;
+            const v = parseFloat(r[metricCol]) || 0;
+            agg[k] = (agg[k] || 0) + (aggFn === 'count' ? 1 : v);
+            counts[k] = (counts[k] || 0) + 1;
+          });
+          if (aggFn === 'avg') {
+            Object.keys(agg).forEach(k => { agg[k] = agg[k] / (counts[k] || 1); });
+          }
+          let sorted = Object.entries(agg).sort((a, b) => b[1] - a[1]);
+          // Top N + Other
+          if (sorted.length > maxItems) {
+            const top = sorted.slice(0, maxItems - 1);
+            const rest = sorted.slice(maxItems - 1);
+            const otherVal = rest.reduce((s, e) => s + e[1], 0);
+            top.push(['Other (' + rest.length + ')', otherVal]);
+            sorted = top;
+          }
+          labels = sorted.map(e => e[0]);
+          chartData = sorted.map(e => Math.round(e[1] * 100) / 100);
+        }
+      }
+
+      return {
+        type, title: chart.title, desc: chart.desc || '',
+        labels, data: chartData, series,
+        color: chart.color || 'cyan', suffix: '',
+        xCol: xCol, yCol: yCol, groupCol: groupCol, aggFn: aggFn,
+        xLabel: (xCol || '').replace(/_/g, ' '), yLabel: (yCol || '').replace(/_/g, ' ')
+      };
+    }).filter(Boolean);
+
+    // Store config
+    const colMeta = {};
+    const colTypes = {};
+    allHeaders.forEach(h => {
+      const ct = data.profile?.column_types?.[h] || 'text';
+      colMeta[h] = { isNumeric: ct === 'numeric', isDate: ct === 'date', isCategorical: ct === 'categorical', isMetric: ct === 'numeric' };
+      colTypes[h] = ct;
+    });
+    const metrics = allHeaders.filter(h => colMeta[h].isNumeric);
+    const categoricals = allHeaders.filter(h => colMeta[h].isCategorical);
+    const dates = allHeaders.filter(h => colMeta[h].isDate);
+
+    App.excelChartConfig = {
+      colMeta, colTypes, metrics, categoricals, dates, indices: [],
+      chartPlan, labelCol: categoricals[0] || dates[0],
+      dataCols: metrics.slice(0, 2), numericCols: metrics,
+      labelCols: [...categoricals, ...dates]
+    };
+    App.hasExcelData = true;
+    App.drillStates = {};
+
+    console.log('Smart chart plan:', chartPlan.length, 'charts from LLM');
+    return;
+  } catch (err) {
+    console.warn('Smart chart plan failed, falling back to rule engine:', err);
+    return autoMapExcelData(rows);
+  }
 }
 
 function autoMapExcelData(rows) {
