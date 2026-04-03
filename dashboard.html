@@ -13016,26 +13016,23 @@ document.addEventListener('click', function(e) {
           swatch.classList.add('active');
           visual.chartRef.color = color;
           visual.chartRef._userColor = color;
-          // For multi-series charts, find the palette group and apply all hex colors to series
+          // For multi-series charts, apply the single color to all series
           if (visual.chartRef.series && visual.chartRef.series.length > 0) {
-            var allGroups = [
-              { names: ['cyan','violet','emerald','amber','rose'], hexes: ['#00e5ff','#b388ff','#69f0ae','#ffd740','#ff6b9d'] },
-              { names: ['sky','blue','indigo','navy','slate'], hexes: ['#38bdf8','#60a5fa','#818cf8','#6366f1','#94a3b8'] },
-              { names: ['red','orange','gold','lime','coral'], hexes: ['#f87171','#fb923c','#facc15','#a3e635','#ff7f7f'] },
-              { names: ['teal','mint','forest','lavender','blush'], hexes: ['#2dd4bf','#6ee7b7','#22c55e','#c4b5fd','#fda4af'] }
-            ];
-            var matchGroup = allGroups.find(function(g) { return g.names.indexOf(color) >= 0; });
-            if (matchGroup) {
-              visual.chartRef.series.forEach(function(s, i) {
-                var hex = matchGroup.hexes[i % matchGroup.hexes.length];
-                s.color = hex;
-              });
-              var card = visual.canvas.closest('.glass-panel');
-              if (card) {
-                var legendDots = card.querySelectorAll('.legend-dot');
-                visual.chartRef.series.forEach(function(s, i) { if (legendDots[i]) legendDots[i].style.background = s.color; });
-              }
+            var hex = swatch.dataset.hex || getColorHex(color);
+            visual.chartRef.series.forEach(function(s) {
+              s.color = hex;
+            });
+            // Clear any bar palette so single color takes effect
+            delete visual.chartRef._barPalette;
+            if (visual.settings) visual.settings.barPalette = null;
+            var card = visual.canvas.closest('.glass-panel');
+            if (card) {
+              var legendDots = card.querySelectorAll('.legend-dot');
+              visual.chartRef.series.forEach(function(s, i) { if (legendDots[i]) legendDots[i].style.background = s.color; });
             }
+            // Update palette UI to show "Single" as active
+            var lpRows = document.querySelectorAll('#veLinePalettes .ve-lp-row');
+            lpRows.forEach(function(r) { r.classList.toggle('active', r.dataset.palette === ''); });
           }
           var headerSelect = visual.canvas.closest('.glass-panel');
           headerSelect = headerSelect ? headerSelect.querySelector('select[onchange*="ChartColor"]') : null;
@@ -13069,6 +13066,16 @@ document.addEventListener('click', function(e) {
             if (paletteName === '') {
               delete chart._barPalette;
               visual.settings.barPalette = null;
+              // Apply current single color to all series
+              if (chart.series && chart.series.length > 0) {
+                var singleHex = getColorHex(chart._userColor || chart.color || 'cyan');
+                chart.series.forEach(function(s) { s.color = singleHex; });
+                var card0 = visual.canvas.closest('.glass-panel');
+                if (card0) {
+                  var dots0 = card0.querySelectorAll('.legend-dot');
+                  chart.series.forEach(function(s, i) { if (dots0[i]) dots0[i].style.background = s.color; });
+                }
+              }
             } else {
               var colors = linePalettes[paletteName];
               if (!colors) return;
@@ -13077,11 +13084,15 @@ document.addEventListener('click', function(e) {
             }
             this.querySelectorAll('.ve-lp-row').forEach(function(r) { r.classList.remove('active'); });
             row.classList.add('active');
-            if (curType === 'donut') {
+            if (curType === 'donut' || curType === 'stacked') {
               var card = visual.canvas.closest('.glass-panel');
               if (card && paletteName && linePalettes[paletteName]) {
+                if (chart.series && chart.series.length > 0) {
+                  var palColors = linePalettes[paletteName];
+                  chart.series.forEach(function(s, i) { s.color = palColors[i % palColors.length]; });
+                }
                 var legendDots = card.querySelectorAll('.legend-dot');
-                linePalettes[paletteName].forEach(function(c, i) { if (legendDots[i]) legendDots[i].style.background = c; });
+                (chart.series || []).forEach(function(s, i) { if (legendDots[i]) legendDots[i].style.background = s.color; });
               }
             }
             visual.canvas._hasChartEvents = false;
