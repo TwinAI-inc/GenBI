@@ -5854,13 +5854,13 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
     ctx.arc(cx, cy, innerR, angle + slice, angle, true);
     ctx.closePath();
     if (th.style === 'genbi') {
-      // GenBI: radial gradient per segment with bloom glow — boosted visibility
-      const boostedAlpha = Math.max(dimAlpha, 0.55);
+      // GenBI: solid fill with subtle radial gradient — segments always clearly visible
+      const baseAlpha = isHover ? 1 : (highlightIdx >= 0 ? 0.45 : 0.85);
       const segGrad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR);
-      segGrad.addColorStop(0, 'rgba(' + c.rgb + ',' + (boostedAlpha * 0.6) + ')');
-      segGrad.addColorStop(1, 'rgba(' + c.rgb + ',' + boostedAlpha + ')');
+      segGrad.addColorStop(0, 'rgba(' + c.rgb + ',' + (baseAlpha * 0.85) + ')');
+      segGrad.addColorStop(1, 'rgba(' + c.rgb + ',' + baseAlpha + ')');
       ctx.fillStyle = segGrad; ctx.fill();
-      ctx.shadowColor = 'rgba(' + c.rgb + ',' + (isHover ? 0.6 : 0.3) + ')';
+      ctx.shadowColor = 'rgba(' + c.rgb + ',' + (isHover ? 0.6 : 0.15) + ')';
       ctx.shadowBlur = isHover ? 24 : th.donutGlow; ctx.fill();
     } else {
       ctx.fillStyle = 'rgba(' + c.rgb + ',' + dimAlpha + ')'; ctx.fill();
