@@ -12972,8 +12972,16 @@ document.addEventListener('click', function(e) {
       if (navMain) navMain.style.display = 'none';
       if (navWork) navWork.style.display = 'none';
       if (navProj) navProj.style.display = 'none';
+      // Replace sidebar profile with login/signup buttons
+      const sidebarProfile = document.querySelector('.sidebar-profile');
+      if (sidebarProfile) {
+        sidebarProfile.onclick = null;
+        sidebarProfile.style.cssText = 'display:flex;flex-direction:column;gap:8px;padding:14px;cursor:default;';
+        sidebarProfile.innerHTML =
+          '<a href="/login" style="display:block;width:100%;padding:10px 0;text-align:center;border-radius:var(--radius-md);background:var(--glass-bg);border:1px solid var(--glass-border);color:var(--text-primary);font-size:14px;font-weight:500;text-decoration:none;transition:background .2s">Log in</a>' +
+          '<a href="/signup" style="display:block;width:100%;padding:10px 0;text-align:center;border-radius:var(--radius-md);background:var(--accent-cyan);border:none;color:#000;font-size:14px;font-weight:600;text-decoration:none;transition:opacity .2s">Sign up</a>';
+      }
     }
-    if (authBar) authBar.innerHTML = '';
     navigate('pricing');
 
   } else {
