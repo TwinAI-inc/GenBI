@@ -8089,7 +8089,11 @@ function handleChartClick(e) {
 function openExplainDrawer(column, value, chartIdx) {
   const ec = App.excelChartConfig;
   const chart = ec.chartPlan[chartIdx];
-  const yLabel = chart ? (chart._origYCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
+  let yLabel = chart ? (chart._origYCol || chart.yCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
+  // Fallback: if yLabel still empty or not in data, use first metric column
+  if (!yLabel || (App.excelData && App.excelData.rows[0] && !(yLabel in App.excelData.rows[0]))) {
+    yLabel = (ec.metrics && ec.metrics[0]) || '';
+  }
   const rows = getFilteredRows();
 
   // Highlight the clicked bar by adding a colored border overlay
@@ -12149,12 +12153,27 @@ async function smartAutoMap(rows) {
       };
     }).filter(Boolean);
 
-    // Store config
+    // Set _origXCol/_origYCol for explain sidebar
+    chartPlan.forEach(chart => {
+      if (chart.xCol) chart._origXCol = chart.xCol;
+      if (chart.yCol) chart._origYCol = chart.yCol;
+      if (!chart._origAggFn) chart._origAggFn = chart.aggFn || 'sum';
+    });
+
+    // Store config — enrich colMeta with uniqueVals, uniqueCount, vals for explain sidebar
     const colMeta = {};
     const colTypes = {};
     allHeaders.forEach(h => {
       const ct = data.profile?.column_types?.[h] || 'text';
-      colMeta[h] = { isNumeric: ct === 'numeric', isDate: ct === 'date', isCategorical: ct === 'categorical', isMetric: ct === 'numeric' };
+      const rawVals = rows.map(r => r[h]).filter(v => v !== '' && v !== null && v !== undefined);
+      const uniqueVals = [...new Set(rawVals.map(String))];
+      const isNumeric = ct === 'numeric';
+      colMeta[h] = {
+        isNumeric, isDate: ct === 'date', isCategorical: ct === 'categorical' || (!isNumeric && ct !== 'date'),
+        isMetric: isNumeric, isIndex: false,
+        uniqueVals, uniqueCount: uniqueVals.length,
+        vals: isNumeric ? rows.map(r => parseFloat(r[h]) || 0) : null
+      };
       colTypes[h] = ct;
     });
     const metrics = allHeaders.filter(h => colMeta[h].isNumeric);
@@ -12415,6 +12434,8 @@ function autoMapExcelData(rows) {
         chartPlan.push({ type: 'donut',
           title: donutMetric.replace(/_/g, ' ') + ' by ' + donutCat.replace(/_/g, ' '),
           labels: dLabels, data: dData, color: 'multi',
+          xCol: donutCat, yCol: donutMetric,
+          xLabel: donutCat.replace(/_/g, ' '), yLabel: donutMetric.replace(/_/g, ' '),
           desc: 'Shows each ' + donutCat.replace(/_/g, ' ').toLowerCase() + '\'s share of ' + donutMetric.replace(/_/g, ' ').toLowerCase() + '.'
         });
       }
@@ -12424,6 +12445,7 @@ function autoMapExcelData(rows) {
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       chartPlan.push({ type: 'donut', title: donutCat.replace(/_/g, ' ') + ' Breakdown',
         labels: sorted.slice(0,8).map(e => e[0]), data: sorted.slice(0,8).map(e => e[1]), color: 'multi',
+        xCol: donutCat, yCol: donutCat, xLabel: donutCat.replace(/_/g, ' '), yLabel: 'Count',
         desc: 'Shows the proportion of records in each ' + donutCat.replace(/_/g, ' ').toLowerCase() + ' category.'
       });
     }
