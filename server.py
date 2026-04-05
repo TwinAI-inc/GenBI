@@ -1023,6 +1023,35 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/cost-decompose', methods=['POST'])
+    @limiter.limit('5/minute')
+    def cost_decompose():
+        """Decompose costs by driver dimensions."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        try:
+            from services.cost_analyzer import analyze_costs, generate_cost_narrative
+            data = request.get_json()
+            headers = data.get('headers', [])
+            rows = data.get('rows', [])[:500]
+            if not headers or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+            cost_data = analyze_costs(headers, rows)
+            try:
+                narrative = generate_cost_narrative(cost_data)
+                cost_data.update(narrative)
+            except Exception:
+                cost_data['narrative'] = 'Cost narrative unavailable.'
+                cost_data['recommendations'] = []
+            _record_ai_usage()
+            return jsonify(cost_data)
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/map/us', methods=['POST'])
     def render_us_map():
         """Generate US choropleth map HTML using Plotly."""
