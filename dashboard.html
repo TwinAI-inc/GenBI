@@ -2468,6 +2468,9 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
     <div class="nav-item" data-page="influencers" data-tooltip="Key Influencers" onclick="navigate('influencers')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 20h.01"/><path d="M7 20v-4"/><path d="M12 20v-8"/><path d="M17 20V8"/><path d="M22 4v16"/></svg></span><span class="nav-text">Key Influencers</span>
     </div>
+    <div class="nav-item" data-page="risk" data-tooltip="Risk Analyzer" onclick="navigate('risk')">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span class="nav-text">Risk Analyzer</span>
+    </div>
     <div class="nav-item" data-page="documents" data-tooltip="Documents" onclick="navigate('documents')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span><span class="nav-text">Documents</span>
     </div>
@@ -3944,6 +3947,116 @@ function renderExcelPreview() {
 // KEY INFLUENCERS
 // ══════════════════════════════════════════════
 App.kiState = { metric: null, direction: 'increase', influencers: [], selectedIdx: -1, loading: false, pins: JSON.parse(localStorage.getItem('genbi_ki_pins') || '[]'), searchQuery: '', activeTab: 'overview', detailTab: 'comparison', interactions: [], segments: null, temporal: null };
+
+// ══════════════════════════════════════
+// RISK ANALYZER PAGE
+// ══════════════════════════════════════
+function renderRiskAnalyzer() {
+  if (!App.hasExcelData) {
+    return renderOnboardingUpload({
+      graphic: 'analytics',
+      steps: [{ label: 'Upload Data', active: true }, { label: 'Analyze Risk', active: false }],
+      features: [
+        { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-rose)" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', iconBg: 'rgba(244,63,94,0.08)', title: 'Risk Assessment', desc: 'AI-powered composite risk scoring from multiple data signals.' },
+        { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', iconBg: 'rgba(6,182,212,0.08)', title: 'Risk Trends', desc: 'Track how risk evolves over time for each entity.' },
+      ]
+    });
+  }
+  return `<div class="page-header"><div><h1 class="page-title">Risk Analyzer</h1><p class="page-subtitle">AI-powered risk assessment across your dataset.</p></div></div>
+    <div id="riskContent">
+      <div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;">
+        <div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>
+        <span style="font-size:12px;color:rgba(255,255,255,0.35);">Computing risk analysis...</span>
+      </div>
+    </div>`;
+}
+
+function initRiskAnalyzer() {
+  if (!App.hasExcelData || !isLoggedIn()) return;
+  const token = localStorage.getItem('genbi-auth-token');
+  fetch('/api/risk-analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ headers: App.excelData.headers, rows: App.excelData.rows.slice(0, 500) })
+  }).then(r => r.json()).then(data => {
+    const el = document.getElementById('riskContent');
+    if (!el) return;
+    const rl = data.risk_level || 'medium';
+    const rlColor = rl === 'critical' ? 'var(--accent-rose)' : rl === 'high' ? '#f59e0b' : rl === 'medium' ? 'var(--accent-cyan)' : 'var(--accent-emerald)';
+    let html = '';
+
+    // Overall risk gauge
+    html += '<div class="glass-panel" style="padding:20px;margin-bottom:16px;text-align:center">';
+    html += '<div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.30);margin-bottom:8px;">Overall Risk</div>';
+    html += '<div style="font-size:42px;font-weight:300;color:' + rlColor + ';">' + Math.round(data.overall_risk || 0) + '<span style="font-size:16px;color:rgba(255,255,255,0.30);">/100</span></div>';
+    html += '<div style="display:inline-block;padding:3px 12px;border-radius:5rem;font-size:11px;font-weight:500;background:' + rlColor + ';color:#000;margin-top:4px;">' + rl.toUpperCase() + '</div>';
+    html += '</div>';
+
+    // Entity risk cards
+    if (data.entities && data.entities.length > 0) {
+      html += '<div style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.80);margin-bottom:12px;">Entity Risk Breakdown</div>';
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:20px;">';
+      data.entities.slice(0, 12).forEach(entity => {
+        const eColor = entity.risk_level === 'critical' ? 'var(--accent-rose)' : entity.risk_level === 'high' ? '#f59e0b' : entity.risk_level === 'medium' ? 'var(--accent-cyan)' : 'var(--accent-emerald)';
+        html += '<div class="glass-panel" style="padding:14px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+        html += '<span style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.85);">' + entity.name + '</span>';
+        html += '<span style="font-size:18px;font-weight:300;color:' + eColor + ';">' + Math.round(entity.risk_score) + '</span>';
+        html += '</div>';
+        // Drivers
+        if (entity.drivers && entity.drivers.length) {
+          entity.drivers.slice(0, 3).forEach(d => {
+            const dw = Math.min(100, Math.round(d.score * 10));
+            html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:10px;">';
+            html += '<span style="width:70px;color:rgba(255,255,255,0.40);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + d.factor + '</span>';
+            html += '<div style="flex:1;height:4px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + dw + '%;background:' + eColor + ';border-radius:2px;"></div></div>';
+            html += '</div>';
+          });
+        }
+        // Status
+        if (entity.status) {
+          html += '<div style="margin-top:6px;font-size:10px;color:rgba(255,255,255,0.25);">Status: ' + entity.status + '</div>';
+        }
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Top risks
+    if (data.top_risks && data.top_risks.length) {
+      html += '<div class="glass-panel" style="padding:16px;margin-bottom:16px;">';
+      html += '<div style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.80);margin-bottom:10px;">Top Risk Signals</div>';
+      data.top_risks.slice(0, 5).forEach(r => {
+        const sColor = r.severity === 'high' ? 'var(--accent-rose)' : r.severity === 'medium' ? '#f59e0b' : 'var(--accent-cyan)';
+        html += '<div style="display:flex;gap:8px;margin-bottom:8px;font-size:11px;">';
+        html += '<span style="color:' + sColor + ';">&#9679;</span>';
+        html += '<span style="color:rgba(255,255,255,0.60);">' + (r.entity ? '<strong>' + r.entity + ':</strong> ' : '') + r.factor + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // AI Narrative
+    if (data.narrative) {
+      html += '<div class="glass-panel" style="padding:16px;">';
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.80);">AI Risk Assessment</span></div>';
+      html += '<div style="font-size:12px;color:rgba(255,255,255,0.60);line-height:1.6;">' + data.narrative + '</div>';
+      if (data.recommendations && data.recommendations.length) {
+        html += '<div style="margin-top:10px;">';
+        data.recommendations.forEach(rec => {
+          html += '<div style="padding:6px 10px;margin-bottom:4px;border-radius:6px;background:rgba(6,182,212,0.06);border-left:3px solid rgba(6,182,212,0.3);font-size:11px;color:rgba(255,255,255,0.65);">' + rec + '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+  }).catch(err => {
+    const el = document.getElementById('riskContent');
+    if (el) el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk analysis unavailable: ' + err.message + '</div>';
+  });
+}
 
 function renderInfluencersEmptyState() {
   return renderOnboardingUpload({
@@ -5422,7 +5535,7 @@ async function submitKIAskAiInternal(question) {
 // ══════════════════════════════════════════════
 // ROUTER
 // ══════════════════════════════════════════════
-const pages = { dashboard: renderDashboard, analytics: renderAnalytics, documents: renderDocuments, subscription: renderSubscription, settings: renderSettings, influencers: renderInfluencers, pricing: renderPricing };
+const pages = { dashboard: renderDashboard, analytics: renderAnalytics, documents: renderDocuments, subscription: renderSubscription, settings: renderSettings, influencers: renderInfluencers, pricing: renderPricing, risk: renderRiskAnalyzer };
 
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
@@ -5471,6 +5584,7 @@ function navigate(page) {
     if (page === 'pricing') setTimeout(loadPricingData, 0);
     if (page === 'subscription') setTimeout(loadSubscriptionPage, 0);
     if (page === 'settings') { setTimeout(loadBillingSection, 0); setTimeout(loadAIUsage, 100); }
+    if (page === 'risk') { if (App.hasExcelData) { setTimeout(initRiskAnalyzer, 100); } else { setTimeout(initDropZone, 50); } }
     if (page === 'influencers') { if (App.hasExcelData && App.excelChartConfig.metrics.length > 0) { setTimeout(() => { const shouldAnimate = App.kiState._animateNext; App.kiState._animateNext = false; const at = App.kiState.activeTab; if (at === 'overview' || !at) { const c = document.getElementById('kiOverviewChart'); if (c) drawKIOverviewChart(c, shouldAnimate); } else { switchKIChart(at); } if (App.kiState.selectedIdx >= 0) { const dt = App.kiState.detailTab || 'comparison'; if (dt === 'comparison') drawKIDetailChart(); else if (dt === 'distribution') drawKIFactorChart(); else if (dt === 'scatter') drawKIScatterChart(); updateKISensitivity(10); } }, 100); } else { setTimeout(initDropZone, 50); } }
     initCounters();
   } catch(err) {
