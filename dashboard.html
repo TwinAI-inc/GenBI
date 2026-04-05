@@ -8375,7 +8375,7 @@ function openExplainDrawer(column, value, chartIdx) {
       body: JSON.stringify({
         metric: yLabel.replace(/_/g, ' '), value: value,
         stats: { total: pointTotal, share: baselineTotal > 0 ? Math.round(pointTotal / baselineTotal * 100) : 0, vsAvg: vsAvgPct, rank: rank },
-        influencers: influencers.map(inf => ({ column: inf.column, topValue: inf.topValue, lift: inf.lift, share: inf.share })),
+        influencers: influencers.map(inf => ({ column: inf.feature || inf.column, topValue: inf.topValue, lift: inf.lift, share: inf.share })),
         context: 'Dataset has ' + rows.length + ' rows, ' + App.excelData.headers.length + ' columns'
       })
     }).then(r => r.json()).then(data => {

@@ -987,6 +987,7 @@ Rules:
 - Recommendation should be actionable"""
         try:
             parsed, _usage = _call_ai(prompt)
+            _record_ai_usage()
             return jsonify(parsed)
         except json.JSONDecodeError:
             return jsonify({'error': 'AI returned unexpected response.'}), 200
