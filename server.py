@@ -939,6 +939,60 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/explain-point-ai', methods=['POST'])
+    @limiter.limit('10/minute')
+    def explain_point_ai():
+        """AI-powered deep explanation of a data point."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        data = request.get_json()
+        metric = data.get('metric', '')
+        value = data.get('value', '')
+        stats = data.get('stats', {})
+        influencers = data.get('influencers', [])
+        context = data.get('context', '')
+        prompt = f"""You are a senior data analyst explaining a finding to a business stakeholder.
+
+A user clicked on a data point and wants to understand WHY this value is what it is.
+
+CLICKED POINT:
+- Metric: {metric}
+- Category/Value: {value}
+- Total: {stats.get('total', 'N/A')}
+- Share of dataset: {stats.get('share', 'N/A')}%
+- vs Average: {stats.get('vsAvg', 'N/A')}%
+- Rank: {stats.get('rank', 'N/A')}
+{('Additional context: ' + context) if context else ''}
+{('Top influencers: ' + json.dumps(influencers[:5], default=str)) if influencers else ''}
+
+Respond with ONLY valid JSON:
+{{
+  "explanation": "2-3 sentence explanation of WHY this value is high/low/notable. Use abbreviated numbers ($1.2M, 82%). Be specific and insightful.",
+  "drivers": [
+    {{"factor": "factor name", "impact": "positive|negative|neutral", "detail": "one sentence"}}
+  ],
+  "recommendation": "One actionable recommendation based on this finding.",
+  "risk_level": "low|medium|high",
+  "confidence": "high|medium|low"
+}}
+
+Rules:
+- Explain WHY, not just WHAT
+- Use abbreviated numbers: $1.2M, $450K, 82%, 4.2x
+- Be surprising and insightful, not generic
+- Recommendation should be actionable"""
+        try:
+            parsed, _usage = _call_ai(prompt)
+            return jsonify(parsed)
+        except json.JSONDecodeError:
+            return jsonify({'error': 'AI returned unexpected response.'}), 200
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/map/us', methods=['POST'])
     def render_us_map():
         """Generate US choropleth map HTML using Plotly."""
