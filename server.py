@@ -993,6 +993,35 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/risk-analyze', methods=['POST'])
+    @limiter.limit('5/minute')
+    def risk_analyze():
+        """Compute risk analysis for uploaded dataset."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        try:
+            from services.risk_analyzer import analyze_risk, generate_risk_narrative
+            data = request.get_json()
+            headers = data.get('headers', [])
+            rows = data.get('rows', [])[:500]
+            if not headers or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+            risk_data = analyze_risk(headers, rows)
+            # Add AI narrative
+            try:
+                narrative = generate_risk_narrative(risk_data)
+                risk_data.update(narrative)
+            except Exception:
+                risk_data['narrative'] = 'AI narrative unavailable.'
+                risk_data['recommendations'] = []
+            return jsonify(risk_data)
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/map/us', methods=['POST'])
     def render_us_map():
         """Generate US choropleth map HTML using Plotly."""
