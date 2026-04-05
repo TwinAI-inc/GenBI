@@ -8087,6 +8087,7 @@ function handleChartClick(e) {
 }
 
 function openExplainDrawer(column, value, chartIdx) {
+  if (!App._explainDrillPath) App._explainDrillPath = [];
   const ec = App.excelChartConfig;
   const chart = ec.chartPlan[chartIdx];
   const isCountChart = chart && (chart.aggFn === 'count' || chart.yLabel === 'Count');
@@ -8325,7 +8326,22 @@ function openExplainDrawer(column, value, chartIdx) {
     html += '</div>';
   }
 
-  // Breakdown charts
+  // Drill-down breadcrumb
+  if (App._explainDrillPath && App._explainDrillPath.length > 0) {
+    html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:12px;font-size:11px;">';
+    html += '<span style="color:var(--accent-cyan);cursor:pointer;" onclick="App._explainDrillPath=[];openExplainDrawer(\'' + column.replace(/'/g, "\\'") + '\',\'' + value.replace(/'/g, "\\'") + '\',' + chartIdx + ')">All</span>';
+    App._explainDrillPath.forEach((dp, di) => {
+      html += '<span style="color:rgba(255,255,255,0.20);margin:0 2px;">&#9656;</span>';
+      if (di < App._explainDrillPath.length - 1) {
+        html += '<span style="color:var(--accent-cyan);cursor:pointer;" onclick="App._explainDrillPath=App._explainDrillPath.slice(0,' + (di+1) + ');openExplainDrawer(\'' + column.replace(/'/g, "\\'") + '\',\'' + value.replace(/'/g, "\\'") + '\',' + chartIdx + ')">' + dp.value + '</span>';
+      } else {
+        html += '<span style="color:rgba(255,255,255,0.60);">' + dp.value + '</span>';
+      }
+    });
+    html += '</div>';
+  }
+
+  // Breakdown charts — clickable for drill-down
   breakdowns.forEach((bd, bi) => {
     html += '<div style="margin-bottom:20px">';
     html += '<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px">Breakdown by ' + bd.dim.replace(/_/g, ' ') + '</div>';
@@ -8334,12 +8350,14 @@ function openExplainDrawer(column, value, chartIdx) {
       const pct = maxEntry > 0 ? Math.round(val / maxEntry * 100) : 0;
       const barHex = chartColors[ei % chartColors.length];
       const br = parseInt(barHex.slice(1,3),16), bg = parseInt(barHex.slice(3,5),16), bb = parseInt(barHex.slice(5,7),16);
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">';
+      const drillClick = 'App._explainDrillPath=(App._explainDrillPath||[]).concat([{column:\\x27' + bd.dim + '\\x27,value:\\x27' + name.replace(/'/g, '') + '\\x27}]);setCrossFilter(\\x27' + bd.dim + '\\x27,\\x27' + name.replace(/'/g, '') + '\\x27,' + chartIdx + ');openExplainDrawer(\\x27' + column.replace(/'/g, '') + '\\x27,\\x27' + value.replace(/'/g, '') + '\\x27,' + chartIdx + ')';
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;padding:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'\'" onclick="' + drillClick + '" title="Click to drill into ' + name + '">';
       html += '<div style="width:80px;font-size:11px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + name + '">' + name + '</div>';
       html += '<div style="flex:1;height:16px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden">';
       html += '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,rgba(' + br + ',' + bg + ',' + bb + ',0.7),rgba(' + br + ',' + bg + ',' + bb + ',0.3));border-radius:4px;transition:width .3s"></div>';
       html += '</div>';
       html += '<div style="width:60px;font-size:11px;font-weight:600;color:var(--text-primary);text-align:right">' + fmtVal(val) + '</div>';
+      html += '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>';
       html += '</div>';
     });
     html += '</div>';
