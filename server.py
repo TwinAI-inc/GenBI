@@ -1052,6 +1052,35 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/safety-compare', methods=['POST'])
+    @limiter.limit('5/minute')
+    def safety_compare():
+        """Comparative Safety Assessment across entities."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        try:
+            from services.safety_analyzer import analyze_safety, generate_safety_narrative
+            data = request.get_json()
+            headers = data.get('headers', [])
+            rows = data.get('rows', [])[:500]
+            if not headers or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+            safety_data = analyze_safety(headers, rows)
+            try:
+                narrative = generate_safety_narrative(safety_data)
+                safety_data.update(narrative)
+            except Exception:
+                safety_data['narrative'] = 'Safety narrative unavailable.'
+                safety_data['recommendations'] = []
+            _record_ai_usage()
+            return jsonify(safety_data)
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/map/us', methods=['POST'])
     def render_us_map():
         """Generate US choropleth map HTML using Plotly."""

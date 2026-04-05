@@ -2471,6 +2471,9 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
     <div class="nav-item" data-page="risk" data-tooltip="Risk Analyzer" onclick="navigate('risk')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span class="nav-text">Risk Analyzer</span>
     </div>
+    <div class="nav-item" data-page="safety" data-tooltip="Safety (CSA)" onclick="navigate('safety')">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span class="nav-text">Safety</span>
+    </div>
     <div class="nav-item" data-page="stages" data-tooltip="Stage Analytics" onclick="navigate('stages')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="nav-text">Stages</span>
     </div>
@@ -3953,6 +3956,97 @@ function renderExcelPreview() {
 // KEY INFLUENCERS
 // ══════════════════════════════════════════════
 App.kiState = { metric: null, direction: 'increase', influencers: [], selectedIdx: -1, loading: false, pins: JSON.parse(localStorage.getItem('genbi_ki_pins') || '[]'), searchQuery: '', activeTab: 'overview', detailTab: 'comparison', interactions: [], segments: null, temporal: null };
+
+// ══════════════════════════════════════
+// SAFETY CSA PAGE
+// ══════════════════════════════════════
+function renderSafetyCSA() {
+  if (!App.hasExcelData) {
+    return renderOnboardingUpload({ graphic: 'analytics', steps: [{ label: 'Upload Data', active: true }, { label: 'Safety Analysis', active: false }], features: [] });
+  }
+  return `<div class="page-header"><div><h1 class="page-title">Comparative Safety Assessment</h1><p class="page-subtitle">Cross-entity safety comparison with signal detection.</p></div></div>
+    <div id="safetyContent">
+      <div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;">
+        <div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>
+        <span style="font-size:12px;color:rgba(255,255,255,0.35);">Analyzing safety profiles...</span>
+      </div>
+    </div>`;
+}
+
+function initSafetyCSA() {
+  if (!App.hasExcelData || !isLoggedIn()) return;
+  const token = localStorage.getItem('genbi-auth-token');
+  fetch('/api/safety-compare', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ headers: App.excelData.headers, rows: App.excelData.rows.slice(0, 500) })
+  }).then(r => r.json()).then(data => {
+    const el = document.getElementById('safetyContent');
+    if (!el) return;
+    let html = '';
+
+    // Comparison table
+    if (data.comparisons && data.comparisons.length) {
+      html += '<div class="glass-panel" style="padding:16px;margin-bottom:16px;overflow-x:auto;">';
+      html += '<div style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.80);margin-bottom:12px;">Entity Safety Comparison</div>';
+      html += '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+      html += '<tr><th style="text-align:left;padding:8px;color:rgba(255,255,255,0.35);border-bottom:1px solid rgba(255,255,255,0.06);">Entity</th>';
+      html += '<th style="text-align:right;padding:8px;color:rgba(255,255,255,0.35);border-bottom:1px solid rgba(255,255,255,0.06);">Events</th>';
+      html += '<th style="text-align:right;padding:8px;color:rgba(255,255,255,0.35);border-bottom:1px solid rgba(255,255,255,0.06);">Rate</th>';
+      html += '<th style="text-align:right;padding:8px;color:rgba(255,255,255,0.35);border-bottom:1px solid rgba(255,255,255,0.06);">PRR</th>';
+      html += '<th style="text-align:center;padding:8px;color:rgba(255,255,255,0.35);border-bottom:1px solid rgba(255,255,255,0.06);">Signal</th></tr>';
+      data.comparisons.forEach(c => {
+        const prrColor = c.prr >= 2 ? 'var(--accent-rose)' : c.prr >= 1.5 ? '#f59e0b' : 'rgba(255,255,255,0.60)';
+        html += '<tr>';
+        html += '<td style="padding:8px;color:rgba(255,255,255,0.75);border-bottom:1px solid rgba(255,255,255,0.03);">' + c.entity + '</td>';
+        html += '<td style="padding:8px;text-align:right;color:rgba(255,255,255,0.60);border-bottom:1px solid rgba(255,255,255,0.03);">' + c.total_events + '</td>';
+        html += '<td style="padding:8px;text-align:right;color:rgba(255,255,255,0.60);border-bottom:1px solid rgba(255,255,255,0.03);">' + (c.rate || 0).toFixed(2) + '</td>';
+        html += '<td style="padding:8px;text-align:right;font-weight:500;color:' + prrColor + ';border-bottom:1px solid rgba(255,255,255,0.03);">' + (c.prr || 0).toFixed(2) + 'x</td>';
+        html += '<td style="padding:8px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.03);">' + (c.signal ? '<span style="color:var(--accent-rose);">&#9888;</span>' : '<span style="color:rgba(255,255,255,0.15);">-</span>') + '</td>';
+        html += '</tr>';
+      });
+      html += '</table></div>';
+    }
+
+    // Signals
+    if (data.signals && data.signals.length) {
+      html += '<div class="glass-panel" style="padding:16px;margin-bottom:16px;">';
+      html += '<div style="font-size:13px;font-weight:400;color:var(--accent-rose);margin-bottom:10px;">&#9888; Safety Signals Detected</div>';
+      data.signals.forEach(s => {
+        html += '<div style="display:flex;gap:8px;margin-bottom:8px;padding:8px 10px;border-radius:6px;background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.12);font-size:11px;">';
+        html += '<span style="color:var(--accent-rose);font-weight:500;">' + s.entity + '</span>';
+        html += '<span style="color:rgba(255,255,255,0.50);">' + s.detail + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="glass-panel" style="padding:16px;margin-bottom:16px;text-align:center;">';
+      html += '<div style="font-size:12px;color:var(--accent-emerald);">&#10003; No safety signals detected (PRR < 2.0 for all entities)</div>';
+      html += '</div>';
+    }
+
+    // AI Narrative
+    if (data.narrative) {
+      html += '<div class="glass-panel" style="padding:16px;">';
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.80);">AI Safety Assessment</span></div>';
+      html += '<div style="font-size:12px;color:rgba(255,255,255,0.60);line-height:1.6;">' + data.narrative + '</div>';
+      if (data.recommendations && data.recommendations.length) {
+        html += '<div style="margin-top:10px;">';
+        data.recommendations.forEach(rec => {
+          html += '<div style="padding:6px 10px;margin-bottom:4px;border-radius:6px;background:rgba(244,63,94,0.04);border-left:3px solid rgba(244,63,94,0.3);font-size:11px;color:rgba(255,255,255,0.65);">' + rec + '</div>';
+        });
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+
+    if (!html) html = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">No safety-relevant columns detected in your data.</div>';
+    el.innerHTML = html;
+  }).catch(err => {
+    const el = document.getElementById('safetyContent');
+    if (el) el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Safety analysis unavailable: ' + err.message + '</div>';
+  });
+}
 
 // ══════════════════════════════════════
 // STAGE ANALYTICS PAGE
@@ -5738,7 +5832,7 @@ async function submitKIAskAiInternal(question) {
 // ══════════════════════════════════════════════
 // ROUTER
 // ══════════════════════════════════════════════
-const pages = { dashboard: renderDashboard, analytics: renderAnalytics, documents: renderDocuments, subscription: renderSubscription, settings: renderSettings, influencers: renderInfluencers, pricing: renderPricing, risk: renderRiskAnalyzer, costs: renderCostDrivers, stages: renderStageAnalytics };
+const pages = { dashboard: renderDashboard, analytics: renderAnalytics, documents: renderDocuments, subscription: renderSubscription, settings: renderSettings, influencers: renderInfluencers, pricing: renderPricing, risk: renderRiskAnalyzer, costs: renderCostDrivers, stages: renderStageAnalytics, safety: renderSafetyCSA };
 
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
@@ -5789,6 +5883,7 @@ function navigate(page) {
     if (page === 'settings') { setTimeout(loadBillingSection, 0); setTimeout(loadAIUsage, 100); }
     if (page === 'risk') { if (App.hasExcelData) { setTimeout(initRiskAnalyzer, 100); } else { setTimeout(initDropZone, 50); } }
     if (page === 'costs') { if (App.hasExcelData) { setTimeout(initCostDrivers, 100); } else { setTimeout(initDropZone, 50); } }
+    if (page === 'safety') { if (App.hasExcelData) { setTimeout(initSafetyCSA, 100); } else { setTimeout(initDropZone, 50); } }
     if (page === 'influencers') { if (App.hasExcelData && App.excelChartConfig.metrics.length > 0) { setTimeout(() => { const shouldAnimate = App.kiState._animateNext; App.kiState._animateNext = false; const at = App.kiState.activeTab; if (at === 'overview' || !at) { const c = document.getElementById('kiOverviewChart'); if (c) drawKIOverviewChart(c, shouldAnimate); } else { switchKIChart(at); } if (App.kiState.selectedIdx >= 0) { const dt = App.kiState.detailTab || 'comparison'; if (dt === 'comparison') drawKIDetailChart(); else if (dt === 'distribution') drawKIFactorChart(); else if (dt === 'scatter') drawKIScatterChart(); updateKISensitivity(10); } }, 100); } else { setTimeout(initDropZone, 50); } }
     initCounters();
   } catch(err) {
