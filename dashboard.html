@@ -2471,6 +2471,9 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
     <div class="nav-item" data-page="risk" data-tooltip="Risk Analyzer" onclick="navigate('risk')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><span class="nav-text">Risk Analyzer</span>
     </div>
+    <div class="nav-item" data-page="stages" data-tooltip="Stage Analytics" onclick="navigate('stages')">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span><span class="nav-text">Stages</span>
+    </div>
     <div class="nav-item" data-page="costs" data-tooltip="Cost Drivers" onclick="navigate('costs')">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="nav-text">Cost Drivers</span>
     </div>
@@ -3950,6 +3953,101 @@ function renderExcelPreview() {
 // KEY INFLUENCERS
 // ══════════════════════════════════════════════
 App.kiState = { metric: null, direction: 'increase', influencers: [], selectedIdx: -1, loading: false, pins: JSON.parse(localStorage.getItem('genbi_ki_pins') || '[]'), searchQuery: '', activeTab: 'overview', detailTab: 'comparison', interactions: [], segments: null, temporal: null };
+
+// ══════════════════════════════════════
+// STAGE ANALYTICS PAGE
+// ══════════════════════════════════════
+function renderStageAnalytics() {
+  if (!App.hasExcelData) {
+    return renderOnboardingUpload({ graphic: 'analytics', steps: [{ label: 'Upload Data', active: true }, { label: 'Stage Analysis', active: false }], features: [] });
+  }
+  // Auto-detect phase/stage column
+  const ec = App.excelChartConfig;
+  const phaseCol = App.excelData.headers.find(h => /^phase$|^stage$/i.test(h.trim()));
+  const entityCol = App.excelData.headers.find(h => /molecule|product|drug|entity|name/i.test(h) && ec.colMeta[h] && !ec.colMeta[h].isNumeric);
+  const timeCol = ec.dates && ec.dates[0];
+
+  if (!phaseCol) {
+    return '<div class="page-header"><div><h1 class="page-title">Stage Analytics</h1><p class="page-subtitle">No phase/stage column detected in your data.</p></div></div>' +
+      '<div class="glass-panel" style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Upload data with a "Phase" or "Stage" column to use this feature.</div>';
+  }
+
+  const rows = App.excelData.rows;
+  const phases = {};
+  const entities = {};
+  rows.forEach(r => {
+    const p = String(r[phaseCol] || '').trim();
+    const e = entityCol ? String(r[entityCol] || '').trim() : null;
+    if (p) phases[p] = (phases[p] || 0) + 1;
+    if (e && p) {
+      if (!entities[e]) entities[e] = {};
+      entities[e][p] = (entities[e][p] || 0) + 1;
+    }
+  });
+
+  // Sort phases by a natural order if possible
+  const phaseOrder = ['Discovery', 'Preclinical', 'Phase I', 'Phase II', 'Phase III', 'FDA Review', 'Approved', 'Discontinued'];
+  const sortedPhases = Object.keys(phases).sort((a, b) => {
+    const ia = phaseOrder.findIndex(p => a.includes(p));
+    const ib = phaseOrder.findIndex(p => b.includes(p));
+    return (ia >= 0 ? ia : 99) - (ib >= 0 ? ib : 99);
+  });
+
+  let html = '<div class="page-header"><div><h1 class="page-title">Stage Analytics</h1><p class="page-subtitle">Pipeline progression and phase distribution.</p></div></div>';
+
+  // Phase funnel
+  html += '<div class="glass-panel" style="padding:20px;margin-bottom:16px;">';
+  html += '<div style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.80);margin-bottom:16px;">Pipeline Funnel</div>';
+  const maxCount = Math.max(...Object.values(phases));
+  sortedPhases.forEach((p, i) => {
+    const count = phases[p];
+    const pct = maxCount > 0 ? Math.round(count / maxCount * 100) : 0;
+    const isActive = count > maxCount * 0.5;
+    html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">';
+    html += '<div style="width:90px;font-size:11px;color:rgba(255,255,255,0.50);text-align:right;">' + p + '</div>';
+    html += '<div style="flex:1;height:20px;background:rgba(255,255,255,0.03);border-radius:4px;overflow:hidden;position:relative;">';
+    html += '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,rgba(6,182,212,' + (0.3 + i * 0.08) + '),rgba(6,182,212,' + (0.15 + i * 0.04) + '));border-radius:4px;transition:width 0.5s;"></div>';
+    html += '<span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:400;color:rgba(255,255,255,0.60);">' + count + ' records</span>';
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Entity × Phase matrix
+  if (entityCol && Object.keys(entities).length > 0 && Object.keys(entities).length <= 20) {
+    html += '<div class="glass-panel" style="padding:20px;margin-bottom:16px;overflow-x:auto;">';
+    html += '<div style="font-size:13px;font-weight:400;color:rgba(255,255,255,0.80);margin-bottom:12px;">Entity × Phase Matrix</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:10px;">';
+    html += '<tr><th style="text-align:left;padding:6px;color:rgba(255,255,255,0.30);border-bottom:1px solid rgba(255,255,255,0.06);">' + entityCol.replace(/_/g,' ') + '</th>';
+    sortedPhases.forEach(p => {
+      html += '<th style="text-align:center;padding:6px;color:rgba(255,255,255,0.30);border-bottom:1px solid rgba(255,255,255,0.06);">' + p + '</th>';
+    });
+    html += '</tr>';
+    Object.entries(entities).forEach(([eName, pMap]) => {
+      html += '<tr>';
+      html += '<td style="padding:6px;color:rgba(255,255,255,0.60);border-bottom:1px solid rgba(255,255,255,0.03);">' + eName + '</td>';
+      sortedPhases.forEach(p => {
+        const v = pMap[p] || 0;
+        const alpha = v > 0 ? Math.min(0.8, 0.15 + (v / maxCount) * 0.65) : 0.02;
+        html += '<td style="text-align:center;padding:6px;border-bottom:1px solid rgba(255,255,255,0.03);"><span style="display:inline-block;width:28px;height:20px;line-height:20px;border-radius:4px;background:rgba(6,182,212,' + alpha.toFixed(2) + ');font-size:9px;color:rgba(255,255,255,' + (v > 0 ? 0.8 : 0.15) + ');">' + (v || '-') + '</span></td>';
+      });
+      html += '</tr>';
+    });
+    html += '</table>';
+    html += '</div>';
+  }
+
+  // Phase distribution summary
+  html += '<div class="glass-panel" style="padding:16px;">';
+  html += '<div style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.80);margin-bottom:8px;">Summary</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.50);line-height:1.6;">';
+  html += sortedPhases.length + ' distinct phases detected. ';
+  html += 'Most records in <strong style="color:rgba(255,255,255,0.80);">' + sortedPhases[0] + '</strong> (' + phases[sortedPhases[0]] + '). ';
+  if (entityCol) html += Object.keys(entities).length + ' unique ' + entityCol.replace(/_/g,' ').toLowerCase() + 's tracked.';
+  html += '</div></div>';
+
+  return html;
+}
 
 // ══════════════════════════════════════
 // COST DRIVERS PAGE
@@ -5640,7 +5738,7 @@ async function submitKIAskAiInternal(question) {
 // ══════════════════════════════════════════════
 // ROUTER
 // ══════════════════════════════════════════════
-const pages = { dashboard: renderDashboard, analytics: renderAnalytics, documents: renderDocuments, subscription: renderSubscription, settings: renderSettings, influencers: renderInfluencers, pricing: renderPricing, risk: renderRiskAnalyzer, costs: renderCostDrivers };
+const pages = { dashboard: renderDashboard, analytics: renderAnalytics, documents: renderDocuments, subscription: renderSubscription, settings: renderSettings, influencers: renderInfluencers, pricing: renderPricing, risk: renderRiskAnalyzer, costs: renderCostDrivers, stages: renderStageAnalytics };
 
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
