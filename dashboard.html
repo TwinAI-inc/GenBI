@@ -8089,10 +8089,17 @@ function handleChartClick(e) {
 function openExplainDrawer(column, value, chartIdx) {
   const ec = App.excelChartConfig;
   const chart = ec.chartPlan[chartIdx];
-  let yLabel = chart ? (chart._origYCol || chart.yCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
-  // Fallback: if yLabel still empty or not in data, use first metric column
-  if (!yLabel || (App.excelData && App.excelData.rows[0] && !(yLabel in App.excelData.rows[0]))) {
+  const isCountChart = chart && (chart.aggFn === 'count' || chart.yLabel === 'Count');
+  let yLabel = '';
+  if (isCountChart) {
+    // Count charts: use first metric for stats, or just count rows
     yLabel = (ec.metrics && ec.metrics[0]) || '';
+  } else {
+    yLabel = chart ? (chart._origYCol || chart.yCol || chart.yLabel?.replace(/ /g, '_') || '') : '';
+    // Fallback: if yLabel still empty or not in data, use first metric column
+    if (!yLabel || (App.excelData && App.excelData.rows[0] && !(yLabel in App.excelData.rows[0]))) {
+      yLabel = (ec.metrics && ec.metrics[0]) || '';
+    }
   }
   const rows = getFilteredRows();
 
@@ -8652,20 +8659,28 @@ function animateChartFromPlan(canvas, chart, delay) {
       mapDiv.style.cssText = 'width:100%;height:100%;min-height:300px;';
       mapDiv.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.25);font-size:12px;">Loading map...</div>';
       canvas.parentElement.appendChild(mapDiv);
-      // Delay map fetch to avoid browser throttling (other API calls fire first)
-      setTimeout(() => { fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
-        body: JSON.stringify({ data: dataMap, title: chart.title || '', valueLabel: axisOpts.yLabel || 'Value' })
-      }).then(r => r.json()).then(data => {
-        if (data.html) {
-          mapDiv.innerHTML = data.html;
-          // Resize plotly to fit container
-          const plotDiv = mapDiv.querySelector('.plotly-graph-div');
-          if (plotDiv && window.Plotly) { Plotly.relayout(plotDiv, { width: mapDiv.clientWidth, height: Math.max(300, mapDiv.clientHeight) }); }
-        } else { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map unavailable</div>'; }
-      }).catch(() => { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map failed to load</div>'; });
-      }, 3000); // 3s delay to avoid browser throttling
+      // Cancel any previous map fetch for this chart
+      if (canvas._mapTimer) clearTimeout(canvas._mapTimer);
+      if (canvas._mapAbort) canvas._mapAbort.abort();
+      const renderToken = Date.now();
+      canvas._mapRenderToken = renderToken;
+      // Delay map fetch to avoid browser throttling
+      canvas._mapTimer = setTimeout(() => {
+        const abort = new AbortController();
+        canvas._mapAbort = abort;
+        fetch(endpoint, {
+          method: 'POST', signal: abort.signal,
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
+          body: JSON.stringify({ data: dataMap, title: chart.title || '', valueLabel: axisOpts.yLabel || 'Value' })
+        }).then(r => r.json()).then(data => {
+          if (canvas._mapRenderToken !== renderToken) return; // stale — skip
+          if (data.html) {
+            mapDiv.innerHTML = data.html;
+            const plotDiv = mapDiv.querySelector('.plotly-graph-div');
+            if (plotDiv && window.Plotly) { Plotly.relayout(plotDiv, { width: mapDiv.clientWidth, height: Math.max(300, mapDiv.clientHeight) }); }
+          } else { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map unavailable</div>'; }
+        }).catch(e => { if (e.name !== 'AbortError') mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map failed to load</div>'; });
+      }, 3000);
     }
   }, delay || 0);
 }
@@ -12445,7 +12460,7 @@ function autoMapExcelData(rows) {
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
       chartPlan.push({ type: 'donut', title: donutCat.replace(/_/g, ' ') + ' Breakdown',
         labels: sorted.slice(0,8).map(e => e[0]), data: sorted.slice(0,8).map(e => e[1]), color: 'multi',
-        xCol: donutCat, yCol: donutCat, xLabel: donutCat.replace(/_/g, ' '), yLabel: 'Count',
+        xCol: donutCat, yCol: null, aggFn: 'count', xLabel: donutCat.replace(/_/g, ' '), yLabel: 'Count',
         desc: 'Shows the proportion of records in each ' + donutCat.replace(/_/g, ' ').toLowerCase() + ' category.'
       });
     }
