@@ -37,6 +37,8 @@ jobs:
       AZURE_OPENAI_ENDPOINT: https://test.openai.azure.com/
       AZURE_OPENAI_DEPLOYMENT: gpt-4o
       AZURE_OPENAI_API_VERSION: 2024-12-01-preview
+      ANTHROPIC_API_KEY: ci-test-anthropic-key
+      ANTHROPIC_MODEL: claude-sonnet-4-6
 
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +61,7 @@ jobs:
           python -c "import sqlalchemy; print(f'sqlalchemy {sqlalchemy.__version__}')"
           python -c "import azure.identity; print('azure-identity OK')"
           python -c "import openai; print(f'openai {openai.__version__}')"
+          python -c "import anthropic; print(f'anthropic {anthropic.__version__}')"
 
       - name: Validate Flask app loads
         run: |
