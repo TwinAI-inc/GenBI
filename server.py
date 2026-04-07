@@ -202,8 +202,8 @@ def create_app():
             record_usage(user.id, 'ai_queries', 1)
 
     def _call_ai(prompt, system=None):
-        """Call Claude (Anthropic) and return parsed JSON."""
-        from services.claude_ai_client import chat_completion_json
+        """Call Azure OpenAI and return parsed JSON. Drop-in for old _call_gemini."""
+        from services.azure_ai_client import chat_completion_json
         return chat_completion_json(prompt, system=system)
 
     def _ai_error_response(e):

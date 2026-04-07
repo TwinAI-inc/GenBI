@@ -17,8 +17,6 @@ os.environ.setdefault('EMAIL_PROVIDER', 'console')
 os.environ.setdefault('AZURE_OPENAI_ENDPOINT', 'https://test.openai.azure.com/')
 os.environ.setdefault('AZURE_OPENAI_DEPLOYMENT', 'gpt-4o')
 os.environ.setdefault('AZURE_OPENAI_API_VERSION', '2024-12-01-preview')
-os.environ.setdefault('ANTHROPIC_API_KEY', 'test-anthropic-key')
-os.environ.setdefault('ANTHROPIC_MODEL', 'claude-sonnet-4-6')
 
 from server import create_app
 from extensions import db

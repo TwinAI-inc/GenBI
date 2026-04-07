@@ -10,7 +10,7 @@ import logging
 import math
 from collections import Counter
 
-from services.claude_ai_client import chat_completion_json
+from services.azure_ai_client import chat_completion_json
 
 logger = logging.getLogger(__name__)
 
