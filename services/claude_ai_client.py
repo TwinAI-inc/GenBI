@@ -173,18 +173,54 @@ def chat_completion(messages, *, temperature=0.7, max_tokens=2048,
     }
 
 
-def chat_completion_json(prompt, *, system=None, temperature=0.3,
+def chat_completion_json(prompt_or_messages, *, system=None, temperature=0.3,
                          max_tokens=2048):
     """
-    Convenience wrapper: send a single prompt, get parsed JSON back.
+    Send a prompt or messages list, get JSON-mode response.
 
-    Same interface as services.azure_ai_client.chat_completion_json.
-    Raises json.JSONDecodeError if the model output is not valid JSON.
+    Supports two calling styles:
+
+    1) String prompt (legacy convenience wrapper):
+       chat_completion_json("my prompt", system="...")
+       Returns: (parsed_json_dict, usage_dict)
+
+    2) Messages list (matches chat_completion signature, used by
+       chart_intelligence.py):
+       chat_completion_json([{"role": "user", "content": "..."}], temperature=0.3, max_tokens=4500)
+       Returns: dict with 'content' (string) and 'usage' keys
     """
+    # Branch 2: messages list — return raw result dict for caller to parse
+    if isinstance(prompt_or_messages, list):
+        result = chat_completion(
+            prompt_or_messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            response_format={'type': 'json_object'},
+        )
+        # Clean up content: strip markdown fences and extract JSON if needed
+        content = result.get('content', '').strip()
+        if content.startswith('```'):
+            content = content.split('\n', 1)[-1]
+            if content.endswith('```'):
+                content = content[:-3].strip()
+            elif '```' in content:
+                content = content[:content.rfind('```')].strip()
+        # Find JSON boundaries if model added prose
+        if content and content[0] not in '{[':
+            for boundary_open, boundary_close in (('{', '}'), ('[', ']')):
+                start = content.find(boundary_open)
+                end = content.rfind(boundary_close)
+                if start >= 0 and end > start:
+                    content = content[start:end + 1]
+                    break
+        result['content'] = content
+        return result
+
+    # Branch 1: legacy string prompt — parse JSON and return tuple
     messages = []
     if system:
         messages.append({'role': 'system', 'content': system})
-    messages.append({'role': 'user', 'content': prompt})
+    messages.append({'role': 'user', 'content': prompt_or_messages})
 
     result = chat_completion(
         messages,
