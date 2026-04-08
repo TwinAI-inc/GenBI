@@ -1919,6 +1919,15 @@ body.layout-compact .layout-toggle { background: rgba(6,182,212,0.08); border-co
 .ve-pill{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:500;font-family:'Inter',system-ui,sans-serif;background:hsl(0 0% 8%);border:1px solid hsl(0 0% 15%);color:var(--text-secondary);cursor:pointer;transition:all .2s ease;}
 .ve-pill:hover{background:hsl(0 0% 12%);color:var(--text-primary);border-color:hsl(0 0% 22%);}
 .ve-pill.active{background:hsl(0 0% 14%);color:var(--text-primary);border-color:hsl(0 0% 28%);}
+.ve-rec-section{margin-bottom:4px;}
+.ve-rec-section:empty{display:none;}
+.ve-rec-divider{display:flex;align-items:center;gap:10px;margin:14px 0 10px;font-size:9px;font-weight:600;letter-spacing:0.10em;text-transform:uppercase;color:var(--text-tertiary);}
+.ve-rec-divider::before,.ve-rec-divider::after{content:'';flex:1;height:1px;background:hsla(0 0% 100% / 0.06);}
+.ve-rec-pill{display:inline-flex;align-items:center;gap:7px;background:hsla(187 95% 50% / 0.05);border-color:hsla(187 95% 50% / 0.18);color:rgba(255,255,255,0.78);}
+.ve-rec-pill:hover{background:hsla(187 95% 50% / 0.10);border-color:hsla(187 95% 50% / 0.32);color:#a5f3fc;}
+.ve-rec-pill.active{background:hsla(187 95% 50% / 0.14);border-color:hsla(187 95% 50% / 0.45);color:#67e8f9;}
+.ve-rec-score{display:inline-block;min-width:22px;padding:1px 5px;border-radius:6px;background:hsla(187 95% 50% / 0.20);color:#67e8f9;font-size:10px;font-weight:600;font-variant-numeric:tabular-nums;text-align:center;}
+.ve-rec-empty{font-size:11px;color:var(--text-tertiary);padding:2px 0 4px;line-height:1.5;}
 
 /* Slider */
 .ve-slider-wrap{display:flex;align-items:center;gap:10px;flex:1;max-width:180px;}
@@ -2620,6 +2629,8 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
 </template>
 
 <template id="veTplLayout">
+  <div id="veRecommended" class="ve-rec-section"></div>
+  <div class="ve-rec-divider"><span>All chart types</span></div>
   <div class="ve-label" style="margin-bottom:10px">Chart Type</div>
   <div class="ve-pills" id="veChartType">
     <div class="ve-pill" data-val="bar">Bar</div>
@@ -13867,6 +13878,426 @@ document.addEventListener('click', function(e) {
   }
 
   // ── Populate section controls ────────────────────────────────────────────
+  // ==========================================================================
+  // CHART RECOMMENDATION ENGINE
+  // --------------------------------------------------------------------------
+  // Computes an "Insight Score" (0..100) for every chart type based on the
+  // dataset slice bound to the currently selected visual, then surfaces the
+  // top 5 in the Swap Layout panel's "Recommended" section.
+  //
+  // Generic by design — no hardcoded column names. Profiling reads from
+  // App.excelChartConfig.colMeta (already classified) plus the chart's bound
+  // x/y/series, and runs entirely client-side (<5 ms typical) so there's no
+  // backend roundtrip.
+  //
+  // ── Adding a new chart type ──
+  //   1. Push an entry into CHART_REGISTRY: { id, label, category, score }.
+  //   2. Implement scoreXxx(profile) returning { score: 0..100, reasons: [] }.
+  //      Return score 0 when the chart's hard requirements aren't met.
+  //   3. Add a corresponding pill to the #veChartType template.
+  // ==========================================================================
+
+  // ── geo helpers (used by profiler) ────────────────────────────────────────
+  var _US_STATE_NAMES = new Set(['alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware','florida','georgia','hawaii','idaho','illinois','indiana','iowa','kansas','kentucky','louisiana','maine','maryland','massachusetts','michigan','minnesota','mississippi','missouri','montana','nebraska','nevada','new hampshire','new jersey','new mexico','new york','north carolina','north dakota','ohio','oklahoma','oregon','pennsylvania','rhode island','south carolina','south dakota','tennessee','texas','utah','vermont','virginia','washington','west virginia','wisconsin','wyoming','district of columbia']);
+  var _US_STATE_CODES = new Set(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC']);
+  var _COMMON_COUNTRIES = new Set(['united states','usa','us','united kingdom','uk','china','india','japan','germany','france','italy','spain','canada','australia','brazil','mexico','russia','south korea','korea','indonesia','netherlands','switzerland','sweden','belgium','poland','turkey','saudi arabia','argentina','south africa','egypt','nigeria','singapore','ireland','denmark','norway','finland','greece','portugal','israel','thailand','vietnam','philippines','malaysia','new zealand','chile','colombia','peru','pakistan','bangladesh','ukraine','austria','czech republic','romania','hungary']);
+
+  function _isUSStateColumn(name, uniqueVals) {
+    if (/^state$|^us[_ ]?state$|^province$/i.test((name || '').trim())) return true;
+    if (!uniqueVals || uniqueVals.length === 0) return false;
+    var hits = 0;
+    for (var i = 0; i < uniqueVals.length; i++) {
+      var s = String(uniqueVals[i]).trim();
+      if (_US_STATE_NAMES.has(s.toLowerCase()) || _US_STATE_CODES.has(s.toUpperCase())) hits++;
+    }
+    return hits / uniqueVals.length >= 0.5;
+  }
+  function _isCountryColumn(name, uniqueVals) {
+    if (/^country$|^nation$|^country[_ ]?name$/i.test((name || '').trim())) return true;
+    if (!uniqueVals || uniqueVals.length === 0) return false;
+    var hits = 0;
+    for (var i = 0; i < uniqueVals.length; i++) {
+      if (_COMMON_COUNTRIES.has(String(uniqueVals[i]).trim().toLowerCase())) hits++;
+    }
+    return hits / uniqueVals.length >= 0.4;
+  }
+  function _maxLabelLen(uniqueVals) {
+    if (!uniqueVals || uniqueVals.length === 0) return 0;
+    var m = 0;
+    for (var i = 0; i < uniqueVals.length; i++) { var l = String(uniqueVals[i]).length; if (l > m) m = l; }
+    return m;
+  }
+  function _pearsonR(xs, ys) {
+    var n = Math.min(xs.length, ys.length);
+    if (n < 3) return 0;
+    var sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0, k = 0;
+    for (var i = 0; i < n; i++) {
+      var x = parseFloat(xs[i]), y = parseFloat(ys[i]);
+      if (!isFinite(x) || !isFinite(y)) continue;
+      sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y; k++;
+    }
+    if (k < 3) return 0;
+    var num = k * sxy - sx * sy;
+    var den = Math.sqrt((k * sxx - sx * sx) * (k * syy - sy * sy));
+    if (den === 0) return 0;
+    return num / den;
+  }
+  function _summarizeNumeric(vals) {
+    if (!vals || vals.length === 0) return null;
+    var min = Infinity, max = -Infinity, sum = 0, n = 0, neg = 0, zero = 0;
+    for (var i = 0; i < vals.length; i++) {
+      var v = parseFloat(vals[i]);
+      if (!isFinite(v)) continue;
+      if (v < min) min = v;
+      if (v > max) max = v;
+      if (v < 0) neg++;
+      if (v === 0) zero++;
+      sum += v; n++;
+    }
+    if (n === 0) return null;
+    return { min: min, max: max, mean: sum / n, count: n, hasNegatives: neg > 0, zeroFraction: zero / n };
+  }
+
+  // ── Profiler: builds a generic profile of the slice driving this chart ───
+  function profileChartContext(visual) {
+    var ec = App.excelChartConfig || {};
+    var colMeta = ec.colMeta || {};
+    var headers = (App.excelData && App.excelData.headers) || Object.keys(colMeta);
+    var rows = (App.excelData && App.excelData.rows) || [];
+    var chart = (visual && visual.chartRef) || {};
+
+    // Sample cap for cardinality-heavy datasets — keeps profiling <300ms
+    var SAMPLE_CAP = 10000;
+    var sampleRows = rows.length > SAMPLE_CAP ? rows.slice(0, SAMPLE_CAP) : rows;
+
+    var allCols = headers.map(function (h) {
+      var meta = colMeta[h] || {};
+      var uvs = meta.uniqueVals || [];
+      return {
+        name: h,
+        isNumeric: !!meta.isMetric,
+        isCategorical: !!meta.isCategorical && !meta.isDate,
+        isDate: !!meta.isDate,
+        isIndex: !!meta.isIndex,
+        uniqueCount: meta.uniqueCount || 0,
+        uniqueVals: uvs,
+        maxLabelLen: _maxLabelLen(uvs),
+        isUSState: _isUSStateColumn(h, uvs),
+        isCountry: _isCountryColumn(h, uvs)
+      };
+    });
+
+    var numericCols = allCols.filter(function (c) { return c.isNumeric && !c.isIndex; });
+    var categoricalCols = allCols.filter(function (c) { return c.isCategorical && !c.isDate; });
+    var dateCols = allCols.filter(function (c) { return c.isDate; });
+    var geoUSStateCol = null, geoCountryCol = null;
+    for (var i = 0; i < allCols.length; i++) {
+      if (!geoUSStateCol && allCols[i].isUSState) geoUSStateCol = allCols[i];
+      if (!geoCountryCol && allCols[i].isCountry) geoCountryCol = allCols[i];
+    }
+
+    // Resolve current bound x/y from chart spec
+    var xName = chart._origXCol || chart.xCol || null;
+    var yName = chart._origYCol || chart.yCol || null;
+    var xCol = xName ? (allCols.find(function (c) { return c.name === xName; }) || null) : null;
+    var yCol = yName ? (allCols.find(function (c) { return c.name === yName; }) || null) : null;
+
+    var seriesCount = (chart.series && chart.series.length) || 0;
+
+    // Pearson correlation when both bound axes are numeric
+    var correlation = null;
+    if (xCol && yCol && xCol.isNumeric && yCol.isNumeric) {
+      var xs = sampleRows.map(function (r) { return r[xCol.name]; });
+      var ys = sampleRows.map(function (r) { return r[yCol.name]; });
+      correlation = Math.abs(_pearsonR(xs, ys));
+    }
+
+    // Aggregated y-axis stats from chart's already-computed flat data
+    var flat = (function () {
+      if (chart.series && chart.series.length) {
+        var out = [];
+        chart.series.forEach(function (s) { (s.data || []).forEach(function (v) { out.push(v); }); });
+        return out;
+      }
+      return chart.data || [];
+    })();
+    var ySummary = _summarizeNumeric(flat);
+
+    return {
+      rowCount: rows.length,
+      sampledRows: sampleRows.length,
+      chartLabelCount: (chart.labels && chart.labels.length) || 0,
+      seriesCount: seriesCount,
+      xCol: xCol,
+      yCol: yCol,
+      numericCols: numericCols,
+      categoricalCols: categoricalCols,
+      dateCols: dateCols,
+      geoUSStateCol: geoUSStateCol,
+      geoCountryCol: geoCountryCol,
+      correlation: correlation,
+      ySummary: ySummary,
+      title: chart.title || ''
+    };
+  }
+
+  // ── Scoring helpers ───────────────────────────────────────────────────────
+  function _clamp(v) { return Math.max(0, Math.min(100, Math.round(v))); }
+  function _result(score, reasons) { return { score: _clamp(score), reasons: reasons.slice(0, 3) }; }
+  function _categoricalLikeX(p) {
+    if (p.xCol && (p.xCol.isCategorical || p.xCol.isDate)) return p.xCol;
+    if (p.categoricalCols.length > 0) return p.categoricalCols[0];
+    return null;
+  }
+  function _numericLikeY(p) {
+    if (p.yCol && p.yCol.isNumeric) return p.yCol;
+    if (p.numericCols.length > 0) return p.numericCols[0];
+    return null;
+  }
+
+  // ── Scoring functions per chart type ──────────────────────────────────────
+  function scoreBar(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a categorical column and a numeric measure']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    var s = 60, reasons = ['Compares ' + (y.name || 'value') + ' across ' + (x.name || 'categories')];
+    if (card >= 4 && card <= 15) { s += 18; reasons.push('Sweet-spot category count (' + card + ')'); }
+    else if (card >= 2 && card <= 25) { s += 8; }
+    if ((x.maxLabelLen || 0) <= 12) s += 6;
+    if (card > 25) { s -= 15; reasons.push('Crowded — consider H-Bar or Treemap'); }
+    if (card > 40) s -= 25;
+    return _result(s, reasons);
+  }
+  function scoreHBar(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a categorical column and a numeric measure']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    var longLabels = (x.maxLabelLen || 0) > 12;
+    var s = 55, reasons = ['Ranks ' + (x.name || 'categories') + ' by ' + (y.name || 'value')];
+    if (longLabels) { s += 22; reasons.push('Long labels read better horizontally'); }
+    if (card >= 6 && card <= 20) s += 12;
+    if (card > 25) s -= 12;
+    if (card > 50) s -= 25;
+    return _result(s, reasons);
+  }
+  function scoreLine(p) {
+    var dateX = (p.xCol && p.xCol.isDate) || p.dateCols[0];
+    var y = _numericLikeY(p);
+    if (!dateX || !y) return _result(0, ['Needs a date/time column and a numeric measure']);
+    var points = p.chartLabelCount || p.rowCount || 0;
+    if (points < 4) return _result(0, ['Not enough time points for a trend']);
+    var s = 70, reasons = ['Shows trend of ' + (y.name || 'value') + ' over time'];
+    if (points >= 12) { s += 12; reasons.push('Plenty of points (' + points + ') for a clear trend'); }
+    if (p.seriesCount >= 2 && p.seriesCount <= 5) { s += 8; reasons.push(p.seriesCount + ' series — easy side-by-side trend'); }
+    if (p.seriesCount > 6) { s -= 25; reasons.push('Too many series for a readable line chart'); }
+    return _result(s, reasons);
+  }
+  function scoreArea(p) {
+    var dateX = (p.xCol && p.xCol.isDate) || p.dateCols[0];
+    var y = _numericLikeY(p);
+    if (!dateX || !y) return _result(0, ['Needs a date/time column and a numeric measure']);
+    var points = p.chartLabelCount || p.rowCount || 0;
+    if (points < 4) return _result(0, ['Not enough time points']);
+    var s = 60, reasons = ['Emphasizes magnitude over time'];
+    if (p.seriesCount <= 1) s += 8;
+    if (p.seriesCount > 3) { s -= 20; reasons.push('Stacked areas can occlude — consider Stacked or Line'); }
+    return _result(s, reasons);
+  }
+  function scoreDonut(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a categorical column and a numeric measure']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    if (card < 2) return _result(0, ['Needs at least 2 categories']);
+    if (card > 12) return _result(0, ['Too many slices — donuts read poorly above ~8 categories']);
+    var s = 50, reasons = ['Shows ' + (y.name || 'value') + ' share by ' + (x.name || 'category')];
+    if (card >= 3 && card <= 5) { s += 22; reasons.push('Ideal slice count (' + card + ')'); }
+    else if (card <= 7) s += 8;
+    if (card > 8) s -= 25;
+    if (p.ySummary && p.ySummary.hasNegatives) { s -= 50; reasons.push("Negative values can't be shown in a donut"); }
+    return _result(s, reasons);
+  }
+  function scoreStacked(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a categorical column and a numeric measure']);
+    if (p.seriesCount < 2) return _result(15, ['Needs a second grouping column to stack — currently only one series']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    var s = 65, reasons = ['Compares ' + p.seriesCount + ' series across ' + (x.name || 'categories')];
+    if (p.seriesCount >= 2 && p.seriesCount <= 5) s += 12;
+    if (p.seriesCount > 6) s -= 25;
+    if (card > 25) s -= 15;
+    return _result(s, reasons);
+  }
+  function scoreGauge(p) {
+    var y = _numericLikeY(p);
+    if (!y) return _result(0, ['Needs a numeric measure']);
+    var s = 25, reasons = ['Highlights a single KPI value'];
+    if (p.chartLabelCount <= 1) { s += 25; reasons.push('Single value fits a gauge well'); }
+    if (p.chartLabelCount > 4) { s -= 30; reasons.push('Multiple data points — pick a chart that shows them all'); }
+    return _result(s, reasons);
+  }
+  function scoreLollipop(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a categorical column and a numeric measure']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    var s = 45, reasons = ['Cleaner than bar for ranking similar values'];
+    if (card >= 4 && card <= 18) s += 15;
+    if (card > 25) s -= 20;
+    return _result(s, reasons);
+  }
+  function scoreFunnel(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a stage/step column and a numeric measure']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    if (card > 8) return _result(0, ['Too many stages for a funnel']);
+    var s = 25, reasons = ['Shows drop-off through sequential stages'];
+    if (/stage|phase|step|funnel|pipeline|status/i.test(x.name || '')) { s += 35; reasons.push('"' + x.name + '" looks like a stage column'); }
+    if (card >= 3 && card <= 6) s += 10;
+    return _result(s, reasons);
+  }
+  function scoreUSMap(p) {
+    if (!p.geoUSStateCol) return _result(0, ['No US state column detected in this dataset']);
+    var y = _numericLikeY(p);
+    if (!y) return _result(0, ['Needs a numeric measure to color states']);
+    var s = 78, reasons = ['Shows ' + y.name + ' geographically across US states'];
+    if (p.geoUSStateCol.uniqueCount >= 8) { s += 12; reasons.push(p.geoUSStateCol.uniqueCount + ' states with data'); }
+    return _result(s, reasons);
+  }
+  function scoreWorldMap(p) {
+    if (!p.geoCountryCol) return _result(0, ['No country column detected in this dataset']);
+    var y = _numericLikeY(p);
+    if (!y) return _result(0, ['Needs a numeric measure to color countries']);
+    var s = 78, reasons = ['Shows ' + y.name + ' globally by country'];
+    if (p.geoCountryCol.uniqueCount >= 5) { s += 12; reasons.push(p.geoCountryCol.uniqueCount + ' countries with data'); }
+    return _result(s, reasons);
+  }
+  function scoreWaterfall(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a categorical column and a numeric measure']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    if (card > 14) return _result(0, ['Too many bars for a waterfall']);
+    var s = 30, reasons = ['Visualizes additive contributions or net change'];
+    if (p.ySummary && p.ySummary.hasNegatives) { s += 30; reasons.push('Negative values fit a waterfall naturally'); }
+    if (/change|delta|net|gain|loss|variance|impact/i.test((y.name || '') + ' ' + (x.name || ''))) { s += 15; reasons.push('Column names suggest deltas / change'); }
+    return _result(s, reasons);
+  }
+  function scoreRadar(p) {
+    if (p.numericCols.length < 3) return _result(0, ['Needs at least 3 numeric metrics']);
+    var lowCardCat = null;
+    for (var i = 0; i < p.categoricalCols.length; i++) {
+      var c = p.categoricalCols[i];
+      if (c.uniqueCount >= 2 && c.uniqueCount <= 6) { lowCardCat = c; break; }
+    }
+    if (!lowCardCat) return _result(0, ['Needs a low-cardinality category to compare profiles']);
+    var s = 40, reasons = ['Compares ' + lowCardCat.name + ' across ' + p.numericCols.length + ' metrics'];
+    if (p.numericCols.length >= 5) s += 15;
+    if (lowCardCat.uniqueCount <= 4) s += 8;
+    return _result(s, reasons);
+  }
+  function scoreTreemap(p) {
+    var x = _categoricalLikeX(p), y = _numericLikeY(p);
+    if (!x || !y) return _result(0, ['Needs a categorical column and a numeric measure']);
+    var card = x.uniqueCount || p.chartLabelCount || 0;
+    if (card < 4) return _result(0, ['Treemap needs at least 4 categories']);
+    var s = 50, reasons = ['Shows ' + y.name + ' share by ' + x.name];
+    if (card >= 5 && card <= 30) { s += 20; reasons.push('Handles ' + card + ' categories better than a bar chart'); }
+    if (p.categoricalCols.length >= 2) { s += 10; reasons.push('Multiple categorical columns enable hierarchy'); }
+    if (p.ySummary && p.ySummary.hasNegatives) { s -= 30; reasons.push("Treemaps don't handle negatives"); }
+    return _result(s, reasons);
+  }
+  function scoreScatter(p) {
+    if (p.numericCols.length < 2) return _result(0, ['Needs at least 2 numeric columns']);
+    var s = 55, reasons = ['Reveals relationships between two numeric variables'];
+    if (p.xCol && p.yCol && p.xCol.isNumeric && p.yCol.isNumeric) {
+      s += 20; reasons.push('Both bound axes are numeric');
+      if (p.correlation != null && p.correlation >= 0.3) {
+        s += 15; reasons.push('Detected correlation r≈' + p.correlation.toFixed(2));
+      }
+    }
+    if (p.rowCount < 12) { s -= 25; reasons.push('Few data points may obscure patterns'); }
+    return _result(s, reasons);
+  }
+  function scoreBubble(p) {
+    if (p.numericCols.length < 3) return _result(0, ['Needs at least 3 numeric columns']);
+    var s = 40, reasons = ['Like scatter, plus a third numeric encoded as bubble size'];
+    if (p.xCol && p.yCol && p.xCol.isNumeric && p.yCol.isNumeric) s += 15;
+    if (p.rowCount < 12) s -= 25;
+    return _result(s, reasons);
+  }
+
+  // ── Registry (single source of truth) ────────────────────────────────────
+  var CHART_REGISTRY = [
+    { id: 'bar',       label: 'Bar',       category: 'comparison',   score: scoreBar },
+    { id: 'hbar',      label: 'H-Bar',     category: 'comparison',   score: scoreHBar },
+    { id: 'line',      label: 'Line',      category: 'trend',        score: scoreLine },
+    { id: 'area',      label: 'Area',      category: 'trend',        score: scoreArea },
+    { id: 'donut',     label: 'Donut',     category: 'distribution', score: scoreDonut },
+    { id: 'stacked',   label: 'Stacked',   category: 'comparison',   score: scoreStacked },
+    { id: 'gauge',     label: 'Gauge',     category: 'kpi',          score: scoreGauge },
+    { id: 'lollipop',  label: 'Lollipop',  category: 'comparison',   score: scoreLollipop },
+    { id: 'funnel',    label: 'Funnel',    category: 'flow',         score: scoreFunnel },
+    { id: 'usmap',     label: 'US Map',    category: 'geo',          score: scoreUSMap },
+    { id: 'worldmap',  label: 'World Map', category: 'geo',          score: scoreWorldMap },
+    { id: 'waterfall', label: 'Waterfall', category: 'change',       score: scoreWaterfall },
+    { id: 'radar',     label: 'Radar',     category: 'profile',      score: scoreRadar },
+    { id: 'treemap',   label: 'Treemap',   category: 'hierarchy',    score: scoreTreemap },
+    { id: 'scatter',   label: 'Scatter',   category: 'relationship', score: scoreScatter },
+    { id: 'bubble',    label: 'Bubble',    category: 'relationship', score: scoreBubble }
+  ];
+
+  // ── Public: get top-5 + full ranking, cached per chart-state signature ───
+  function getChartRecommendations(visual) {
+    var chart = (visual && visual.chartRef) || {};
+    var sig = [
+      chart._origXCol || chart.xCol || '',
+      chart._origYCol || chart.yCol || '',
+      (chart.series && chart.series.length) || 0,
+      (App.excelData && App.excelData.rows && App.excelData.rows.length) || 0,
+      (App.excelData && App.excelData.headers && App.excelData.headers.length) || 0
+    ].join('|');
+    if (chart._recCache && chart._recCache.sig === sig) return chart._recCache.value;
+
+    var t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
+    var profile = profileChartContext(visual);
+    var scored = CHART_REGISTRY.map(function (def) {
+      var res;
+      try { res = def.score(profile); }
+      catch (e) { res = { score: 0, reasons: ['scoring error'] }; }
+      return { id: def.id, label: def.label, category: def.category, score: res.score, reasons: res.reasons };
+    });
+    scored.sort(function (a, b) { return b.score - a.score; });
+    var recommended = scored.filter(function (c) { return c.score > 0; }).slice(0, 5);
+    var value = {
+      recommended: recommended,
+      all: scored,
+      profile: profile,
+      computeMs: t0 ? Math.round((performance.now() - t0) * 10) / 10 : null
+    };
+    chart._recCache = { sig: sig, value: value };
+    return value;
+  }
+
+  // ── Public: paint the Recommended section into #veRecommended ────────────
+  function renderChartRecommendations(visual) {
+    var host = document.getElementById('veRecommended');
+    if (!host) return;
+    var chart = (visual && visual.chartRef) || {};
+    var curType = chart._userType || chart.type;
+    var result = getChartRecommendations(visual);
+    if (!result.recommended.length) {
+      host.innerHTML = '<div class="ve-rec-empty">No clear recommendations for this chart\u2019s columns yet — pick from the full list below.</div>';
+      return;
+    }
+    var html = '<div class="ve-label" style="margin-bottom:10px;display:flex;align-items:center;gap:6px;">Recommended for this data <span style="font-size:9px;color:var(--text-tertiary);font-weight:500;text-transform:none;letter-spacing:0;">(top ' + result.recommended.length + ')</span></div>';
+    html += '<div class="ve-pills">';
+    result.recommended.forEach(function (rec) {
+      var isActive = rec.id === curType;
+      var tip = rec.reasons.join(' \u2022 ').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      html += '<div class="ve-pill ve-rec-pill' + (isActive ? ' active' : '') + '" data-val="' + rec.id + '" title="' + tip + '">' + rec.label + '<span class="ve-rec-score">' + rec.score + '</span></div>';
+    });
+    html += '</div>';
+    host.innerHTML = html;
+  }
+
   function populateSection(sectionKey, visual) {
     var s = visual.settings;
     var chart = visual.chartRef;
@@ -13959,6 +14390,7 @@ document.addEventListener('click', function(e) {
       case 'layout': {
         setPillGroup('veChartType', curType);
         setPillGroup('veLayoutDensity', s.density || 'balanced');
+        renderChartRecommendations(visual);
         break;
       }
       case 'branding': {
@@ -14266,20 +14698,32 @@ document.addEventListener('click', function(e) {
         break;
       }
       case 'layout': {
-        var ct = document.getElementById('veChartType');
-        if (ct) ct.addEventListener('click', function(e) {
-          var pill = e.target.closest('.ve-pill');
-          if (!pill) return;
+        // Shared selection logic for both the Recommended pills and the All grid
+        var applyChartType = function(newType) {
           var visual = getSelectedVisual();
           if (!visual) return;
-          var newType = pill.dataset.val;
-          this.querySelectorAll('.ve-pill').forEach(function(p) { p.classList.remove('active'); });
-          pill.classList.add('active');
+          // Sync active state across both lists
+          var ctEl = document.getElementById('veChartType');
+          if (ctEl) ctEl.querySelectorAll('.ve-pill').forEach(function(p) { p.classList.toggle('active', p.dataset.val === newType); });
+          var recEl = document.getElementById('veRecommended');
+          if (recEl) recEl.querySelectorAll('.ve-rec-pill').forEach(function(p) { p.classList.toggle('active', p.dataset.val === newType); });
           visual.chartRef._userType = newType;
           var headerSelect = visual.canvas.closest('.glass-panel');
           headerSelect = headerSelect ? headerSelect.querySelector('select[onchange*="ChartType"]') : null;
           if (headerSelect) headerSelect.value = newType;
           updateAndRedraw('chartType', newType);
+        };
+        var ct = document.getElementById('veChartType');
+        if (ct) ct.addEventListener('click', function(e) {
+          var pill = e.target.closest('.ve-pill');
+          if (!pill) return;
+          applyChartType(pill.dataset.val);
+        });
+        var rec = document.getElementById('veRecommended');
+        if (rec) rec.addEventListener('click', function(e) {
+          var pill = e.target.closest('.ve-rec-pill');
+          if (!pill) return;
+          applyChartType(pill.dataset.val);
         });
         var ld = document.getElementById('veLayoutDensity');
         if (ld) ld.addEventListener('click', function(e) {
