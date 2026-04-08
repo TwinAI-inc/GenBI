@@ -1118,7 +1118,10 @@ Rules:
                     font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
                 dragmode=False,
             )
-            return jsonify({'figure': fig.to_dict()})
+            # Use Plotly's own JSON encoder so numpy ndarrays / datetimes
+            # serialize correctly, then round-trip through json.loads so the
+            # result is plain Python that Flask's jsonify can re-serialize.
+            return jsonify({'figure': json.loads(fig.to_json())})
         except ImportError:
             return jsonify({'error': 'Plotly not available'}), 503
         except Exception as e:
@@ -1162,7 +1165,10 @@ Rules:
                     font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
                 dragmode=False,
             )
-            return jsonify({'figure': fig.to_dict()})
+            # Use Plotly's own JSON encoder so numpy ndarrays / datetimes
+            # serialize correctly, then round-trip through json.loads so the
+            # result is plain Python that Flask's jsonify can re-serialize.
+            return jsonify({'figure': json.loads(fig.to_json())})
         except ImportError:
             return jsonify({'error': 'Plotly not available'}), 503
         except Exception as e:
