@@ -1118,9 +1118,7 @@ Rules:
                     font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
                 dragmode=False,
             )
-            html = fig.to_html(include_plotlyjs='cdn', full_html=False,
-                config={'displayModeBar': False, 'scrollZoom': False, 'responsive': True})
-            return jsonify({'html': html})
+            return jsonify({'figure': fig.to_dict()})
         except ImportError:
             return jsonify({'error': 'Plotly not available'}), 503
         except Exception as e:
@@ -1164,9 +1162,7 @@ Rules:
                     font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
                 dragmode=False,
             )
-            html = fig.to_html(include_plotlyjs='cdn', full_html=False,
-                config={'displayModeBar': False, 'scrollZoom': False, 'responsive': True})
-            return jsonify({'html': html})
+            return jsonify({'figure': fig.to_dict()})
         except ImportError:
             return jsonify({'error': 'Plotly not available'}), 503
         except Exception as e:

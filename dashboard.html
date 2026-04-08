@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@100..900&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <script src="public/js/map-data.js"></script>
 <style>
 :root {
@@ -9143,65 +9144,72 @@ function animateChartFromPlan(canvas, chart, delay) {
     else if (type === 'candlestick') animateCandlestickChart(canvas, chart);
     else if (type === 'sankey') animateSankeyChart(canvas, chart);
     else if (type === 'usmap' || type === 'worldmap') {
-      // Render directly to canvas using bundled GenBIMaps (no backend roundtrip).
-      if (!window.GenBIMaps) {
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.font = '12px Outfit, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Map renderer not loaded', canvas.width / 2, canvas.height / 2);
-        return;
-      }
-      const drawer = type === 'usmap' ? window.GenBIMaps.drawUSMapChart : window.GenBIMaps.drawWorldMapChart;
-      // Build dataMap from chart labels + values. The renderer's buildLookup() handles
-      // matching by name OR id and silently skips labels that aren't valid states/countries,
-      // so a chart with non-geographic labels still draws an (empty) base map gracefully.
+      // Render a real choropleth via Plotly.js using the backend /api/map/* endpoints,
+      // which return a Plotly figure spec built from real geo data. The bundled
+      // hand-coded polygons in map-data.js looked like blobs, so we don't use them.
       const dataMap = {};
       if (chart.labels && flatData) {
         chart.labels.forEach((l, i) => { if (l != null) dataMap[String(l)] = flatData[i]; });
       }
-      // Size the canvas to its container at device-pixel resolution. The map renderer
-      // (unlike other drawers in this file) does NOT size the canvas itself, so we must
-      // do it here or it inherits whatever stale dimensions a prior chart left behind,
-      // which causes the projection to be stretched and the title to bleed off-screen.
-      const sizeMapCanvas = function() {
-        const dpr = window.devicePixelRatio || 1;
-        const pr = canvas.parentElement.getBoundingClientRect();
-        // Reserve a sensible minimum height so the world map's projection isn't squashed
-        const w = Math.max(280, pr.width);
-        const h = Math.max(260, pr.height);
-        canvas.width = Math.round(w * dpr);
-        canvas.height = Math.round(h * dpr);
-        canvas.style.width = w + 'px';
-        canvas.style.height = h + 'px';
-      };
-      sizeMapCanvas();
-      // Suppress the renderer's built-in title — the chart panel already shows the title
-      // in its header, so drawing it again on the canvas was producing a duplicate
-      // (and oversized, because of the prior sizing bug) caption.
-      const drawOpts = { title: '', valueLabel: axisOpts.yLabel || chart.yLabel || '' };
-      // Cancel any prior animation frame on this canvas
+      // Hide the canvas and create an overlay div in its place. This is the only
+      // chart type that doesn't draw to the canvas — Plotly needs its own DOM node.
+      canvas.style.display = 'none';
       if (canvas._animFrame) { cancelAnimationFrame(canvas._animFrame); canvas._animFrame = null; }
-      drawer(canvas, dataMap, drawOpts);
-      // Hover support: redraw on mousemove with current pointer position so tooltips show.
-      const handler = function(ev) {
-        if (ev.type === 'mouseleave') {
-          drawer(canvas, dataMap, drawOpts);
-          return;
+      const mapDiv = document.createElement('div');
+      mapDiv.className = 'genbi-map-overlay';
+      const pr = canvas.parentElement.getBoundingClientRect();
+      const mapH = Math.max(280, pr.height || 320);
+      mapDiv.style.cssText = 'width:100%;height:' + mapH + 'px;min-height:280px;position:relative;';
+      mapDiv.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,0.35);font-size:12px;font-family:Outfit,sans-serif;">Loading map…</div>';
+      canvas.parentElement.appendChild(mapDiv);
+
+      // Token guards stale renders if the user rapidly switches chart types.
+      const renderToken = (canvas._mapRenderToken = (canvas._mapRenderToken || 0) + 1);
+      const endpoint = type === 'usmap' ? '/api/map/us' : '/api/map/world';
+      const abort = new AbortController();
+      canvas._mapAbort = abort;
+
+      fetch(endpoint, {
+        method: 'POST',
+        signal: abort.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: dataMap,
+          title: chart.title || '',
+          valueLabel: axisOpts.yLabel || chart.yLabel || 'Value'
+        })
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        if (canvas._mapRenderToken !== renderToken) return; // user already switched away
+        if (!mapDiv.isConnected) return;
+        if (data && data.figure && window.Plotly) {
+          mapDiv.innerHTML = '';
+          window.Plotly.newPlot(mapDiv, data.figure.data, data.figure.layout, {
+            displayModeBar: false,
+            scrollZoom: false,
+            responsive: true
+          });
+          // Force a relayout to fit the actual container size after insertion.
+          window.Plotly.Plots.resize(mapDiv);
+        } else if (data && data.error) {
+          mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.35);font-size:12px;font-family:Outfit,sans-serif;text-align:center;">Map unavailable: ' + data.error + '</div>';
+        } else if (!window.Plotly) {
+          mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.35);font-size:12px;font-family:Outfit,sans-serif;text-align:center;">Plotly failed to load from CDN</div>';
+        } else {
+          mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.35);font-size:12px;font-family:Outfit,sans-serif;text-align:center;">Map data unavailable</div>';
         }
-        const r = canvas.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        const mx = (ev.clientX - r.left) * dpr;
-        const my = (ev.clientY - r.top) * dpr;
-        drawer(canvas, dataMap, Object.assign({}, drawOpts, { mouse: { x: mx, y: my } }));
-      };
-      canvas._mapMouseHandler = handler;
-      canvas.addEventListener('mousemove', handler);
-      canvas.addEventListener('mouseleave', handler);
-      // Re-render on container resize so the projection stays in proportion.
+      }).catch(function(e) {
+        if (e.name === 'AbortError') return;
+        if (!mapDiv.isConnected) return;
+        mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.35);font-size:12px;font-family:Outfit,sans-serif;text-align:center;">Map failed to load</div>';
+      });
+
+      // Re-render on window resize so Plotly fits the new container size.
       if (canvas._mapResizeHandler) window.removeEventListener('resize', canvas._mapResizeHandler);
-      canvas._mapResizeHandler = function() { sizeMapCanvas(); drawer(canvas, dataMap, drawOpts); };
+      canvas._mapResizeHandler = function() {
+        if (mapDiv.isConnected && window.Plotly) {
+          try { window.Plotly.Plots.resize(mapDiv); } catch (err) {}
+        }
+      };
       window.addEventListener('resize', canvas._mapResizeHandler);
       canvas._chartHit = { type: 'map', chartType: type, chart: chart, labels: chart.labels };
     }
