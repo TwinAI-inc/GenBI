@@ -3231,6 +3231,128 @@ const KPI_ICONS = {
   'database': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
 };
 
+// ============================================================================
+// METRIC INSIGHT ENGINE
+// ----------------------------------------------------------------------------
+// For a given numeric column, returns up to 2 short, human-readable insight
+// strings that say something *meaningful* about the data — spread, skew,
+// concentration, target attainment — instead of just dumping avg/sum/min/max.
+// Generic across any CSV: no hardcoded column names.
+// ============================================================================
+function _stemWords(name) {
+  return String(name || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/)
+    .filter(w => w.length >= 4)
+    .map(w => w.replace(/(ed|ing|ment|ions?|ers?|ity|ness)$/, ''))
+    .filter(w => w.length >= 3);
+}
+function _findPairedTargetCol(metricName, allHeaders, ec) {
+  // Look for a column that names the target / goal / plan / budget version of
+  // this metric. E.g. "Enrolled" ↔ "Enrollment Target", "Sales" ↔ "Sales Goal".
+  if (/target|goal|plan|budget|forecast|expected/i.test(metricName)) return null;
+  const stems = _stemWords(metricName);
+  if (!stems.length) return null;
+  for (const h of allHeaders) {
+    if (h === metricName) continue;
+    if (!ec.colMeta[h] || !ec.colMeta[h].isMetric) continue;
+    if (!/target|goal|plan|budget|forecast|expected|capacity|quota/i.test(h)) continue;
+    const hStems = _stemWords(h);
+    if (stems.some(s => hStems.some(t => t.startsWith(s) || s.startsWith(t)))) return h;
+  }
+  return null;
+}
+function _findAnchorCategorical(ec, allHeaders) {
+  // Pick a low-cardinality categorical to use as a "by category" anchor for
+  // concentration insights. Prefer 2..12 unique values.
+  let best = null;
+  for (const h of allHeaders) {
+    const meta = ec.colMeta[h];
+    if (!meta || !meta.isCategorical || meta.isDate || meta.isIndex) continue;
+    const card = meta.uniqueCount || 0;
+    if (card < 2 || card > 12) continue;
+    if (!best || (card >= 3 && card <= 6)) best = h;
+  }
+  return best;
+}
+function computeMetricInsights(metricName, ec, allHeaders, rows) {
+  const meta = ec.colMeta[metricName];
+  if (!meta || !meta.vals || meta.vals.length === 0) return [];
+  const vals = meta.vals;
+  const n = vals.length;
+  const fmt = inferColumnFormat(metricName);
+  const sorted = vals.slice().sort((a, b) => a - b);
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const sum = vals.reduce((a, b) => a + b, 0);
+  const mean = n ? sum / n : 0;
+  const median = sorted[Math.floor(n / 2)];
+  const zeros = vals.filter(v => v === 0).length;
+  const fmtN = (v, decimals) => formatNumber(v, Object.assign({}, fmt, decimals != null ? { decimals: decimals } : {}));
+  const insights = [];
+
+  // ── Insight A: target vs actual (highest priority when available) ──
+  const targetCol = _findPairedTargetCol(metricName, allHeaders, ec);
+  if (targetCol && ec.colMeta[targetCol] && ec.colMeta[targetCol].vals) {
+    const tSum = ec.colMeta[targetCol].vals.reduce((a, b) => a + b, 0);
+    if (tSum > 0) {
+      const pct = Math.round((sum / tSum) * 100);
+      const verb = pct >= 100 ? 'exceeds' : 'of';
+      insights.push(pct + '% ' + verb + ' ' + targetCol.replace(/_/g, ' ').toLowerCase());
+    }
+  }
+
+  // ── Insight B: concentration by an anchor categorical (top contributor) ──
+  if (insights.length < 2) {
+    const anchor = _findAnchorCategorical(ec, allHeaders);
+    if (anchor && rows && rows.length) {
+      const groups = {};
+      rows.forEach(r => {
+        const k = String(r[anchor] != null ? r[anchor] : '').trim();
+        if (!k) return;
+        const v = parseFloat(r[metricName]);
+        if (!isFinite(v)) return;
+        groups[k] = (groups[k] || 0) + v;
+      });
+      const entries = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+      if (entries.length >= 2 && sum > 0) {
+        const topPct = Math.round((entries[0][1] / sum) * 100);
+        if (topPct >= 25) {
+          insights.push(entries[0][0] + ' leads with ' + topPct + '%');
+        }
+      }
+    }
+  }
+
+  // ── Insight C: spread (range with multiplier when meaningful) ──
+  if (insights.length < 2 && isFinite(min) && isFinite(max) && max > min) {
+    if (min > 0 && max / min >= 5) {
+      insights.push('Top is ' + (max / min).toFixed(1) + '\u00d7 the lowest (' + fmtN(min) + ' \u2192 ' + fmtN(max) + ')');
+    } else {
+      insights.push('Range ' + fmtN(min) + ' \u2192 ' + fmtN(max));
+    }
+  }
+
+  // ── Insight D: skew signal (mean vs median) when notable ──
+  if (insights.length < 2 && median !== 0 && n >= 5) {
+    const skew = Math.abs(mean - median) / Math.abs(median);
+    if (skew > 0.30) {
+      insights.push('Right-skewed: avg ' + fmtN(mean, 1) + ' vs median ' + fmtN(median, 1));
+    }
+  }
+
+  // ── Insight E: missing/zero share when notable ──
+  if (insights.length < 2 && zeros > 0 && zeros / n >= 0.10) {
+    const pct = Math.round((zeros / n) * 100);
+    insights.push(pct + '% of records report zero');
+  }
+
+  // ── Fallback: if we still have nothing, give the average ──
+  if (insights.length === 0) {
+    insights.push('Avg ' + fmtN(mean, 1) + ' across ' + n + ' records');
+  }
+
+  return insights.slice(0, 2);
+}
+
 function inferKPIIcon(colName) {
   const low = (colName || '').toLowerCase();
   if (/revenue|sales|cost|price|profit|income|salary|budget|spend|fee|amount/.test(low)) return 'dollar-sign';
@@ -3254,7 +3376,12 @@ function autoGenerateKPIs(ec) {
     const fmt = inferColumnFormat(m);
     const isRate = fmt.percent || /score|rate|avg|percent/i.test(m);
     const agg = isRate ? (vals.reduce((a,b)=>a+b,0) / vals.length) : vals.reduce((a,b)=>a+b,0);
-    kpis.push({ label: m.replace(/_/g, ' '), value: agg, icon: inferKPIIcon(m), color: mColors[(i+1) % mColors.length], format: fmt, aggType: isRate ? 'Avg' : 'Total' });
+    // Suppress the agg-type prefix when the column name already begins with one
+    // of those words (e.g. "Total RD Cost" must not become "Total Total RD Cost").
+    const labelClean = m.replace(/_/g, ' ');
+    const startsWithAgg = /^(total|sum|avg|average|mean|min|max|count|number\s+of|num)\b/i.test(labelClean.trim());
+    const aggType = startsWithAgg ? '' : (isRate ? 'Avg' : 'Total');
+    kpis.push({ label: labelClean, value: agg, icon: inferKPIIcon(m), color: mColors[(i+1) % mColors.length], format: fmt, aggType: aggType });
   });
   return kpis.slice(0, 5);
 }
@@ -3313,23 +3440,27 @@ function renderAnalytics() {
     const metrics = (ec.metrics || []).filter(m => { const meta = ec.colMeta[m]; if (!meta) return false; if (meta.isDate || meta.isIndex) return false; const low = m.toLowerCase(); if (/^(month|year|quarter|week|day|date|time|timestamp|period|epoch)s?$/i.test(low) || /_(id|key)$/i.test(low)) return false; return true; });
     const mColors = ['cyan', 'violet', 'emerald', 'amber'];
     const nStatCols = Math.min(metrics.length + 1, 4);
-    statsHTML = `<div class="stats-grid" style="grid-template-columns:repeat(${nStatCols},minmax(0,1fr));margin-bottom:24px">
-      <div class="glass-panel" style="padding:20px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent-cyan);margin-bottom:8px">Total Records</div>
-        <div style="font-weight:700;font-size:28px;font-family:Inter">${formatNumber(App.excelData.rows.length, {abbreviate:false})}</div>
-        <div style="font-size:12px;color:var(--text-tertiary);margin-top:6px">${App.excelData.headers.length} columns detected</div></div>
-      ${metrics.slice(0, 3).map((m, i) => {
-        const vals = ec.colMeta[m].vals;
-        const avg = vals.reduce((a,b)=>a+b,0) / vals.length;
-        const max = Math.max(...vals); const min = Math.min(...vals);
-        const sum = vals.reduce((a,b)=>a+b,0);
-        const mFmt = inferColumnFormat(m);
-        return '<div class="glass-panel" style="padding:20px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var('+colorMap[mColors[i+1]]+');margin-bottom:8px">'+m.replace(/_/g,' ')+'</div>' +
-          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px">' +
-          '<div><span style="color:var(--text-tertiary)">Avg</span><div style="font-weight:600;font-size:18px;margin-top:2px">'+formatNumber(avg, {...mFmt, decimals:1})+'</div></div>' +
-          '<div><span style="color:var(--text-tertiary)">Sum</span><div style="font-weight:600;font-size:18px;margin-top:2px">'+formatNumber(sum, mFmt)+'</div></div>' +
-          '<div><span style="color:var(--text-tertiary)">Min</span><div style="font-weight:600;font-size:16px;margin-top:2px">'+formatNumber(min, {...mFmt, decimals:1})+'</div></div>' +
-          '<div><span style="color:var(--text-tertiary)">Max</span><div style="font-weight:600;font-size:16px;margin-top:2px">'+formatNumber(max, {...mFmt, decimals:1})+'</div></div></div></div>';
-      }).join('')}</div>`;
+    // Pick the metrics that AREN'T already shown in the top KPI row, so the
+    // second row complements (with insights) instead of duplicating values.
+    const topKpiNames = new Set(autoGenerateKPIs(ec).map(k => k.label));
+    const insightMetrics = metrics.filter(m => !topKpiNames.has(m.replace(/_/g, ' '))).slice(0, 3);
+    // Fall back to the same metrics if no leftovers — but render INSIGHTS, not raw stats.
+    const insightSource = insightMetrics.length ? insightMetrics : metrics.slice(0, 3);
+    if (insightSource.length === 0) {
+      statsHTML = '';
+    } else {
+      const nIns = Math.min(insightSource.length, 4);
+      statsHTML = `<div class="stats-grid" style="grid-template-columns:repeat(${nIns},minmax(0,1fr));margin-bottom:24px">
+        ${insightSource.map((m, i) => {
+          const insights = computeMetricInsights(m, ec, App.excelData.headers, App.excelData.rows);
+          const accent = 'var(' + colorMap[mColors[i % mColors.length]] + ')';
+          const bullets = insights.map(s => '<div style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--text-secondary);margin-top:6px"><span style="color:' + accent + ';font-size:14px;line-height:1.2;flex-shrink:0">\u2022</span><span>' + s + '</span></div>').join('');
+          return '<div class="glass-panel" style="padding:18px 20px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:' + accent + ';margin-bottom:4px">' + m.replace(/_/g, ' ') + '</div>' +
+            '<div style="font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Insights</div>' +
+            (bullets || '<div style="font-size:12px;color:var(--text-tertiary);margin-top:6px">No notable patterns detected.</div>') +
+            '</div>';
+        }).join('')}</div>`;
+    }
 
     // Chart grid from chartPlan — V2 uses 12-column grid
     chartsHTML = `<div id="crossFilterBar" class="cross-filter-bar" style="display:none"></div>` +
@@ -10380,7 +10511,13 @@ async function enhanceDashboardWithAI() {
             if (k.aggFn === 'max') return Math.max(...vals);
             return vals.reduce((a,b)=>a+b,0);
           })(),
-          aggType: k.aggFn === 'avg' ? 'Avg' : k.aggFn === 'max' ? 'Max' : k.aggFn === 'count' ? 'Count' : 'Total'
+          // Suppress the agg prefix when the LLM-supplied label already begins
+          // with one of those words (e.g. "Total RD Cost", "Average Risk Score").
+          aggType: (function() {
+            const lab = String(k.label || '').trim();
+            if (/^(total|sum|avg|average|mean|min|max|count|number\s+of|num)\b/i.test(lab)) return '';
+            return k.aggFn === 'avg' ? 'Avg' : k.aggFn === 'max' ? 'Max' : k.aggFn === 'count' ? 'Count' : 'Total';
+          })()
         }));
         kpiRow.outerHTML = renderKPICards(kpis);
         setTimeout(initKPISparklines, 100);
