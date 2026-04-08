@@ -9073,6 +9073,19 @@ function animateChartFromPlan(canvas, chart, delay) {
     setTimeout(function() { animateChartFromPlan(canvas, chart, 0); }, 100);
     return;
   }
+  // Cleanup from any prior map render: remove overlay divs, restore canvas visibility,
+  // and detach map mouse handler so it doesn't fire on a non-map chart.
+  if (canvas.parentElement) {
+    canvas.parentElement.querySelectorAll('.genbi-map-overlay').forEach(function(el) { el.remove(); });
+  }
+  canvas.style.display = '';
+  if (canvas._mapMouseHandler) {
+    canvas.removeEventListener('mousemove', canvas._mapMouseHandler);
+    canvas.removeEventListener('mouseleave', canvas._mapMouseHandler);
+    canvas._mapMouseHandler = null;
+  }
+  if (canvas._mapTimer) { clearTimeout(canvas._mapTimer); canvas._mapTimer = null; }
+  if (canvas._mapAbort) { try { canvas._mapAbort.abort(); } catch (e) {} canvas._mapAbort = null; }
   const type = chart._userType || chart.type;
   const axisOpts = { suffix: chart.suffix || '', xLabel: chart.xLabel || '', yLabel: chart.yLabel || '' };
   if (chart._barPalette && linePalettes[chart._barPalette]) {
@@ -9126,37 +9139,44 @@ function animateChartFromPlan(canvas, chart, delay) {
     else if (type === 'candlestick') animateCandlestickChart(canvas, chart);
     else if (type === 'sankey') animateSankeyChart(canvas, chart);
     else if (type === 'usmap' || type === 'worldmap') {
-      const dataMap = {}; if (chart.labels && flatData) chart.labels.forEach((l, i) => { dataMap[l] = flatData[i]; });
-      const endpoint = type === 'usmap' ? '/api/map/us' : '/api/map/world';
-      const token = localStorage.getItem('genbi-auth-token');
-      // Hide canvas, show map iframe
-      canvas.style.display = 'none';
-      const mapDiv = document.createElement('div');
-      mapDiv.style.cssText = 'width:100%;height:100%;min-height:300px;';
-      mapDiv.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.25);font-size:12px;">Loading map...</div>';
-      canvas.parentElement.appendChild(mapDiv);
-      // Cancel any previous map fetch for this chart
-      if (canvas._mapTimer) clearTimeout(canvas._mapTimer);
-      if (canvas._mapAbort) canvas._mapAbort.abort();
-      const renderToken = Date.now();
-      canvas._mapRenderToken = renderToken;
-      // Delay map fetch to avoid browser throttling
-      canvas._mapTimer = setTimeout(() => {
-        const abort = new AbortController();
-        canvas._mapAbort = abort;
-        fetch(endpoint, {
-          method: 'POST', signal: abort.signal,
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (token || '') },
-          body: JSON.stringify({ data: dataMap, title: chart.title || '', valueLabel: axisOpts.yLabel || 'Value' })
-        }).then(r => r.json()).then(data => {
-          if (canvas._mapRenderToken !== renderToken) return; // stale — skip
-          if (data.html) {
-            mapDiv.innerHTML = data.html;
-            const plotDiv = mapDiv.querySelector('.plotly-graph-div');
-            if (plotDiv && window.Plotly) { Plotly.relayout(plotDiv, { width: mapDiv.clientWidth, height: Math.max(300, mapDiv.clientHeight) }); }
-          } else { mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map unavailable</div>'; }
-        }).catch(e => { if (e.name !== 'AbortError') mapDiv.innerHTML = '<div style="padding:20px;color:rgba(255,255,255,0.3)">Map failed to load</div>'; });
-      }, 3000);
+      // Render directly to canvas using bundled GenBIMaps (no backend roundtrip).
+      if (!window.GenBIMaps) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.font = '12px Outfit, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Map renderer not loaded', canvas.width / 2, canvas.height / 2);
+        return;
+      }
+      const drawer = type === 'usmap' ? window.GenBIMaps.drawUSMapChart : window.GenBIMaps.drawWorldMapChart;
+      // Build dataMap from chart labels + values. The renderer's buildLookup() handles
+      // matching by name OR id and silently skips labels that aren't valid states/countries,
+      // so a chart with non-geographic labels still draws an (empty) base map gracefully.
+      const dataMap = {};
+      if (chart.labels && flatData) {
+        chart.labels.forEach((l, i) => { if (l != null) dataMap[String(l)] = flatData[i]; });
+      }
+      const drawOpts = { title: chart.title || '', valueLabel: axisOpts.yLabel || chart.yLabel || '' };
+      // Cancel any prior animation frame on this canvas
+      if (canvas._animFrame) { cancelAnimationFrame(canvas._animFrame); canvas._animFrame = null; }
+      drawer(canvas, dataMap, drawOpts);
+      // Hover support: redraw on mousemove with current pointer position so tooltips show.
+      const handler = function(ev) {
+        if (ev.type === 'mouseleave') {
+          drawer(canvas, dataMap, drawOpts);
+          return;
+        }
+        const r = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const mx = (ev.clientX - r.left) * dpr;
+        const my = (ev.clientY - r.top) * dpr;
+        drawer(canvas, dataMap, Object.assign({}, drawOpts, { mouse: { x: mx, y: my } }));
+      };
+      canvas._mapMouseHandler = handler;
+      canvas.addEventListener('mousemove', handler);
+      canvas.addEventListener('mouseleave', handler);
+      canvas._chartHit = { type: 'map', chartType: type, chart: chart, labels: chart.labels };
     }
   }, delay || 0);
 }
@@ -13211,8 +13231,6 @@ function autoMapExcelData(rows) {
     // Remove charts with no meaningful data
     if (!hasLabels && cType !== 'gauge') { chartPlan.splice(ci, 1); continue; }
     if (!hasData && cType !== 'gauge') { chartPlan.splice(ci, 1); continue; }
-    // Remove map charts that won't render (no map data endpoint available in static mode)
-    if (cType === 'worldmap') { chartPlan.splice(ci, 1); continue; }
     // Clean up undefined labels
     if (c.labels) {
       c.labels = c.labels.map(l => (l === undefined || l === null) ? '' : l);
