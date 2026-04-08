@@ -9084,6 +9084,10 @@ function animateChartFromPlan(canvas, chart, delay) {
     canvas.removeEventListener('mouseleave', canvas._mapMouseHandler);
     canvas._mapMouseHandler = null;
   }
+  if (canvas._mapResizeHandler) {
+    window.removeEventListener('resize', canvas._mapResizeHandler);
+    canvas._mapResizeHandler = null;
+  }
   if (canvas._mapTimer) { clearTimeout(canvas._mapTimer); canvas._mapTimer = null; }
   if (canvas._mapAbort) { try { canvas._mapAbort.abort(); } catch (e) {} canvas._mapAbort = null; }
   const type = chart._userType || chart.type;
@@ -9157,7 +9161,26 @@ function animateChartFromPlan(canvas, chart, delay) {
       if (chart.labels && flatData) {
         chart.labels.forEach((l, i) => { if (l != null) dataMap[String(l)] = flatData[i]; });
       }
-      const drawOpts = { title: chart.title || '', valueLabel: axisOpts.yLabel || chart.yLabel || '' };
+      // Size the canvas to its container at device-pixel resolution. The map renderer
+      // (unlike other drawers in this file) does NOT size the canvas itself, so we must
+      // do it here or it inherits whatever stale dimensions a prior chart left behind,
+      // which causes the projection to be stretched and the title to bleed off-screen.
+      const sizeMapCanvas = function() {
+        const dpr = window.devicePixelRatio || 1;
+        const pr = canvas.parentElement.getBoundingClientRect();
+        // Reserve a sensible minimum height so the world map's projection isn't squashed
+        const w = Math.max(280, pr.width);
+        const h = Math.max(260, pr.height);
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+        canvas.style.width = w + 'px';
+        canvas.style.height = h + 'px';
+      };
+      sizeMapCanvas();
+      // Suppress the renderer's built-in title — the chart panel already shows the title
+      // in its header, so drawing it again on the canvas was producing a duplicate
+      // (and oversized, because of the prior sizing bug) caption.
+      const drawOpts = { title: '', valueLabel: axisOpts.yLabel || chart.yLabel || '' };
       // Cancel any prior animation frame on this canvas
       if (canvas._animFrame) { cancelAnimationFrame(canvas._animFrame); canvas._animFrame = null; }
       drawer(canvas, dataMap, drawOpts);
@@ -9176,6 +9199,10 @@ function animateChartFromPlan(canvas, chart, delay) {
       canvas._mapMouseHandler = handler;
       canvas.addEventListener('mousemove', handler);
       canvas.addEventListener('mouseleave', handler);
+      // Re-render on container resize so the projection stays in proportion.
+      if (canvas._mapResizeHandler) window.removeEventListener('resize', canvas._mapResizeHandler);
+      canvas._mapResizeHandler = function() { sizeMapCanvas(); drawer(canvas, dataMap, drawOpts); };
+      window.addEventListener('resize', canvas._mapResizeHandler);
       canvas._chartHit = { type: 'map', chartType: type, chart: chart, labels: chart.labels };
     }
   }, delay || 0);
