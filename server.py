@@ -1097,24 +1097,25 @@ Rules:
             fig = px.choropleth(
                 df, locations='State', locationmode='USA-states',
                 color='Value', scope='usa',
-                color_continuous_scale=[[0,'rgb(2,20,28)'],[0.25,'rgb(4,80,100)'],[0.5,'rgb(6,145,178)'],[0.75,'rgb(6,182,212)'],[1,'rgb(103,232,249)']],
+                color_continuous_scale=[[0,'rgb(13,55,80)'],[0.25,'rgb(8,100,130)'],[0.5,'rgb(6,145,178)'],[0.75,'rgb(6,182,212)'],[1,'rgb(103,232,249)']],
                 hover_name='State',
                 labels={'Value': value_label}
             )
-            fig.update_traces(marker_line_color='rgba(0,0,0,0.5)', marker_line_width=0.5,
+            fig.update_traces(marker_line_color='rgba(255,255,255,0.18)', marker_line_width=0.8,
                 hovertemplate='<b>%{hovertext}</b><br>' + value_label + ': %{z:,.0f}<extra></extra>')
             fig.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                geo=dict(bgcolor='rgba(0,0,0,0)', lakecolor='rgba(0,0,0,1)',
-                    landcolor='rgba(255,255,255,0.02)', subunitcolor='rgba(255,255,255,0.06)',
-                    showlakes=True, showframe=False, coastlinecolor='rgba(255,255,255,0.06)'),
+                geo=dict(bgcolor='rgba(0,0,0,0)', lakecolor='rgb(8,16,28)',
+                    landcolor='rgb(18,24,38)', subunitcolor='rgba(255,255,255,0.15)',
+                    showlakes=True, showland=True, showframe=False,
+                    coastlinecolor='rgba(255,255,255,0.20)'),
                 font=dict(family='Outfit, sans-serif', color='rgba(255,255,255,0.7)', size=11),
-                title=None, margin=dict(l=0, r=0, t=0, b=0),
-                coloraxis_colorbar=dict(title='', thickness=8, len=0.35, x=0.93, y=0.5,
+                title=None, margin=dict(l=5, r=5, t=5, b=5),
+                coloraxis_colorbar=dict(title='', thickness=8, len=0.35, x=0.95, y=0.5,
                     bgcolor='rgba(0,0,0,0)', outlinewidth=0,
-                    tickfont=dict(family='Outfit, sans-serif', size=9, color='rgba(255,255,255,0.30)'),
+                    tickfont=dict(family='Outfit, sans-serif', size=9, color='rgba(255,255,255,0.45)'),
                     nticks=4, borderwidth=0),
-                hoverlabel=dict(bgcolor='rgba(0,0,0,0.88)', bordercolor='rgba(255,255,255,0.06)',
+                hoverlabel=dict(bgcolor='rgba(0,0,0,0.88)', bordercolor='rgba(255,255,255,0.12)',
                     font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
                 dragmode=False,
             )
@@ -1144,24 +1145,29 @@ Rules:
             fig = px.choropleth(
                 df, locations='Country', locationmode='country names',
                 color='Value',
-                color_continuous_scale=[[0,'rgb(2,20,28)'],[0.25,'rgb(4,80,100)'],[0.5,'rgb(6,145,178)'],[0.75,'rgb(6,182,212)'],[1,'rgb(103,232,249)']],
+                color_continuous_scale=[[0,'rgb(13,55,80)'],[0.25,'rgb(8,100,130)'],[0.5,'rgb(6,145,178)'],[0.75,'rgb(6,182,212)'],[1,'rgb(103,232,249)']],
                 hover_name='Country',
                 labels={'Value': value_label}
             )
-            fig.update_traces(marker_line_color='rgba(0,0,0,0.3)', marker_line_width=0.3,
+            fig.update_traces(marker_line_color='rgba(255,255,255,0.15)', marker_line_width=0.5,
                 hovertemplate='<b>%{hovertext}</b><br>' + value_label + ': %{z:,.0f}<extra></extra>')
             fig.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
                 geo=dict(bgcolor='rgba(0,0,0,0)', showframe=False, showcoastlines=True,
-                    coastlinecolor='rgba(255,255,255,0.06)', landcolor='rgba(255,255,255,0.02)',
-                    lakecolor='rgba(0,0,0,1)', projection_type='natural earth'),
+                    showland=True, showcountries=True,
+                    coastlinecolor='rgba(255,255,255,0.20)',
+                    countrycolor='rgba(255,255,255,0.12)',
+                    landcolor='rgb(18,24,38)',
+                    oceancolor='rgb(8,12,22)', showocean=True,
+                    lakecolor='rgb(8,16,28)',
+                    projection_type='natural earth'),
                 font=dict(family='Outfit, sans-serif', color='rgba(255,255,255,0.7)', size=11),
-                title=None, margin=dict(l=0, r=0, t=0, b=0),
-                coloraxis_colorbar=dict(title='', thickness=8, len=0.35, x=0.93, y=0.5,
+                title=None, margin=dict(l=5, r=5, t=5, b=5),
+                coloraxis_colorbar=dict(title='', thickness=8, len=0.35, x=0.95, y=0.5,
                     bgcolor='rgba(0,0,0,0)', outlinewidth=0,
-                    tickfont=dict(family='Outfit, sans-serif', size=9, color='rgba(255,255,255,0.30)'),
+                    tickfont=dict(family='Outfit, sans-serif', size=9, color='rgba(255,255,255,0.45)'),
                     nticks=4, borderwidth=0),
-                hoverlabel=dict(bgcolor='rgba(0,0,0,0.88)', bordercolor='rgba(255,255,255,0.06)',
+                hoverlabel=dict(bgcolor='rgba(0,0,0,0.88)', bordercolor='rgba(255,255,255,0.12)',
                     font=dict(family='Outfit, sans-serif', size=12, color='rgba(255,255,255,0.90)')),
                 dragmode=False,
             )
