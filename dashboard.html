@@ -1573,6 +1573,20 @@ body.theme-light .pm-project-name{color:#333;}
 @keyframes toastIn{from{transform:translateX(100px);opacity:0;}to{transform:translateX(0);opacity:1;}}
 @keyframes toastOut{from{transform:translateX(0);opacity:1;}to{transform:translateX(100px);opacity:0;}}
 
+/* ══════ CUSTOM CONFIRM DIALOG ══════ */
+.confirm-overlay{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s ease;pointer-events:none;}
+.confirm-overlay.open{opacity:1;pointer-events:all;}
+.confirm-dialog{background:rgba(20,20,25,0.95);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:28px 32px;max-width:400px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,0.5);transform:scale(0.95);transition:transform .2s cubic-bezier(0.22,1,0.36,1);}
+.confirm-overlay.open .confirm-dialog{transform:scale(1);}
+.confirm-dialog h3{font-family:'Outfit',sans-serif;font-weight:500;font-size:16px;color:rgba(255,255,255,0.9);margin:0 0 8px;}
+.confirm-dialog p{font-family:'Outfit',sans-serif;font-weight:300;font-size:13px;color:rgba(255,255,255,0.5);margin:0 0 24px;line-height:1.5;}
+.confirm-dialog-btns{display:flex;justify-content:flex-end;gap:10px;}
+.confirm-dialog-btns button{font-family:'Outfit',sans-serif;font-size:13px;font-weight:400;padding:9px 20px;border-radius:8px;cursor:pointer;transition:all .2s;}
+.confirm-btn-cancel{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);}
+.confirm-btn-cancel:hover{background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.8);}
+.confirm-btn-danger{background:rgba(255,107,157,0.15);border:1px solid rgba(255,107,157,0.25);color:#ff6b9d;}
+.confirm-btn-danger:hover{background:rgba(255,107,157,0.25);border-color:rgba(255,107,157,0.4);}
+
 /* ══════ PAGE TRANSITIONS ══════ */
 .page{display:none;animation:pageFadeIn .4s cubic-bezier(.16,1,.3,1) both;}
 .page.active{display:block;}
@@ -2679,6 +2693,16 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
 
 <!-- ══════ TOAST CONTAINER ══════ -->
 <div class="toast-container" id="toastContainer"></div>
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-dialog">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmMessage"></p>
+    <div class="confirm-dialog-btns">
+      <button class="confirm-btn-cancel" onclick="resolveConfirm(false)">Cancel</button>
+      <button class="confirm-btn-danger" id="confirmActionBtn" onclick="resolveConfirm(true)">Delete</button>
+    </div>
+  </div>
+</div>
 <div class="chart-tooltip" id="chartTooltip"><div class="chart-tooltip-label" id="ttLabel"></div><div class="chart-tooltip-value" id="ttValue"></div><div class="chart-tooltip-bar" id="ttBar"></div></div>
 
 <script>
@@ -2907,6 +2931,22 @@ function toast(msg, type = 'info') {
   el.innerHTML = `<span style="font-size:16px">${ic}</span><span>${msg}</span>`;
   $('#toastContainer').appendChild(el);
   setTimeout(() => { el.style.animation = 'toastOut .3s ease forwards'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+// ── Themed confirm dialog (replaces native confirm()) ──
+let _confirmResolve = null;
+function showConfirm(title, message, actionLabel) {
+  return new Promise(resolve => {
+    _confirmResolve = resolve;
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMessage').textContent = message;
+    document.getElementById('confirmActionBtn').textContent = actionLabel || 'Delete';
+    document.getElementById('confirmOverlay').classList.add('open');
+  });
+}
+function resolveConfirm(val) {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  if (_confirmResolve) { _confirmResolve(val); _confirmResolve = null; }
 }
 
 // ══════════════════════════════════════════════
@@ -10083,11 +10123,12 @@ function loadProject(id) {
   }
 }
 
-function deleteProject(id) {
+async function deleteProject(id) {
   const idx = getProjectIndex();
   if (!idx.projects[id]) return;
   const name = idx.projects[id].name;
-  if (!confirm('Are you sure you want to delete "' + name + '"? This cannot be undone.')) return;
+  const ok = await showConfirm('Delete Project', 'Are you sure you want to delete "' + name + '"? This cannot be undone.', 'Delete');
+  if (!ok) return;
   delete idx.projects[id];
   if (idx.activeProjectId === id) { idx.activeProjectId = null; _activeProjectId = null; }
   saveProjectIndex(idx);
@@ -10152,7 +10193,7 @@ function promptSaveProject() {
   }
 }
 
-function confirmNewProject() {
+async function confirmNewProject() {
   const form = document.getElementById('pmSaveForm');
   const confirmEl = document.getElementById('pmNewConfirm');
   if (form) form.classList.remove('open');
@@ -10162,10 +10203,9 @@ function confirmNewProject() {
     if (confirmEl) {
       confirmEl.classList.toggle('open');
     } else {
-      // Called from sidebar — use native confirm
-      if (window.confirm('Start fresh? Any unsaved changes to your current project will be lost.')) {
-        newProject();
-      }
+      // Called from sidebar — use themed confirm dialog
+      const ok = await showConfirm('New Project', 'Start fresh? Any unsaved changes to your current project will be lost.', 'Start New');
+      if (ok) newProject();
     }
   } else {
     newProject();
