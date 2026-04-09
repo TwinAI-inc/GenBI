@@ -1081,6 +1081,24 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    # State name → 2-letter code mapping for the US map endpoint.
+    # Plotly's locationmode='USA-states' requires 2-letter codes, but user
+    # data often contains full names like "California" or "New York".
+    _STATE_TO_CODE = {
+        'alabama':'AL','alaska':'AK','arizona':'AZ','arkansas':'AR','california':'CA',
+        'colorado':'CO','connecticut':'CT','delaware':'DE','florida':'FL','georgia':'GA',
+        'hawaii':'HI','idaho':'ID','illinois':'IL','indiana':'IN','iowa':'IA','kansas':'KS',
+        'kentucky':'KY','louisiana':'LA','maine':'ME','maryland':'MD','massachusetts':'MA',
+        'michigan':'MI','minnesota':'MN','mississippi':'MS','missouri':'MO','montana':'MT',
+        'nebraska':'NE','nevada':'NV','new hampshire':'NH','new jersey':'NJ',
+        'new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND',
+        'ohio':'OH','oklahoma':'OK','oregon':'OR','pennsylvania':'PA','rhode island':'RI',
+        'south carolina':'SC','south dakota':'SD','tennessee':'TN','texas':'TX','utah':'UT',
+        'vermont':'VT','virginia':'VA','washington':'WA','west virginia':'WV',
+        'wisconsin':'WI','wyoming':'WY','district of columbia':'DC',
+    }
+    _VALID_STATE_CODES = set(_STATE_TO_CODE.values())
+
     @app.route('/api/map/us', methods=['POST'])
     def render_us_map():
         """Generate US choropleth map HTML using Plotly."""
@@ -1088,26 +1106,42 @@ Rules:
             import plotly.express as px
             import pandas as pd
             data = request.get_json()
-            state_data = data.get('data', {})  # {"CA": 100, "TX": 200, ...}
+            raw_data = data.get('data', {})  # {"CA": 100, "Indiana": 200, ...}
             title = data.get('title', 'US Map')
             value_label = data.get('valueLabel', 'Value')
-            if not state_data:
+            if not raw_data:
                 return jsonify({'error': 'No data'}), 400
-            df = pd.DataFrame([{'State': k, 'Value': v} for k, v in state_data.items()])
+
+            # Normalize keys: accept full state names, abbreviations, or mixed case.
+            state_data = {}
+            name_lookup = {}  # code → display name for tooltips
+            for k, v in raw_data.items():
+                key = k.strip()
+                code = _STATE_TO_CODE.get(key.lower())
+                if not code and key.upper() in _VALID_STATE_CODES:
+                    code = key.upper()
+                if code:
+                    state_data[code] = state_data.get(code, 0) + (v if isinstance(v, (int, float)) else 0)
+                    name_lookup[code] = key
+
+            if not state_data:
+                return jsonify({'error': 'No valid US state names or codes found in data'}), 400
+
+            df = pd.DataFrame([{'State': k, 'Name': name_lookup.get(k, k), 'Value': v} for k, v in state_data.items()])
             fig = px.choropleth(
                 df, locations='State', locationmode='USA-states',
                 color='Value', scope='usa',
                 color_continuous_scale=[[0,'rgb(13,55,80)'],[0.25,'rgb(8,100,130)'],[0.5,'rgb(6,145,178)'],[0.75,'rgb(6,182,212)'],[1,'rgb(103,232,249)']],
-                hover_name='State',
+                hover_name='Name',
                 labels={'Value': value_label}
             )
             fig.update_traces(marker_line_color='rgba(255,255,255,0.18)', marker_line_width=0.8,
                 hovertemplate='<b>%{hovertext}</b><br>' + value_label + ': %{z:,.0f}<extra></extra>')
             fig.update_layout(
                 paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                geo=dict(bgcolor='rgba(0,0,0,0)', lakecolor='rgb(8,16,28)',
+                geo=dict(scope='usa', bgcolor='rgba(0,0,0,0)', lakecolor='rgb(8,16,28)',
                     landcolor='rgb(18,24,38)', subunitcolor='rgba(255,255,255,0.15)',
-                    showlakes=True, showland=True, showframe=False,
+                    showlakes=True, showland=True, showframe=False, showsubunits=True,
                     coastlinecolor='rgba(255,255,255,0.20)'),
                 font=dict(family='Outfit, sans-serif', color='rgba(255,255,255,0.7)', size=11),
                 title=None, margin=dict(l=5, r=5, t=5, b=5),
