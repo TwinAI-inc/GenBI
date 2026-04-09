@@ -277,7 +277,7 @@ def create_app():
 The user wants: {user_message}
 
 Respond with ONLY a valid JSON object (no markdown, no code fences) with these fields:
-- "chartType": one of "bar", "line", "donut", "hbar", "area", "stacked", "gauge", "bubble", "lollipop", "funnel", "waterfall", "radar", "heatmap", "boxplot", "treemap", "candlestick", "sankey"
+- "chartType": one of "bar", "line", "donut", "hbar", "area", "stacked", "gauge", "bubble", "lollipop", "funnel", "waterfall", "radar", "heatmap", "boxplot", "treemap", "candlestick", "sankey", "usmap", "worldmap"
 - "xCol": exact column name for X axis / grouping
 - "yCol": exact column name for Y axis / values (null ONLY for donut showing distribution of a single categorical column)
 - "aggFn": one of "sum", "avg", "max", "count"
@@ -305,8 +305,10 @@ CHART TYPE SELECTION (choose the type that tells the clearest story):
 - "treemap": Hierarchical proportional areas — like donut but for more segments (up to 30).
 - "candlestick": OHLC financial data — requires open/high/low/close columns with date xCol.
 - "sankey": Flow diagram — shows how quantities flow between categories. Needs xCol (source) and groupCol (target).
+- "usmap": US choropleth map — xCol MUST be a US state column (state names or 2-letter codes). yCol is the numeric measure to color states by. Use when user asks for a US/state map.
+- "worldmap": World choropleth map — xCol MUST be a country column. yCol is the numeric measure to color countries by. Use when user asks for a world/country map.
 
-WIDTH RULES: full for line/area/heatmap/sankey, two-thirds for bar/waterfall/stacked/hbar, one-third for donut/gauge/funnel/radar/treemap, half as default.
+WIDTH RULES: full for line/area/heatmap/sankey/usmap/worldmap, two-thirds for bar/waterfall/stacked/hbar, one-third for donut/gauge/funnel/radar/treemap, half as default.
 
 AGGREGATION RULES (critical for correctness):
 - "sum": Use for additive quantities — revenue, sales, cost, profit, count of items, population, units sold
@@ -420,7 +422,7 @@ The user wants: {user_message}
 IMPORTANT: Keep ALL fields the same UNLESS the user explicitly asks to change them. Return the FULL updated chart spec.
 
 Respond with ONLY a valid JSON object (no markdown, no code fences) with these fields:
-- "chartType": one of "bar", "line", "donut", "hbar", "area", "stacked", "gauge", "bubble", "lollipop", "funnel", "waterfall", "radar", "heatmap", "boxplot", "treemap", "candlestick", "sankey"
+- "chartType": one of "bar", "line", "donut", "hbar", "area", "stacked", "gauge", "bubble", "lollipop", "funnel", "waterfall", "radar", "heatmap", "boxplot", "treemap", "candlestick", "sankey", "usmap", "worldmap"
 - "xCol": exact column name for X axis / grouping
 - "yCol": exact column name for Y axis / values (null ONLY for donut showing distribution of a single categorical column)
 - "aggFn": one of "sum", "avg", "max", "count"
@@ -533,7 +535,7 @@ Respond with ONLY valid JSON (no markdown):
     {{"label": "display name", "col": "exact column name", "aggFn": "sum|avg|max|count", "icon": "dollar-sign|trending-up|users|package|bar-chart|hash|percent|target|zap|activity|database", "format": "currency|percent|number"}}
   ],
   "charts": [
-    {{"chartType": "bar|line|donut|hbar|area|stacked|gauge|bubble|lollipop|funnel|waterfall|radar|heatmap|boxplot|treemap|candlestick|sankey",
+    {{"chartType": "bar|line|donut|hbar|area|stacked|gauge|bubble|lollipop|funnel|waterfall|radar|heatmap|boxplot|treemap|candlestick|sankey|usmap|worldmap",
       "xCol": "column", "yCol": "column", "aggFn": "sum|avg|max|count",
       "groupCol": null, "sizeCol": null,
       "width": "full|two-thirds|half|one-third",
