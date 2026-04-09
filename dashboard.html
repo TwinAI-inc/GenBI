@@ -14218,9 +14218,12 @@ document.addEventListener('click', function(e) {
     return _result(s, reasons);
   }
   function scoreLine(p) {
-    var dateX = (p.xCol && p.xCol.isDate) || p.dateCols[0];
+    // The CURRENT chart's x must be date-like. Don't fall back to "any date
+    // column in the dataset" — that would recommend a line chart for
+    // "Revenue by State" just because the dataset also has a date column.
+    var dateX = p.xCol ? (p.xCol.isDate ? p.xCol : null) : (p.dateCols.length > 0 ? p.dateCols[0] : null);
     var y = _numericLikeY(p);
-    if (!dateX || !y) return _result(0, ['Needs a date/time column and a numeric measure']);
+    if (!dateX || !y) return _result(0, ['Needs a date/time column on the x-axis']);
     var points = p.chartLabelCount || p.rowCount || 0;
     if (points < 4) return _result(0, ['Not enough time points for a trend']);
     var s = 70, reasons = ['Shows trend of ' + (y.name || 'value') + ' over time'];
@@ -14230,9 +14233,10 @@ document.addEventListener('click', function(e) {
     return _result(s, reasons);
   }
   function scoreArea(p) {
-    var dateX = (p.xCol && p.xCol.isDate) || p.dateCols[0];
+    // Same logic as Line: only if the chart's bound x is date-like.
+    var dateX = p.xCol ? (p.xCol.isDate ? p.xCol : null) : (p.dateCols.length > 0 ? p.dateCols[0] : null);
     var y = _numericLikeY(p);
-    if (!dateX || !y) return _result(0, ['Needs a date/time column and a numeric measure']);
+    if (!dateX || !y) return _result(0, ['Needs a date/time column on the x-axis']);
     var points = p.chartLabelCount || p.rowCount || 0;
     if (points < 4) return _result(0, ['Not enough time points']);
     var s = 60, reasons = ['Emphasizes magnitude over time'];
@@ -14319,12 +14323,23 @@ document.addEventListener('click', function(e) {
   }
   function scoreRadar(p) {
     if (p.numericCols.length < 3) return _result(0, ['Needs at least 3 numeric metrics']);
+    // Radar is unreadable with more than ~10 data points. If the current chart
+    // has many labels (e.g., 50 states), reject immediately — don't scan dataset
+    // for some other low-cardinality column that has nothing to do with this chart.
+    if (p.chartLabelCount > 10) return _result(0, ['Too many data points (' + p.chartLabelCount + ') for a radar chart']);
+    // If the chart has a bound x with high cardinality, reject.
+    if (p.xCol && p.xCol.uniqueCount > 10) return _result(0, ['Too many categories (' + p.xCol.uniqueCount + ') for a radar chart']);
     var lowCardCat = null;
-    for (var i = 0; i < p.categoricalCols.length; i++) {
-      var c = p.categoricalCols[i];
-      if (c.uniqueCount >= 2 && c.uniqueCount <= 6) { lowCardCat = c; break; }
+    // Prefer the chart's own bound x if it qualifies.
+    if (p.xCol && p.xCol.isCategorical && p.xCol.uniqueCount >= 2 && p.xCol.uniqueCount <= 6) {
+      lowCardCat = p.xCol;
+    } else {
+      for (var i = 0; i < p.categoricalCols.length; i++) {
+        var c = p.categoricalCols[i];
+        if (c.uniqueCount >= 2 && c.uniqueCount <= 6) { lowCardCat = c; break; }
+      }
     }
-    if (!lowCardCat) return _result(0, ['Needs a low-cardinality category to compare profiles']);
+    if (!lowCardCat) return _result(0, ['Needs a low-cardinality category (2\u20136) to compare profiles']);
     var s = 40, reasons = ['Compares ' + lowCardCat.name + ' across ' + p.numericCols.length + ' metrics'];
     if (p.numericCols.length >= 5) s += 15;
     if (lowCardCat.uniqueCount <= 4) s += 8;
