@@ -148,7 +148,7 @@ def create_app():
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: https://*.googleusercontent.com; "
-            "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com"
+            "connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://cdn.plot.ly"
         )
         if not app.debug:
             response.headers['Strict-Transport-Security'] = (
