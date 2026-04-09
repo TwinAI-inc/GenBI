@@ -14296,19 +14296,27 @@ document.addEventListener('click', function(e) {
     return _result(s, reasons);
   }
   function scoreUSMap(p) {
-    if (!p.geoUSStateCol) return _result(0, ['No US state column detected in this dataset']);
+    // If the chart has a bound x column, IT must be the state column.
+    // Don't recommend a US map for "RD Cost by Therapeutic Area" just because
+    // the dataset also has a State column somewhere.
+    if (p.xCol && !p.xCol.isUSState) return _result(0, ['Current x-axis (' + (p.xCol.name || '') + ') is not a US state column']);
+    if (!p.xCol && !p.geoUSStateCol) return _result(0, ['No US state column detected in this dataset']);
     var y = _numericLikeY(p);
     if (!y) return _result(0, ['Needs a numeric measure to color states']);
+    var geoCol = p.xCol || p.geoUSStateCol;
     var s = 78, reasons = ['Shows ' + y.name + ' geographically across US states'];
-    if (p.geoUSStateCol.uniqueCount >= 8) { s += 12; reasons.push(p.geoUSStateCol.uniqueCount + ' states with data'); }
+    if (geoCol.uniqueCount >= 8) { s += 12; reasons.push(geoCol.uniqueCount + ' states with data'); }
     return _result(s, reasons);
   }
   function scoreWorldMap(p) {
-    if (!p.geoCountryCol) return _result(0, ['No country column detected in this dataset']);
+    // Same logic: if the chart has a bound x, it must be a country column.
+    if (p.xCol && !p.xCol.isCountry) return _result(0, ['Current x-axis (' + (p.xCol.name || '') + ') is not a country column']);
+    if (!p.xCol && !p.geoCountryCol) return _result(0, ['No country column detected in this dataset']);
     var y = _numericLikeY(p);
     if (!y) return _result(0, ['Needs a numeric measure to color countries']);
+    var geoCol = p.xCol || p.geoCountryCol;
     var s = 78, reasons = ['Shows ' + y.name + ' globally by country'];
-    if (p.geoCountryCol.uniqueCount >= 5) { s += 12; reasons.push(p.geoCountryCol.uniqueCount + ' countries with data'); }
+    if (geoCol.uniqueCount >= 5) { s += 12; reasons.push(geoCol.uniqueCount + ' countries with data'); }
     return _result(s, reasons);
   }
   function scoreWaterfall(p) {
