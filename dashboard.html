@@ -2510,6 +2510,9 @@ body.theme-light .ask-ai-input-row input{background:rgba(0,0,0,0.03);border-colo
     <div class="nav-item" data-tooltip="My Projects" onclick="openProjectManager()">
       <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span><span class="nav-text">My Projects</span>
     </div>
+    <div class="nav-item" data-tooltip="New Project" onclick="confirmNewProject()">
+      <span class="nav-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></span><span class="nav-text">New Project</span>
+    </div>
     <div class="nav-project-indicator" id="activeProjectIndicator"></div>
   </div>
   <div class="sidebar-spacer"></div>
@@ -10084,6 +10087,7 @@ function deleteProject(id) {
   const idx = getProjectIndex();
   if (!idx.projects[id]) return;
   const name = idx.projects[id].name;
+  if (!confirm('Are you sure you want to delete "' + name + '"? This cannot be undone.')) return;
   delete idx.projects[id];
   if (idx.activeProjectId === id) { idx.activeProjectId = null; _activeProjectId = null; }
   saveProjectIndex(idx);
@@ -10150,11 +10154,19 @@ function promptSaveProject() {
 
 function confirmNewProject() {
   const form = document.getElementById('pmSaveForm');
-  const confirm = document.getElementById('pmNewConfirm');
+  const confirmEl = document.getElementById('pmNewConfirm');
   if (form) form.classList.remove('open');
   const hasData = App.hasExcelData || (App.customCharts && App.customCharts.length > 0);
   if (hasData) {
-    confirm.classList.toggle('open');
+    // If project modal is open, use the inline confirm UI
+    if (confirmEl) {
+      confirmEl.classList.toggle('open');
+    } else {
+      // Called from sidebar — use native confirm
+      if (window.confirm('Start fresh? Any unsaved changes to your current project will be lost.')) {
+        newProject();
+      }
+    }
   } else {
     newProject();
   }
@@ -12949,6 +12961,10 @@ async function smartAutoMap(rows) {
         xLabel: (xCol || '').replace(/_/g, ' '), yLabel: (yCol || '').replace(/_/g, ' ')
       };
     }).filter(Boolean);
+
+    // Assign deterministic colors by index so charts don't change color on re-run
+    const stableColors = ['cyan', 'violet', 'emerald', 'amber', 'rose', 'teal', 'indigo', 'lime'];
+    chartPlan.forEach((c, i) => { c.color = stableColors[i % stableColors.length]; });
 
     // Set _origXCol/_origYCol for explain sidebar
     chartPlan.forEach(chart => {
