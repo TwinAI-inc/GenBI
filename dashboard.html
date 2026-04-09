@@ -14296,27 +14296,39 @@ document.addEventListener('click', function(e) {
     return _result(s, reasons);
   }
   function scoreUSMap(p) {
-    // If the chart has a bound x column, IT must be the state column.
-    // Don't recommend a US map for "RD Cost by Therapeutic Area" just because
-    // the dataset also has a State column somewhere.
-    if (p.xCol && !p.xCol.isUSState) return _result(0, ['Current x-axis (' + (p.xCol.name || '') + ') is not a US state column']);
-    if (!p.xCol && !p.geoUSStateCol) return _result(0, ['No US state column detected in this dataset']);
+    // The chart's x-axis must actually be a US state column.
+    // Three cases:
+    //   1. xCol is bound and IS a state col → score it
+    //   2. xCol is bound and is NOT a state col → 0
+    //   3. xCol is null — chart has no tracked x. If the chart already has
+    //      data/labels, we can't confirm they're states, so score 0.
+    //      Only fall back to dataset-level detection for empty/new charts.
+    if (p.xCol) {
+      if (!p.xCol.isUSState) return _result(0, ['Current x-axis (' + (p.xCol.name || '') + ') is not a US state column']);
+    } else {
+      if (p.chartLabelCount > 0) return _result(0, ['Chart data is not bound to a US state column']);
+      if (!p.geoUSStateCol) return _result(0, ['No US state column detected in this dataset']);
+    }
     var y = _numericLikeY(p);
     if (!y) return _result(0, ['Needs a numeric measure to color states']);
     var geoCol = p.xCol || p.geoUSStateCol;
     var s = 78, reasons = ['Shows ' + y.name + ' geographically across US states'];
-    if (geoCol.uniqueCount >= 8) { s += 12; reasons.push(geoCol.uniqueCount + ' states with data'); }
+    if (geoCol && geoCol.uniqueCount >= 8) { s += 12; reasons.push(geoCol.uniqueCount + ' states with data'); }
     return _result(s, reasons);
   }
   function scoreWorldMap(p) {
-    // Same logic: if the chart has a bound x, it must be a country column.
-    if (p.xCol && !p.xCol.isCountry) return _result(0, ['Current x-axis (' + (p.xCol.name || '') + ') is not a country column']);
-    if (!p.xCol && !p.geoCountryCol) return _result(0, ['No country column detected in this dataset']);
+    // Same logic as US Map — only recommend when the chart's own data is countries.
+    if (p.xCol) {
+      if (!p.xCol.isCountry) return _result(0, ['Current x-axis (' + (p.xCol.name || '') + ') is not a country column']);
+    } else {
+      if (p.chartLabelCount > 0) return _result(0, ['Chart data is not bound to a country column']);
+      if (!p.geoCountryCol) return _result(0, ['No country column detected in this dataset']);
+    }
     var y = _numericLikeY(p);
     if (!y) return _result(0, ['Needs a numeric measure to color countries']);
     var geoCol = p.xCol || p.geoCountryCol;
     var s = 78, reasons = ['Shows ' + y.name + ' globally by country'];
-    if (geoCol.uniqueCount >= 5) { s += 12; reasons.push(geoCol.uniqueCount + ' countries with data'); }
+    if (geoCol && geoCol.uniqueCount >= 5) { s += 12; reasons.push(geoCol.uniqueCount + ' countries with data'); }
     return _result(s, reasons);
   }
   function scoreWaterfall(p) {
