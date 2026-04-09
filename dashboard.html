@@ -734,7 +734,8 @@ body.theme-pastel .ai-insights-card { background: rgba(255,255,255,0.85); border
 body.theme-pastel .ai-insights-card .ai-card-header { color: #2d3142; }
 body.theme-pastel .ai-insights-card p, body.theme-pastel .ai-insights-card li, body.theme-pastel .ai-insights-card span { color: #555770; }
 body.theme-pastel .kpi-card-v2 .kpi-value { color: #2d3142; }
-body.theme-pastel .kpi-card-v2 .kpi-label { color: #8e92a4; }
+body.theme-pastel .kpi-card-v2 .kpi-label { color: #6b7085; font-weight: 500; }
+body.theme-pastel .kpi-card-v2 .kpi-subtitle { color: #8e92a4; }
 body.theme-pastel .kpi-card-v2 .kpi-delta { color: #555770; }
 body.theme-pastel .ask-suggestions { color: #555770; }
 body.theme-pastel .ask-suggestions button { color: #5c6bc0; background: rgba(92,107,192,0.06); border-color: rgba(92,107,192,0.1); }
@@ -885,7 +886,8 @@ body.theme-genbi .kpi-card-v2 { background: rgba(255,255,255,0.03); border: 1px 
 body.theme-genbi .kpi-card-v2:hover { border-color: rgba(255,255,255,0.15); }
 body.theme-genbi .kpi-card-v2 .kpi-top-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 body.theme-genbi .kpi-card-v2 .kpi-value { color: rgba(255,255,255,0.95); font-family: 'Outfit', sans-serif; font-weight: 300; letter-spacing: -0.02em; font-size: 22px; margin-bottom: 2px; }
-body.theme-genbi .kpi-card-v2 .kpi-label { color: rgba(255,255,255,0.35); font-family: 'Outfit', sans-serif; font-weight: 300; text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.58rem; }
+body.theme-genbi .kpi-card-v2 .kpi-label { color: rgba(255,255,255,0.65); font-family: 'Outfit', sans-serif; font-weight: 400; text-transform: none; letter-spacing: 0.01em; font-size: 0.75rem; }
+body.theme-genbi .kpi-card-v2 .kpi-subtitle { color: rgba(255,255,255,0.30); font-family: 'Outfit', sans-serif; font-weight: 300; font-size: 0.6rem; letter-spacing: 0.02em; }
 body.theme-genbi .kpi-card-v2 .kpi-icon { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); width: 28px; height: 28px; border-radius: 8px; }
 body.theme-genbi .kpi-card-v2 .kpi-trend { font-size: 0.65rem; font-weight: 400; font-family: 'Outfit', sans-serif; }
 body.theme-genbi .kpi-card-v2 .kpi-spark { width: 100%; height: 28px; display: block; margin-top: 8px; }
@@ -1760,8 +1762,9 @@ body.theme-genbi .style-pill:hover { border-color: rgba(255,255,255,0.15); color
 }
 .kpi-card-v2:hover { border-color: var(--glass-border-bright); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
 .kpi-card-v2 .kpi-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-.kpi-card-v2 .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-tertiary); margin-bottom: 4px; }
-.kpi-card-v2 .kpi-value { font-size: 24px; font-weight: 700; font-family: 'Inter', system-ui, sans-serif; color: var(--text-primary); }
+.kpi-card-v2 .kpi-label { font-size: 12px; text-transform: none; letter-spacing: 0.01em; color: var(--text-secondary); margin-bottom: 2px; font-weight: 500; }
+.kpi-card-v2 .kpi-value { font-size: 24px; font-weight: 700; font-family: 'Inter', system-ui, sans-serif; color: var(--text-primary); margin-bottom: 2px; }
+.kpi-card-v2 .kpi-subtitle { font-size: 10px; color: var(--text-tertiary); letter-spacing: 0.02em; opacity: 0.7; }
 .kpi-card-v2 .kpi-trend { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600; margin-top: 6px; padding: 2px 8px; border-radius: 6px; }
 .kpi-card-v2 .kpi-trend.up { color: var(--accent-emerald); background: rgba(105,240,174,0.08); }
 .kpi-card-v2 .kpi-trend.down { color: var(--accent-rose); background: rgba(255,107,157,0.08); }
@@ -1785,6 +1788,7 @@ body.layout-compact .chart-cell-full { grid-column: span 6; }
 body.layout-compact .kpi-row-v2 { gap: 10px; margin-bottom: 14px; }
 body.layout-compact .kpi-card-v2 { padding: 12px 14px; }
 body.layout-compact .kpi-card-v2 .kpi-value { font-size: 18px; }
+body.layout-compact .kpi-card-v2 .kpi-subtitle { font-size: 9px; }
 body.layout-compact .stats-grid { gap: 10px; margin-bottom: 14px; }
 body.layout-compact .ask-bar { margin-bottom: 12px; }
 body.layout-compact .ai-insights-card { padding: 12px; margin-bottom: 12px; }
@@ -3409,13 +3413,23 @@ function renderKPICards(kpis) {
     if (!insights.length) insights.push(metricName + ': ' + fmtVal);
     let insightTip = insights.join(' | ');
 
+    // Build a human-friendly label: title-case, spaces instead of underscores
+    const friendlyLabel = k.label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    // Build a subtitle that explains the aggregation
+    const nRows = App.excelData ? App.excelData.rows.length : 0;
+    let subtitle = '';
+    if (k.aggType === 'Total') subtitle = 'Sum across ' + nRows.toLocaleString() + ' records';
+    else if (k.aggType === 'Avg') subtitle = 'Average across ' + nRows.toLocaleString() + ' records';
+    else if (ki === 0) subtitle = 'Rows in dataset';
+
     return `<div class="kpi-card-v2" onmouseenter="showKpiTip(event,'${insightTip.replace(/'/g,'&#39;')}')" onmouseleave="hideKpiTip()">
       <div class="kpi-top-row">
         <div class="kpi-icon" style="background:rgba(${rgb},0.08);color:var(${accentVar})">${iconSvg}</div>
         ${trendStr ? '<span class="kpi-trend" style="color:' + trendColor + '">' + (trendUp ? '&#9650;' : '&#9660;') + ' ' + trendStr + '</span>' : ''}
       </div>
+      <div class="kpi-label">${friendlyLabel}</div>
       <div class="kpi-value">${formatNumber(k.value, {...k.format, abbreviate: true})}</div>
-      <div class="kpi-label">${k.aggType ? k.aggType + ' ' : ''}${k.label}</div>
+      ${subtitle ? '<div class="kpi-subtitle">' + subtitle + '</div>' : ''}
       <canvas class="kpi-spark" id="kpiSpark${ki}" data-rgb="${rgb}"></canvas>
     </div>`;
   }).join('') + '</div>';
