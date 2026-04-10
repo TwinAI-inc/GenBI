@@ -10428,20 +10428,13 @@ function applyTheme(name) {
   document.body.classList.remove('theme-midnight', 'theme-aurora', 'theme-light', 'theme-liquid-glass', 'theme-executive', 'theme-pastel', 'theme-genbi');
   if (name === 'GenBI') {
     document.body.classList.add('theme-genbi');
-    // Random dashboard background from conceptual B&W and data-art images
+    // Random dashboard background — blackish background with whitish design style
     const genBgs = [
       'public/images/bg-bw-1.png',
-      'public/images/bg-bw-2.png',
       'public/images/bg-bw-3.png',
-      'public/images/bg-whitegfx-1.png',
-      'public/images/bg-whitegfx-2.png',
-      'public/images/bg-whitegfx-3.png',
-      'public/images/bg-whitegfx-4-wave.png',
-      'public/images/bg-whitegfx-5-charts.png',
-      'public/images/bg-option-1.png',
-      'public/images/bg-option-2.png',
-      'public/images/bg-option-3.png',
-      'public/images/bg-option-4.png',
+      'public/images/bg-bw-4-tree.png',
+      'public/images/bg-bw-6-dandelion.png',
+      'public/images/bg-bw-9-iceberg.png',
     ];
     document.body.style.setProperty('--genbi-dash-bg', 'url(' + genBgs[Math.floor(Math.random() * genBgs.length)] + ')');
   }
