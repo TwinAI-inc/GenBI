@@ -1036,6 +1036,87 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    # ── Risk V2: TOPSIS + Monte Carlo ──────────────────────────────────────
+
+    @app.route('/api/risk-v2/extract', methods=['POST'])
+    @limiter.limit('5/minute')
+    def risk_v2_extract():
+        """Step 1: AI extracts risk factors from data + domain knowledge."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        try:
+            from services.risk_engine import extract_risk_factors
+            data = request.get_json()
+            headers = data.get('headers', [])
+            rows = data.get('rows', [])[:500]
+            if not headers or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+            result = extract_risk_factors(headers, rows)
+            _record_ai_usage()
+            return jsonify(result)
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/risk-v2/rank', methods=['POST'])
+    @limiter.limit('10/minute')
+    def risk_v2_rank():
+        """Step 2: TOPSIS ranking (no AI, pure computation)."""
+        try:
+            from services.risk_engine import topsis_rank
+            data = request.get_json()
+            factors = data.get('factors', [])
+            weights = data.get('weights')
+            if not factors:
+                return jsonify({'error': 'No factors provided.'}), 400
+            ranked = topsis_rank(factors, weights)
+            return jsonify({'factors': ranked})
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/risk-v2/simulate', methods=['POST'])
+    @limiter.limit('5/minute')
+    def risk_v2_simulate():
+        """Step 3: Monte Carlo simulation on top risk factors."""
+        try:
+            from services.risk_engine import monte_carlo_simulate
+            data = request.get_json()
+            factors = data.get('factors', [])
+            rows = data.get('rows', [])[:500]
+            headers = data.get('headers', [])
+            top_n = data.get('top_n', 3)
+            if not factors or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+            results = monte_carlo_simulate(factors, rows, headers, top_n=top_n)
+            return jsonify({'simulations': results})
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/risk-v2/narrative', methods=['POST'])
+    @limiter.limit('5/minute')
+    def risk_v2_narrative():
+        """Step 4: AI generates executive risk briefing."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        try:
+            from services.risk_engine import generate_risk_narrative_v2
+            data = request.get_json()
+            domain = data.get('domain', 'general')
+            factors = data.get('factors', [])
+            simulations = data.get('simulations', [])
+            result = generate_risk_narrative_v2(domain, factors, simulations)
+            _record_ai_usage()
+            return jsonify(result)
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/cost-decompose', methods=['POST'])
     @limiter.limit('5/minute')
     def cost_decompose():
