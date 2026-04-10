@@ -1144,6 +1144,9 @@ body.theme-genbi .anomaly-badge { background: rgba(255,107,157,0.06); border-col
 .skeleton-pulse { position: relative; overflow: hidden; }
 .skeleton-pulse::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.03) 50%, transparent 100%); animation: skeletonPulse 1.8s ease-in-out infinite; }
 @keyframes skeletonPulse { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+/* ── Progressive reveal for dashboard sections ── */
+.reveal-step { opacity: 0; transform: translateY(12px); animation: revealUp 0.5s cubic-bezier(.16,1,.3,1) forwards; }
+@keyframes revealUp { to { opacity: 1; transform: translateY(0); } }
 
 /* ── GenBI: KPI hover tooltip ── */
 .kpi-hover-tip { position: fixed; z-index: 300; pointer-events: none; background: rgba(0,0,0,0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 12px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.80); opacity: 0; transition: opacity 0.12s; max-width: 260px; white-space: nowrap; }
@@ -3600,7 +3603,7 @@ function renderAnalytics() {
         const widthCls = chartWidthClass(chart, i, ec.chartPlan.length);
         const scoreHtml = chart.insight_score ? '<span class="insight-score" title="Insight Score: ' + chart.insight_score.toFixed(1) + '/10">' + chart.insight_score.toFixed(1) + '</span>' : '';
         const catBadge = chart.category ? '<span class="chart-cat-badge">' + ({A_single:'Single',B_combined:'Combined',C_derived:'Derived'}[chart.category] || '') + '</span>' : '';
-        return '<div class="' + widthCls + '"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + scoreHtml + catBadge + '</h2>' +
+        return '<div class="' + widthCls + ' reveal-step" style="animation-delay:' + (800 + i * 200) + 'ms"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + scoreHtml + catBadge + '</h2>' +
           '<div style="display:flex;align-items:center;gap:6px">' +
           '<button class="chart-clear-btn" onclick="event.stopPropagation();removeChart(' + i + ')" title="Remove chart"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>' +
           '<span id="anomalyBadge' + i + '"></span>' +
@@ -3682,7 +3685,13 @@ function renderAnalytics() {
   const _datasetName = App.uploadedFiles && App.uploadedFiles.length > 0 ? App.uploadedFiles[0].name : (App.excelData && App.excelData.sheetName ? App.excelData.sheetName : '');
   return `<div class="page-header"><div><h1 class="page-title">Analytics${_datasetName ? ' <span style="font-size:14px;font-weight:400;color:var(--text-tertiary);margin-left:8px;vertical-align:middle;letter-spacing:0">\u2014 ' + _datasetName.replace(/</g,'&lt;') + '</span>' : ''}</h1><p class="page-subtitle">${hasData ? 'Smart charts generated from your uploaded data.' : 'Detailed performance metrics and trends.'}</p></div>
     <div class="header-actions">${App.excelData ? '<button class="btn btn-ghost layout-toggle" onclick="toggleDashLayout()" title="Switch layout"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="layoutIcon"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button><button class="btn btn-ghost" onclick="quickSaveProject()" style="margin-right:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save</button><button class="btn btn-ghost" onclick="openPanel(\'chartAssistant\')" style="margin-right:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg> Chart Assistant</button>' : ''}</div></div>
-  ${stylePickerHTML}${askBarHTML}${briefingHTML}${suggestionsHTML}${kpiHTML}${statsHTML}${customChartsHTML}${chartsHTML}
+  ${stylePickerHTML}${askBarHTML}
+  ${briefingHTML ? '<div class="reveal-step" style="animation-delay:0ms">' + briefingHTML + '</div>' : ''}
+  ${suggestionsHTML ? '<div class="reveal-step" style="animation-delay:100ms">' + suggestionsHTML + '</div>' : ''}
+  ${kpiHTML ? '<div class="reveal-step" style="animation-delay:200ms">' + kpiHTML + '</div>' : ''}
+  ${statsHTML ? '<div class="reveal-step" style="animation-delay:450ms">' + statsHTML + '</div>' : ''}
+  ${customChartsHTML ? '<div class="reveal-step" style="animation-delay:600ms">' + customChartsHTML + '</div>' : ''}
+  ${chartsHTML ? '<div class="reveal-step" style="animation-delay:700ms">' + chartsHTML + '</div>' : ''}
   ${App.excelData ? renderExcelPreview() : renderAnalyticsEmptyState()}`;
 }
 
@@ -9741,7 +9750,7 @@ function initAnalyticsCharts() {
       const canvas = document.getElementById('analyticsChart' + i);
       if (!canvas) return;
       const chartData = App.crossFilter ? rebuildChartData(chart, rows, i) : chart;
-      animateChartFromPlan(canvas, chartData, i * 150);
+      animateChartFromPlan(canvas, chartData, 800 + i * 200);
     });
   }
   // Ensure all chart canvases have a click handler for the explain drawer
