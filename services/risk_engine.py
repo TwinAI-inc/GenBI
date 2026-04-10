@@ -280,16 +280,18 @@ def monte_carlo_simulate(factors, rows, headers, n_iterations=10000, top_n=3):
         random.seed(42)  # Reproducible
         samples = [random.gauss(mean, std) for _ in range(n_iterations)]
 
-        # Compute probabilities at key thresholds
-        # For risk: probability of exceeding mean+1σ (moderate risk zone)
-        # and mean+2σ (high risk zone)
-        threshold_moderate = mean + std
-        threshold_high = mean + 2 * std
+        # Compute probabilities at data-driven thresholds (percentile-based)
+        # Thresholds come from actual data distribution, not the fitted normal
+        sorted_vals = sorted(vals)
+        # Moderate threshold: 75th percentile of actual data
+        threshold_moderate = sorted_vals[int(len(sorted_vals) * 0.75)]
+        # High threshold: 90th percentile of actual data
+        threshold_high = sorted_vals[int(len(sorted_vals) * 0.90)]
+        # Low threshold: 25th percentile (for downside risk)
+        threshold_low = sorted_vals[int(len(sorted_vals) * 0.25)]
+
         p_moderate = sum(1 for s in samples if s > threshold_moderate) / n_iterations
         p_high = sum(1 for s in samples if s > threshold_high) / n_iterations
-
-        # For downside risk (if metric should be high, e.g., revenue):
-        threshold_low = mean - std
         p_below_low = sum(1 for s in samples if s < threshold_low) / n_iterations
 
         # Build histogram (20 bins)
