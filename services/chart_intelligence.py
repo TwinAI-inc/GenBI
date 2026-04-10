@@ -11,6 +11,7 @@ import math
 from collections import Counter
 
 from services.azure_ai_client import chat_completion_json
+from services.chart_knowledge import CHART_KNOWLEDGE_CONTEXT
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +137,8 @@ def generate_chart_plan(profile, max_charts=8):
 
     prompt = f"""You are an expert BI analyst. Analyze this dataset and generate chart candidates ranked by insight value.
 
+{CHART_KNOWLEDGE_CONTEXT}
+
 DATASET PROFILE:
 - Rows: {profile['row_count']}
 - Columns: {profile['column_count']}
@@ -197,7 +200,7 @@ Return JSON: {{"charts": [...]}} with each chart object:
   "maxItems": 8,
   "color": "cyan|teal|emerald|rose",
   "desc": "One sentence insight",
-  "derived_column": "description of derived feature or null",
+  "derived_column": "parseable derivation instruction or null. Use EXACTLY one of these patterns: 'Extract Quarter from DateCol' | 'Extract Month from DateCol' | 'Extract Year from DateCol' | 'Bin MetricCol into High/Medium/Low' | 'Above Average MetricCol' | 'Below Median MetricCol' | 'Top 5 + Other CatCol'. Set xCol to the source column; the frontend will create the new column and rebind xCol automatically.",
   "family": "comparison|trend|composition|relationship|distribution|geographic",
   "scores": {{
     "information_density": 7,
@@ -213,18 +216,14 @@ Return JSON: {{"charts": [...]}} with each chart object:
 Generate 8-12 total candidates. The top {max_charts} by insight_score will be displayed."""
 
     try:
-        result = chat_completion_json(
-            [{'role': 'user', 'content': prompt}],
+        # chat_completion_json expects a string prompt (not message list)
+        # and returns (parsed_json, usage_dict) tuple
+        parsed, usage = chat_completion_json(
+            prompt,
             temperature=0.3,
             max_tokens=4500
         )
-        content = result.get('content', '') if isinstance(result, dict) else str(result)
-        logger.info(f'LLM raw response length: {len(content)} chars')
-        logger.info(f'LLM response preview: {content[:200]}...')
-
-        # Parse JSON from response — LLM may return array or object wrapping array
-        parsed = json.loads(content) if isinstance(content, str) else content
-        logger.info(f'Parsed type: {type(parsed).__name__}, keys: {list(parsed.keys()) if isinstance(parsed, dict) else "N/A"}')
+        logger.info(f'LLM chart plan parsed type: {type(parsed).__name__}, usage: {usage}')
         if isinstance(parsed, list):
             chart_plan = parsed
         elif isinstance(parsed, dict):

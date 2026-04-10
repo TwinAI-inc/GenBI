@@ -1149,6 +1149,15 @@ body.theme-genbi .anomaly-badge { background: rgba(255,107,157,0.06); border-col
 .kpi-hover-tip { position: fixed; z-index: 300; pointer-events: none; background: rgba(0,0,0,0.88); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 12px; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight: 300; color: rgba(255,255,255,0.80); opacity: 0; transition: opacity 0.12s; max-width: 260px; white-space: nowrap; }
 .kpi-hover-tip.visible { opacity: 1; }
 
+/* ── GenBI: Genre picker in bolt menu ── */
+.chart-action-group { padding: 2px 6px; }
+.genre-picker { display: flex; gap: 3px; padding: 4px 0 2px; }
+.genre-pill { width: 28px; height: 24px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.45); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
+.genre-pill:hover { color: #06b6d4; background: rgba(6,182,212,0.10); border-color: rgba(6,182,212,0.25); box-shadow: 0 0 8px rgba(6,182,212,0.15); }
+body.theme-light .genre-pill, body.theme-pastel .genre-pill { border-color: rgba(0,0,0,0.08); background: rgba(0,0,0,0.02); color: rgba(0,0,0,0.35); }
+body.theme-light .genre-pill:hover, body.theme-pastel .genre-pill:hover { color: #0891b2; background: rgba(6,182,212,0.08); border-color: rgba(6,182,212,0.2); }
+body.theme-liquid-glass .genre-pill:hover { color: #ff9f1c; background: rgba(255,159,28,0.10); border-color: rgba(255,159,28,0.25); }
+body.theme-executive .genre-pill:hover { color: #d4a853; background: hsla(43,60%,50%,0.10); border-color: hsla(43,60%,50%,0.25); }
 /* ── GenBI: Insight score badge ── */
 .insight-score { display: inline-flex; align-items: center; justify-content: center; margin-left: 8px; padding: 2px 7px; border-radius: 5rem; font-size: 0.6rem; font-weight: 500; font-family: 'Outfit', sans-serif; background: rgba(6,182,212,0.10); color: rgba(6,182,212,0.8); border: 1px solid rgba(6,182,212,0.15); vertical-align: middle; }
 .chart-cat-badge { display: inline-flex; align-items: center; margin-left: 6px; padding: 2px 7px; border-radius: 5rem; font-size: 0.55rem; font-weight: 400; font-family: 'Outfit', sans-serif; background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.06); vertical-align: middle; }
@@ -3549,7 +3558,17 @@ function renderAnalytics() {
               '<button class="chart-action-item" onmouseenter="veHoverAction(' + i + ',\'sync\')" onclick="veSelectChart(' + i + ');veShowSection(\'sync\')" title="Caption"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>Caption</button>' +
               '<button class="chart-action-item" onmouseenter="veHoverAction(' + i + ',\'info\')" onclick="veSelectChart(' + i + ');veShowSection(\'info\')" title="Info"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Info</button>' +
               '<div style="height:1px;background:var(--glass-border);margin:3px 6px"></div>' +
-              '<button class="chart-action-item" onclick="refreshChart(' + i + ')" title="Regenerate chart with AI"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh</button>' +
+              '<div class="chart-action-group">' +
+                '<button class="chart-action-item" onclick="refreshChart(' + i + ')" title="Regenerate with AI (surprise me)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh</button>' +
+                '<div class="genre-picker" id="genrePicker' + i + '">' +
+                  '<button class="genre-pill" onclick="regenerateByGenre(' + i + ',\'comparison\')" title="Bar, Horizontal Bar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="6" width="4" height="15" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/></svg></button>' +
+                  '<button class="genre-pill" onclick="regenerateByGenre(' + i + ',\'trend\')" title="Line, Area, Stacked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><polyline points="3 17 9 11 13 15 21 7"/><polyline points="17 7 21 7 21 11"/></svg></button>' +
+                  '<button class="genre-pill" onclick="regenerateByGenre(' + i + ',\'composition\')" title="Donut, Treemap, Funnel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.36 3.64"/></svg></button>' +
+                  '<button class="genre-pill" onclick="regenerateByGenre(' + i + ',\'relationship\')" title="Scatter Plot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><circle cx="7" cy="15" r="1.5"/><circle cx="12" cy="9" r="1.5"/><circle cx="17" cy="13" r="1.5"/><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></button>' +
+                  '<button class="genre-pill" onclick="regenerateByGenre(' + i + ',\'distribution\')" title="Gauge, Boxplot, Radar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/><circle cx="12" cy="12" r="3"/></svg></button>' +
+                  '<button class="genre-pill" onclick="regenerateByGenre(' + i + ',\'geographic\')" title="US Map, World Map"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="13" height="13"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c-2 3-2 9 0 18M12 3c2 3 2 9 0 18"/></svg></button>' +
+                '</div>' +
+              '</div>' +
               '<button class="chart-action-item danger" onclick="removeChart(' + i + ')" title="Remove chart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Remove</button>' +
             '</div>' +
           '</div>' +
@@ -12446,19 +12465,39 @@ function removeChart(idx) {
 }
 
 function refreshChart(idx) {
+  regenerateByGenre(idx, null); // null genre = surprise me
+}
+
+// ── Genre Regenerate: replace a chart slot with a new chart from a specific family ──
+function regenerateByGenre(idx, genre) {
   const ec = App.excelChartConfig;
   if (!ec || !ec.chartPlan || idx < 0 || idx >= ec.chartPlan.length) return;
   if (!isLoggedIn() || !App.excelData) { toast('Sign in to use AI refresh', 'info'); return; }
   const chart = ec.chartPlan[idx];
   const canvas = document.getElementById('analyticsChart' + idx);
-  if (canvas) { canvas.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;gap:8px"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:11px;color:rgba(255,255,255,0.35)">Regenerating...</span></div>'; }
-  // Ask AI for a new chart for this slot
+  const genreLabel = genre ? genre.replace(/_/g, ' ') : 'new';
+  if (canvas) { canvas.parentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:200px;gap:8px"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:11px;color:rgba(255,255,255,0.35)">Generating ' + genreLabel + ' chart...</span></div>'; }
+
+  // Close bolt menu
+  document.querySelectorAll('.chart-actions-bolt.menu-pinned').forEach(el => el.classList.remove('menu-pinned'));
+
+  const genreHint = genre
+    ? 'Generate a ' + genre.toUpperCase() + ' chart (family: ' + genre + '). Use chart types from this family: ' + ({
+        comparison: 'bar, hbar',
+        trend: 'line, multiline, area, stacked',
+        composition: 'donut, treemap, funnel',
+        relationship: 'scatter',
+        distribution: 'gauge, boxplot, radar',
+        geographic: 'usmap, worldmap'
+      }[genre] || genre) + '.'
+    : 'Suggest a completely different and surprising chart.';
+
   const token = localStorage.getItem('genbi-auth-token');
   fetch('/api/ask-data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({
-      question: 'Suggest a different insightful chart for the same data. Current chart: ' + chart.title + ' (' + chart.type + '). Give me something NEW and surprising.',
+      question: genreHint + ' Current chart: ' + chart.title + ' (' + chart.type + '). Give me something NEW with high insight value. Return an insight-driven title.',
       columns: App.excelData.headers,
       colMeta: Object.fromEntries(Object.entries(ec.colMeta).map(([k,v]) => [k, {isMetric:v.isMetric,isCategorical:v.isCategorical,isDate:v.isDate,uniqueCount:v.uniqueCount}])),
       sampleRows: App.excelData.rows.slice(0, 3),
@@ -12466,15 +12505,14 @@ function refreshChart(idx) {
     })
   }).then(r => r.json()).then(data => {
     if (data.chart) {
-      // Replace the chart with AI suggestion
       ec.chartPlan[idx] = Object.assign(ec.chartPlan[idx], data.chart);
       navigate('analytics');
-      toast('Chart refreshed with AI suggestion', 'success');
+      toast((genre ? genre.charAt(0).toUpperCase() + genre.slice(1) : 'New') + ' chart generated', 'success');
     } else {
       navigate('analytics');
       toast('No alternative found — keeping current chart', 'info');
     }
-  }).catch(() => { navigate('analytics'); toast('Refresh failed', 'info'); });
+  }).catch(() => { navigate('analytics'); toast('Regenerate failed', 'info'); });
 }
 
 // Pin ask-bar chart to dashboard
@@ -12879,8 +12917,99 @@ async function smartAutoMap(rows) {
     const data = await resp.json();
     if (!data.chart_plan || !data.chart_plan.length) throw new Error('Empty plan');
 
-    // Build chart config from LLM plan
+    // ── Derived Column Creation: create features the LLM requested ──
     const allHeaders = Object.keys(rows[0]);
+    for (const chart of data.chart_plan) {
+      const dc = chart.derived_column;
+      if (!dc) continue;
+      const dcLower = dc.toLowerCase();
+
+      // Extract time parts: Quarter, Month, Year, DayOfWeek
+      const timeExtractMatch = dcLower.match(/extract\s+(quarter|month|year|day\s*of\s*week|weekday|hour)\s+from\s+(.+)/i);
+      if (timeExtractMatch) {
+        const part = timeExtractMatch[1].toLowerCase().replace(/\s+/g, '');
+        const srcCol = chart.xCol || allHeaders.find(h => data.profile?.column_types?.[h] === 'date');
+        if (srcCol && !allHeaders.includes(part.charAt(0).toUpperCase() + part.slice(1))) {
+          const newCol = part === 'quarter' ? 'Quarter' : part === 'month' ? 'Month' : part === 'year' ? 'Year' : part === 'dayofweek' || part === 'weekday' ? 'DayOfWeek' : part.charAt(0).toUpperCase() + part.slice(1);
+          rows.forEach(r => {
+            const d = new Date(r[srcCol]);
+            if (isNaN(d.getTime())) { r[newCol] = 'Unknown'; return; }
+            if (part === 'quarter') r[newCol] = 'Q' + (Math.floor(d.getMonth() / 3) + 1);
+            else if (part === 'month') r[newCol] = d.toLocaleString('en', { month: 'short' });
+            else if (part === 'year') r[newCol] = String(d.getFullYear());
+            else if (part === 'dayofweek' || part === 'weekday') r[newCol] = d.toLocaleString('en', { weekday: 'short' });
+            else r[newCol] = String(d.getFullYear());
+          });
+          if (!allHeaders.includes(newCol)) allHeaders.push(newCol);
+          chart.xCol = newCol;
+        }
+        continue;
+      }
+
+      // Bin numeric into High/Medium/Low (or custom bins)
+      const binMatch = dcLower.match(/bin\s+(.+?)\s+into\s+(high|low|.+)/i);
+      if (binMatch) {
+        const srcCol = chart.yCol || chart.xCol;
+        if (srcCol && allHeaders.includes(srcCol)) {
+          const newCol = srcCol + '_Bin';
+          const vals = rows.map(r => parseFloat(r[srcCol]) || 0).filter(v => !isNaN(v));
+          if (vals.length > 0) {
+            vals.sort((a, b) => a - b);
+            const p33 = vals[Math.floor(vals.length * 0.33)];
+            const p66 = vals[Math.floor(vals.length * 0.66)];
+            rows.forEach(r => {
+              const v = parseFloat(r[srcCol]) || 0;
+              r[newCol] = v <= p33 ? 'Low' : v <= p66 ? 'Medium' : 'High';
+            });
+            if (!allHeaders.includes(newCol)) allHeaders.push(newCol);
+            chart.xCol = newCol;
+          }
+        }
+        continue;
+      }
+
+      // Boolean flag: "Above Average", "True/False" based on threshold
+      const boolMatch = dcLower.match(/(above|below|over|under)\s*(average|mean|median|\d+)/i);
+      if (boolMatch) {
+        const direction = boolMatch[1].toLowerCase();
+        const threshold = boolMatch[2].toLowerCase();
+        const srcCol = chart.yCol || chart.xCol;
+        if (srcCol && allHeaders.includes(srcCol)) {
+          const vals = rows.map(r => parseFloat(r[srcCol]) || 0);
+          let cutoff;
+          if (threshold === 'average' || threshold === 'mean') cutoff = vals.reduce((a, b) => a + b, 0) / vals.length;
+          else if (threshold === 'median') { const s = [...vals].sort((a, b) => a - b); cutoff = s[Math.floor(s.length / 2)]; }
+          else cutoff = parseFloat(threshold) || 0;
+          const newCol = (direction === 'above' || direction === 'over' ? 'Above ' : 'Below ') + (threshold === 'average' || threshold === 'mean' ? 'Avg' : threshold === 'median' ? 'Median' : threshold) + ' ' + srcCol;
+          rows.forEach(r => {
+            const v = parseFloat(r[srcCol]) || 0;
+            r[newCol] = (direction === 'above' || direction === 'over') ? (v > cutoff ? 'Yes' : 'No') : (v < cutoff ? 'Yes' : 'No');
+          });
+          if (!allHeaders.includes(newCol)) allHeaders.push(newCol);
+          chart.xCol = newCol;
+        }
+        continue;
+      }
+
+      // Top N + Other grouping
+      const topNMatch = dcLower.match(/(?:top|group)\s*(\d+)\s*\+?\s*other/i);
+      if (topNMatch) {
+        const n = parseInt(topNMatch[1]) || 5;
+        const srcCol = chart.xCol || chart.groupCol;
+        if (srcCol && allHeaders.includes(srcCol)) {
+          const counts = {};
+          rows.forEach(r => { const v = String(r[srcCol] || '').trim(); if (v) counts[v] = (counts[v] || 0) + 1; });
+          const topValues = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n).map(e => e[0]);
+          const topSet = new Set(topValues);
+          const newCol = srcCol + '_Top' + n;
+          rows.forEach(r => { r[newCol] = topSet.has(String(r[srcCol] || '').trim()) ? String(r[srcCol]).trim() : 'Other'; });
+          if (!allHeaders.includes(newCol)) allHeaders.push(newCol);
+          chart.xCol = newCol;
+        }
+      }
+    }
+
+    // Build chart config from LLM plan
     const chartPlan = data.chart_plan.map(chart => {
       const xCol = chart.xCol || chart.groupCol;
       const yCol = chart.yCol;

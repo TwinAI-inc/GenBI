@@ -270,7 +270,12 @@ def create_app():
             for row in sample_rows[:3]:
                 sample_str += json.dumps(row, default=str) + "\n"
 
-        prompt = f"""You are an expert data analyst creating meaningful, insightful charts. The user has uploaded a dataset with these columns:
+        from services.chart_knowledge import CHART_SELECTION_GUIDE
+        prompt = f"""You are an expert data analyst creating meaningful, insightful charts.
+
+{CHART_SELECTION_GUIDE}
+
+The user has uploaded a dataset with these columns:
 
 {chr(10).join('- ' + d for d in col_descriptions)}
 {sample_str}
@@ -523,7 +528,10 @@ If unchanged, carry over the original values exactly. Do not change fields the u
             for row in sample_rows[:3]:
                 sample_str += json.dumps(row, default=str) + "\n"
 
+        from services.chart_knowledge import CHART_KNOWLEDGE_CONTEXT
         prompt = f"""You are an expert BI dashboard designer. Given this dataset, create a comprehensive dashboard plan with KPI cards and charts.
+
+{CHART_KNOWLEDGE_CONTEXT}
 
 Columns:
 {chr(10).join('- ' + d for d in col_descriptions)}
@@ -768,7 +776,10 @@ Rules:
         sample_rows = data.get('sampleRows', [])[:5]
         summary = data.get('summary', {})
         context = data.get('context', '')
+        from services.chart_knowledge import CHART_SELECTION_GUIDE
         prompt = f"""You are a data analyst answering questions about a dataset.
+
+{CHART_SELECTION_GUIDE}
 
 Dataset: {len(columns)} columns, {summary.get('rowCount', '?')} rows.
 Columns: {json.dumps(columns[:50])}
