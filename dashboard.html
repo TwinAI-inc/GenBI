@@ -1154,11 +1154,27 @@ body.theme-genbi .anomaly-badge { background: rgba(255,107,157,0.06); border-col
 .risk-step.done .risk-step-num { background:rgba(6,182,212,0.2); color:#67e8f9; }
 .risk-step.done .risk-step-label { color:var(--text-secondary); }
 .risk-step-line { width:24px; height:1px; background:rgba(255,255,255,0.08); }
-.risk-factor-card { padding:10px 12px; border-radius:8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); margin-bottom:6px; transition:all .15s; }
+.risk-factor-card { padding:12px 14px; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04); margin-bottom:8px; transition:all .15s; }
 .risk-factor-card:hover { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.08); }
+.risk-slider-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-top:8px; }
+.risk-score-cell { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px; padding:8px 8px 6px; text-align:center; transition:border-color .15s; }
+.risk-score-cell:hover { border-color:rgba(255,255,255,0.12); }
+.risk-score-icon { font-size:12px; margin-bottom:2px; }
+.risk-score-label { font-size:8px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-tertiary); margin-bottom:4px; }
+.risk-score-val { font-size:16px; font-weight:300; font-family:'Outfit','Inter',sans-serif; margin-bottom:4px; display:block; }
+.risk-score-cell input[type="range"] { width:100%; height:4px; -webkit-appearance:none; appearance:none; background:rgba(255,255,255,0.06); border-radius:2px; outline:none; margin:0; }
+.risk-score-cell input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; width:12px; height:12px; border-radius:50%; cursor:pointer; border:2px solid rgba(0,0,0,0.3); }
+.risk-score-cell[data-field="impact"] input::-webkit-slider-thumb { background:#f43f5e; }
+.risk-score-cell[data-field="likelihood"] input::-webkit-slider-thumb { background:#f59e0b; }
+.risk-score-cell[data-field="controllability"] input::-webkit-slider-thumb { background:#06b6d4; }
+.risk-score-cell[data-field="impact"] .risk-score-val { color:#f43f5e; }
+.risk-score-cell[data-field="likelihood"] .risk-score-val { color:#f59e0b; }
+.risk-score-cell[data-field="controllability"] .risk-score-val { color:#06b6d4; }
 body.theme-light .risk-step-num { background:rgba(0,0,0,0.06); color:#888; }
 body.theme-light .risk-step.active .risk-step-num { background:#0891b2; color:#fff; }
 body.theme-light .risk-factor-card { background:rgba(0,0,0,0.02); border-color:rgba(0,0,0,0.06); }
+body.theme-light .risk-score-cell { background:rgba(0,0,0,0.02); border-color:rgba(0,0,0,0.06); }
+body.theme-light .risk-score-cell input[type="range"] { background:rgba(0,0,0,0.08); }
 
 /* ── Progressive reveal for dashboard sections ── */
 .reveal-step { opacity: 0; transform: translateY(12px); animation: revealUp 0.5s cubic-bezier(.16,1,.3,1) forwards; }
@@ -4639,7 +4655,8 @@ function _riskRenderStep1(el) {
   html += '<div><span style="font-size:13px;font-weight:500;color:var(--text-primary);">Risk Factors</span><span style="font-size:10px;color:var(--text-tertiary);margin-left:8px;">Domain: ' + domain + '</span></div>';
   html += '<button class="btn btn-ghost" onclick="_riskAddFactor()" style="font-size:10px;padding:4px 10px;">+ Add Factor</button>';
   html += '</div>';
-  html += '<div style="font-size:10px;color:var(--text-tertiary);margin-bottom:10px;">Select the risk factors to include in the analysis. Adjust scores if needed.</div>';
+  html += '<div style="font-size:10px;color:var(--text-tertiary);margin-bottom:10px;">Select the risk factors to include. Adjust impact, likelihood, and controllability scores.</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
 
   factors.forEach((f, i) => {
     html += '<div class="risk-factor-card reveal-step" style="animation-delay:' + (i * 60) + 'ms" id="riskFactor' + i + '">';
@@ -4652,16 +4669,17 @@ function _riskRenderStep1(el) {
     html += '<span style="font-size:9px;color:var(--text-tertiary);background:rgba(255,255,255,0.04);padding:1px 5px;border-radius:3px;">' + escHtml(f.category) + '</span>';
     html += '</div>';
     html += '<div style="font-size:10px;color:var(--text-secondary);line-height:1.4;margin-bottom:6px;">' + escHtml(f.description || '') + '</div>';
-    html += '<div style="display:flex;gap:12px;font-size:9px;">';
-    html += '<label style="color:var(--text-tertiary);">Impact <input type="range" min="1" max="10" value="' + parseInt(f.impact) + '" class="risk-slider" data-idx="' + i + '" data-field="impact" style="width:60px;vertical-align:middle;accent-color:#f43f5e;"> <span class="risk-val" id="rv_impact_' + i + '">' + parseInt(f.impact) + '</span></label>';
-    html += '<label style="color:var(--text-tertiary);">Likelihood <input type="range" min="1" max="10" value="' + parseInt(f.likelihood) + '" class="risk-slider" data-idx="' + i + '" data-field="likelihood" style="width:60px;vertical-align:middle;accent-color:#f59e0b;"> <span class="risk-val" id="rv_likelihood_' + i + '">' + parseInt(f.likelihood) + '</span></label>';
-    html += '<label style="color:var(--text-tertiary);">Control <input type="range" min="1" max="10" value="' + parseInt(f.controllability) + '" class="risk-slider" data-idx="' + i + '" data-field="controllability" style="width:60px;vertical-align:middle;accent-color:#06b6d4;"> <span class="risk-val" id="rv_controllability_' + i + '">' + parseInt(f.controllability) + '</span></label>';
+    html += '<div class="risk-slider-grid">';
+    html += '<div class="risk-score-cell" data-field="impact"><div class="risk-score-icon">&#9888;</div><div class="risk-score-label">Impact</div><span class="risk-score-val" id="rv_impact_' + i + '">' + parseInt(f.impact) + '</span><input type="range" min="1" max="10" value="' + parseInt(f.impact) + '" class="risk-slider" data-idx="' + i + '" data-field="impact"></div>';
+    html += '<div class="risk-score-cell" data-field="likelihood"><div class="risk-score-icon">&#9729;</div><div class="risk-score-label">Likelihood</div><span class="risk-score-val" id="rv_likelihood_' + i + '">' + parseInt(f.likelihood) + '</span><input type="range" min="1" max="10" value="' + parseInt(f.likelihood) + '" class="risk-slider" data-idx="' + i + '" data-field="likelihood"></div>';
+    html += '<div class="risk-score-cell" data-field="controllability"><div class="risk-score-icon">&#9881;</div><div class="risk-score-label">Control</div><span class="risk-score-val" id="rv_controllability_' + i + '">' + parseInt(f.controllability) + '</span><input type="range" min="1" max="10" value="' + parseInt(f.controllability) + '" class="risk-slider" data-idx="' + i + '" data-field="controllability"></div>';
     html += '</div>';
     if (f.evidence) html += '<div style="font-size:9px;color:var(--text-tertiary);margin-top:4px;font-style:italic;">' + escHtml(f.evidence) + '</div>';
     html += '</div></div></div>';
   });
 
-  html += '</div>';
+  html += '</div>'; // close factor grid
+  html += '</div>'; // close glass-panel
   html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;">';
   html += '<button class="btn btn-ghost" onclick="_riskStep1_Extract()" style="font-size:11px;">Re-analyze</button>';
   html += '<button class="btn" onclick="_riskStep2_Rank()" style="font-size:11px;background:var(--accent-cyan);color:#000;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">Rank with TOPSIS &rarr;</button>';
