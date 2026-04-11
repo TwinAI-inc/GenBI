@@ -4600,691 +4600,174 @@ function renderRiskAnalyzer() {
   if (!App.hasExcelData) {
     return renderOnboardingUpload({
       graphic: 'analytics',
-      steps: [{ label: 'Upload Data', active: true }, { label: 'Identify Risks', active: false }, { label: 'Rank & Simulate', active: false }],
+      steps: [{ label: 'Upload Data', active: true }, { label: 'Analyze Risk', active: false }],
       features: [
-        { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-rose)" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', iconBg: 'rgba(244,63,94,0.08)', title: 'TOPSIS Ranking', desc: 'Multi-criteria ranking: impact, likelihood, controllability.' },
-        { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', iconBg: 'rgba(6,182,212,0.08)', title: 'Monte Carlo', desc: '10,000 simulations for probability distributions.' },
-        { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-violet)" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>', iconBg: 'rgba(179,136,255,0.08)', title: 'AI Narrative', desc: 'Executive briefing with actionable recommendations.' },
+        { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-rose)" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>', iconBg: 'rgba(244,63,94,0.08)', title: 'AI Risk Analysis', desc: 'Upload data and get instant risk assessment powered by TOPSIS + Monte Carlo.' },
+        { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>', iconBg: 'rgba(6,182,212,0.08)', title: 'Probability Analysis', desc: '10,000 simulations show the likelihood of different outcomes.' },
       ]
     });
   }
-  return `<div class="page-header"><div><h1 class="page-title">Risk Analyzer</h1><p class="page-subtitle">TOPSIS ranking + Monte Carlo simulation</p></div></div>
-    <!-- Step indicator -->
-    <div class="risk-steps" id="riskSteps">
-      <div class="risk-step active" data-step="1"><span class="risk-step-num">1</span><span class="risk-step-label">Identify Risks</span></div>
-      <div class="risk-step-line"></div>
-      <div class="risk-step" data-step="2"><span class="risk-step-num">2</span><span class="risk-step-label">TOPSIS Ranking</span></div>
-      <div class="risk-step-line"></div>
-      <div class="risk-step" data-step="3"><span class="risk-step-num">3</span><span class="risk-step-label">Monte Carlo</span></div>
-      <div class="risk-step-line"></div>
-      <div class="risk-step" data-step="4"><span class="risk-step-num">4</span><span class="risk-step-label">Briefing</span></div>
-    </div>
+  return `<div class="page-header"><div><h1 class="page-title">Risk Analyzer</h1><p class="page-subtitle">AI-powered risk assessment</p></div></div>
     <div id="riskContent">
-      <div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;">
-        <div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>
-        <span style="font-size:12px;color:rgba(255,255,255,0.35);">AI is analyzing your data for risk signals...</span>
+      <div style="text-align:center;padding:48px 20px;">
+        <div class="genbi-fill-bars" style="margin:0 auto 16px;"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>
+        <div style="font-size:13px;color:rgba(255,255,255,0.45);font-family:Outfit,sans-serif;font-weight:300;">Analyzing your data for risks...</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:6px;" id="riskLoadMsg">Extracting risk signals</div>
       </div>
     </div>`;
 }
 
-// ── Risk V2 State ──
-App._riskV2 = { factors: [], domain: '', simulations: [], narrative: null, weights: null };
-
-function _riskSetStep(n) {
-  document.querySelectorAll('.risk-step').forEach(s => {
-    const sn = parseInt(s.dataset.step);
-    s.classList.toggle('active', sn === n);
-    s.classList.toggle('done', sn < n);
-  });
-}
-
 function initRiskAnalyzer() {
   if (!App.hasExcelData || !isLoggedIn()) return;
-  _riskStep1_Extract();
-}
-
-// ── STEP 1: Extract Risk Factors ──
-function _riskStep1_Extract() {
-  _riskSetStep(1);
   const el = document.getElementById('riskContent');
   if (!el) return;
-  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:12px;color:rgba(255,255,255,0.35);">AI is analyzing your data for risk signals...</span></div>';
-
+  const msgs = ['Extracting risk signals from data + AI knowledge','Running TOPSIS multi-criteria ranking','Simulating 10,000 Monte Carlo scenarios','Generating executive briefing...'];
+  let mi = 0;
+  const msgInt = setInterval(() => { mi++; const m = document.getElementById('riskLoadMsg'); if (m && mi < msgs.length) m.textContent = msgs[mi]; }, 3000);
   const token = _getAuthToken();
-  fetch('/api/risk-v2/extract', {
+  fetch('/api/risk-v2/full', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ headers: App.excelData.headers, rows: App.excelData.rows.slice(0, 500) })
   }).then(r => r.json()).then(data => {
-    if (data.error) { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + data.error + '</div>'; return; }
-    App._riskV2.domain = data.domain || 'general';
-    App._riskV2.factors = data.factors || [];
-    _riskRenderStep1(el);
-  }).catch(err => { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk extraction failed: ' + err.message + '</div>'; });
+    clearInterval(msgInt);
+    if (data.error) { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
+    _riskRenderResults(el, data);
+  }).catch(err => { clearInterval(msgInt); el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk analysis failed. Please try again.</div>'; });
 }
 
-function _riskRenderStep1(el) {
-  const factors = App._riskV2.factors;
-  const domain = App._riskV2.domain;
-  const srcBadge = s => s === 'data' ? '<span style="background:rgba(6,182,212,0.12);color:#67e8f9;padding:1px 6px;border-radius:4px;font-size:7px;font-weight:600;letter-spacing:0.3px;">DATA</span>' : s === 'knowledge' ? '<span style="background:rgba(179,136,255,0.12);color:#c4b5fd;padding:1px 6px;border-radius:4px;font-size:7px;font-weight:600;letter-spacing:0.3px;">AI</span>' : '<span style="background:rgba(105,240,174,0.12);color:#6ee7b7;padding:1px 6px;border-radius:4px;font-size:7px;font-weight:600;letter-spacing:0.3px;">BOTH</span>';
+function _riskRenderResults(el, data) {
+  const factors = data.factors || [];
+  const sims = data.simulations || [];
+  const tornado = data.tornado || [];
+  const narrative = data.narrative || {};
+  const domain = data.domain || 'general';
+  if (!factors.length) { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">No risk factors detected in this dataset.</div>'; return; }
 
-  let html = '<div class="glass-panel" style="padding:12px;margin-bottom:10px;">';
-  // Header row
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-  html += '<div style="display:flex;align-items:center;gap:6px;"><span style="font-size:12px;font-weight:500;color:var(--text-primary);">Risk Factors</span><span style="font-size:9px;padding:2px 8px;border-radius:5rem;background:rgba(255,255,255,0.04);color:var(--text-tertiary);">' + factors.length + ' found</span><span style="font-size:9px;padding:2px 8px;border-radius:5rem;background:rgba(6,182,212,0.08);color:#67e8f9;">' + escHtml(domain) + '</span></div>';
-  html += '<button class="risk-btn-ghost" onclick="_riskAddFactor()" style="font-size:9px;padding:3px 10px;">+ Add</button>';
+  let html = '';
+
+  // ── Executive Summary ──
+  html += '<div class="glass-panel reveal-step" style="padding:16px;margin-bottom:14px;">';
+  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span style="font-size:13px;font-weight:500;color:var(--text-primary);">Executive Summary</span><span style="font-size:9px;padding:2px 8px;border-radius:5rem;background:rgba(6,182,212,0.08);color:#67e8f9;">' + escHtml(domain) + '</span></div>';
+  html += '<div style="font-size:12px;color:var(--text-secondary);line-height:1.65;">' + escHtml(narrative.executive_summary || '') + '</div>';
   html += '</div>';
 
-  // Filter chips
-  html += '<div class="risk-chips">';
-  html += '<button class="risk-chip active" onclick="_riskFilter(\'all\',this)">All</button>';
-  html += '<button class="risk-chip" onclick="_riskFilter(\'top5\',this)">Top 5</button>';
-  html += '<button class="risk-chip risk-chip-data" onclick="_riskFilter(\'data\',this)">Data Only</button>';
-  html += '<button class="risk-chip risk-chip-ai" onclick="_riskFilter(\'knowledge\',this)">AI Only</button>';
-  html += '<button class="risk-chip risk-chip-both" onclick="_riskFilter(\'both\',this)">Both</button>';
-  // Category chips
-  const cats = [...new Set(factors.map(f => f.category))];
-  cats.forEach(c => { html += '<button class="risk-chip" onclick="_riskFilter(\'cat:' + c + '\',this)">' + c + '</button>'; });
-  html += '<button class="risk-chip" onclick="_riskFilter(\'high\',this)" style="border-color:rgba(244,63,94,0.15);color:rgba(244,63,94,0.6);">High Risk</button>';
-  html += '</div>';
+  // ── Top Risks Cards ──
+  html += '<div style="font-size:11px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Top Risks <span style="font-size:9px;color:var(--text-tertiary);font-weight:400;">' + factors.length + ' identified</span></div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;margin-bottom:14px;">';
 
-  // Factor grid
-  html += '<div id="riskFactorGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
-  factors.forEach((f, i) => {
-    const composite = Math.round(((f.impact || 5) * 0.4 + (f.likelihood || 5) * 0.35 + (10 - (f.controllability || 5)) * 0.25) * 10);
-    const compColor = composite >= 70 ? '#f43f5e' : composite >= 45 ? '#f59e0b' : '#06b6d4';
-    html += '<div class="risk-factor-card reveal-step" style="animation-delay:' + (i * 40) + 'ms" id="riskFactor' + i + '" data-source="' + (f.source || 'both') + '" data-cat="' + (f.category || '') + '" data-composite="' + composite + '">';
-    html += '<div style="display:flex;align-items:flex-start;gap:6px;">';
-    html += '<div class="risk-circle checked" data-idx="' + i + '" onclick="_riskToggle(this,' + i + ')"></div>';
-    html += '<div style="flex:1;min-width:0;">';
-    // Name + badges row
-    html += '<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px;flex-wrap:wrap;">';
-    html += '<span style="font-size:11px;font-weight:500;color:var(--text-primary);line-height:1.2;">' + escHtml(f.name) + '</span>';
-    html += srcBadge(f.source);
-    html += '<span style="font-size:7px;color:var(--text-tertiary);background:rgba(255,255,255,0.03);padding:1px 4px;border-radius:3px;">' + escHtml(f.category) + '</span>';
-    html += '<span style="font-size:8px;font-weight:600;color:' + compColor + ';margin-left:auto;">' + composite + '%</span>';
+  factors.slice(0, 6).forEach(function(f, i) {
+    var pct = f.risk_pct || 0;
+    var color = pct >= 70 ? '#f43f5e' : pct >= 45 ? '#f59e0b' : '#06b6d4';
+    var levelLabel = pct >= 70 ? 'HIGH' : pct >= 45 ? 'MODERATE' : 'LOW';
+    var srcColor = f.source === 'data' ? '#67e8f9' : f.source === 'knowledge' ? '#c4b5fd' : '#6ee7b7';
+    var srcLabel = f.source === 'data' ? 'DATA' : f.source === 'knowledge' ? 'AI' : 'BOTH';
+    var sim = sims.find(function(s) { return s.factor_id === f.id; });
+
+    html += '<div class="glass-panel reveal-step" style="padding:14px;animation-delay:' + (i * 80) + 'ms;border-left:3px solid ' + color + ';">';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+    html += '<span style="font-size:16px;font-weight:300;color:' + color + ';font-family:Outfit,sans-serif;">#' + f.rank + '</span>';
+    html += '<span style="font-size:12px;font-weight:500;color:var(--text-primary);flex:1;">' + escHtml(f.name) + '</span>';
+    html += '<span style="font-size:7px;font-weight:700;padding:2px 6px;border-radius:4px;background:' + color + ';color:#000;letter-spacing:0.5px;">' + levelLabel + '</span>';
     html += '</div>';
-    // Description (1 line, truncated)
-    html += '<div style="font-size:9px;color:var(--text-secondary);line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:4px;">' + escHtml(f.description || '') + '</div>';
-    // Compact inline sliders
-    html += '<div style="display:flex;gap:6px;align-items:center;">';
-    html += '<div style="flex:1;display:flex;align-items:center;gap:3px;"><span style="font-size:7px;color:#f43f5e;">I</span><input type="range" min="1" max="10" value="' + parseInt(f.impact) + '" class="risk-slider" data-idx="' + i + '" data-field="impact" style="flex:1;height:3px;accent-color:#f43f5e;"><span class="risk-score-val" id="rv_impact_' + i + '" style="font-size:8px;color:#f43f5e;width:10px;text-align:center;">' + parseInt(f.impact) + '</span></div>';
-    html += '<div style="flex:1;display:flex;align-items:center;gap:3px;"><span style="font-size:7px;color:#f59e0b;">L</span><input type="range" min="1" max="10" value="' + parseInt(f.likelihood) + '" class="risk-slider" data-idx="' + i + '" data-field="likelihood" style="flex:1;height:3px;accent-color:#f59e0b;"><span class="risk-score-val" id="rv_likelihood_' + i + '" style="font-size:8px;color:#f59e0b;width:10px;text-align:center;">' + parseInt(f.likelihood) + '</span></div>';
-    html += '<div style="flex:1;display:flex;align-items:center;gap:3px;"><span style="font-size:7px;color:#06b6d4;">C</span><input type="range" min="1" max="10" value="' + parseInt(f.controllability) + '" class="risk-slider" data-idx="' + i + '" data-field="controllability" style="flex:1;height:3px;accent-color:#06b6d4;"><span class="risk-score-val" id="rv_controllability_' + i + '" style="font-size:8px;color:#06b6d4;width:10px;text-align:center;">' + parseInt(f.controllability) + '</span></div>';
+    html += '<div style="font-size:10px;color:var(--text-secondary);line-height:1.4;margin-bottom:8px;">' + escHtml(f.description || '') + '</div>';
+    // Risk bar
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">';
+    html += '<div style="flex:1;height:4px;background:rgba(255,255,255,0.04);border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:2px;transition:width .8s cubic-bezier(.16,1,.3,1);"></div></div>';
+    html += '<span style="font-size:11px;font-weight:600;color:' + color + ';min-width:32px;text-align:right;">' + pct + '%</span>';
     html += '</div>';
-    html += '</div></div></div>';
-  });
-  html += '</div>'; // close factor grid
-
-  html += '</div>'; // close glass-panel
-
-  // Action buttons
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">';
-  html += '<div style="display:flex;gap:6px;">';
-  html += '<button class="risk-btn-ghost" onclick="_riskSelectAll(true)">Select All</button>';
-  html += '<button class="risk-btn-ghost" onclick="_riskSelectAll(false)">Deselect All</button>';
-  html += '</div>';
-  html += '<div style="display:flex;gap:6px;">';
-  html += '<button class="risk-btn-ghost" onclick="_riskStep1_Extract()">Re-analyze</button>';
-  html += '<button class="risk-btn-primary" onclick="_riskStep2_Rank()">Rank with TOPSIS &rarr;</button>';
-  html += '</div></div>';
-
-  el.innerHTML = html;
-
-  // Bind slider events
-  el.querySelectorAll('.risk-slider').forEach(s => {
-    s.addEventListener('input', function() {
-      const idx = parseInt(this.dataset.idx);
-      const field = this.dataset.field;
-      App._riskV2.factors[idx][field] = parseInt(this.value);
-      document.getElementById('rv_' + field + '_' + idx).textContent = this.value;
-    });
-  });
-}
-
-// Hollow circle toggle
-function _riskToggle(circle, idx) {
-  circle.classList.toggle('checked');
-  const card = document.getElementById('riskFactor' + idx);
-  if (card) card.classList.toggle('unchecked', !circle.classList.contains('checked'));
-}
-
-// Select/Deselect all
-function _riskSelectAll(checked) {
-  document.querySelectorAll('.risk-circle').forEach(c => {
-    c.classList.toggle('checked', checked);
-    const idx = parseInt(c.dataset.idx);
-    const card = document.getElementById('riskFactor' + idx);
-    if (card) card.classList.toggle('unchecked', !checked);
-  });
-}
-
-// Filter chips
-function _riskFilter(filter, chipEl) {
-  // Update active chip
-  document.querySelectorAll('.risk-chip').forEach(c => c.classList.remove('active'));
-  chipEl.classList.add('active');
-
-  const cards = document.querySelectorAll('.risk-factor-card');
-  cards.forEach(card => {
-    const src = card.dataset.source;
-    const cat = card.dataset.cat;
-    const comp = parseInt(card.dataset.composite || 0);
-    let show = true;
-    if (filter === 'data') show = src === 'data';
-    else if (filter === 'knowledge') show = src === 'knowledge';
-    else if (filter === 'both') show = src === 'both';
-    else if (filter === 'high') show = comp >= 60;
-    else if (filter === 'top5') {
-      // Show top 5 by composite score
-      const allCards = [...document.querySelectorAll('.risk-factor-card')];
-      allCards.sort((a, b) => parseInt(b.dataset.composite) - parseInt(a.dataset.composite));
-      const top5 = new Set(allCards.slice(0, 5));
-      show = top5.has(card);
+    // MC probabilities
+    if (sim) {
+      html += '<div style="display:flex;gap:4px;margin-bottom:6px;">';
+      html += '<div style="flex:1;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,0.02);text-align:center;"><div style="font-size:7px;color:var(--text-tertiary);">P(moderate)</div><div style="font-size:10px;font-weight:500;color:#fbbf24;">' + sim.probabilities.exceed_moderate + '%</div></div>';
+      html += '<div style="flex:1;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,0.02);text-align:center;"><div style="font-size:7px;color:var(--text-tertiary);">P(high)</div><div style="font-size:10px;font-weight:500;color:#fb7185;">' + sim.probabilities.exceed_high + '%</div></div>';
+      html += '<div style="flex:1;padding:4px 6px;border-radius:6px;background:rgba(255,255,255,0.02);text-align:center;"><div style="font-size:7px;color:var(--text-tertiary);">P95</div><div style="font-size:10px;font-weight:500;color:var(--text-secondary);">' + sim.percentiles.p95.toLocaleString() + '</div></div>';
+      html += '</div>';
     }
-    else if (filter.startsWith('cat:')) show = cat === filter.slice(4);
-    card.style.display = show ? '' : 'none';
-  });
-}
-
-function _riskAddFactor() {
-  const name = prompt('Risk factor name:');
-  if (!name) return;
-  App._riskV2.factors.push({
-    id: name.toLowerCase().replace(/\s+/g, '_'),
-    name: name, description: 'User-defined risk factor', source: 'user',
-    category: 'operational', metric_column: null,
-    impact: 5, likelihood: 5, controllability: 5, evidence: 'Added manually'
-  });
-  _riskRenderStep1(document.getElementById('riskContent'));
-}
-
-// ── STEP 2: TOPSIS Ranking ──
-function _riskStep2_Rank() {
-  _riskSetStep(2);
-  const el = document.getElementById('riskContent');
-  if (!el) return;
-
-  // Filter only checked factors (hollow circle checkboxes)
-  const circles = document.querySelectorAll('.risk-circle');
-  const selected = [];
-  circles.forEach(c => { if (c.classList.contains('checked')) selected.push(App._riskV2.factors[parseInt(c.dataset.idx)]); });
-  if (!selected.length) { toast('Select at least one risk factor', 'info'); _riskSetStep(1); return; }
-
-  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:12px;color:rgba(255,255,255,0.35);">Running TOPSIS ranking...</span></div>';
-
-  fetch('/api/risk-v2/rank', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_getAuthToken() || '') },
-    body: JSON.stringify({ factors: selected, weights: App._riskV2.weights })
-  }).then(r => r.json()).then(data => {
-    App._riskV2.factors = data.factors || selected;
-    _riskRenderStep2(el);
-  }).catch(err => { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">TOPSIS failed: ' + err.message + '</div>'; });
-}
-
-function _riskRenderStep2(el) {
-  const factors = App._riskV2.factors;
-  let html = '';
-
-  // Weight adjustment panel
-  html += '<div class="glass-panel" style="padding:14px;margin-bottom:10px;">';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-  html += '<span style="font-size:12px;font-weight:500;color:var(--text-primary);">Criteria Weights</span>';
-  html += '<span style="font-size:9px;color:var(--text-tertiary);">Drag to adjust priority — ranking updates live</span>';
-  html += '</div>';
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">';
-  const w = App._riskV2.weights || { impact: 40, likelihood: 35, controllability: 25 };
-  [{ id:'impact', label:'Impact', color:'#f43f5e', icon:'&#9888;', val:w.impact },
-   { id:'likelihood', label:'Likelihood', color:'#f59e0b', icon:'&#9729;', val:w.likelihood },
-   { id:'controllability', label:'Controllability', color:'#06b6d4', icon:'&#9881;', val:w.controllability }
-  ].forEach(c => {
-    html += '<div style="text-align:center;">';
-    html += '<div style="font-size:10px;color:' + c.color + ';">' + c.icon + ' ' + c.label + '</div>';
-    html += '<span style="font-size:16px;font-weight:300;color:' + c.color + ';" id="tw_' + c.id + '">' + c.val + '%</span>';
-    html += '<input type="range" min="5" max="70" value="' + c.val + '" class="topsis-weight" data-field="' + c.id + '" style="width:100%;height:4px;accent-color:' + c.color + ';">';
+    // Source badge + criteria
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+    html += '<span style="font-size:7px;font-weight:600;padding:1px 5px;border-radius:3px;background:rgba(255,255,255,0.04);color:' + srcColor + ';">' + srcLabel + '</span>';
+    html += '<span style="font-size:7px;color:var(--text-tertiary);">I:' + f.impact + ' L:' + f.likelihood + ' C:' + f.controllability + '</span>';
+    html += '</div>';
     html += '</div>';
   });
-  html += '</div></div>';
-
-  // TOPSIS ranking bars
-  html += '<div class="glass-panel" style="padding:14px;margin-bottom:10px;">';
-  html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:10px;">TOPSIS Risk Ranking</div>';
-
-  factors.forEach((f, i) => {
-    const pct = f.risk_pct || 0;
-    const color = pct >= 70 ? '#f43f5e' : pct >= 45 ? '#f59e0b' : '#06b6d4';
-    html += '<div class="reveal-step" style="animation-delay:' + (i * 60) + 'ms;display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
-    html += '<span style="width:18px;font-size:10px;font-weight:700;color:' + color + ';text-align:center;">#' + f.rank + '</span>';
-    html += '<div style="flex:1;min-width:0;">';
-    html += '<div style="display:flex;justify-content:space-between;margin-bottom:1px;">';
-    html += '<span style="font-size:10px;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(f.name) + '</span>';
-    html += '<span style="font-size:10px;font-weight:600;color:' + color + ';">' + pct + '%</span>';
-    html += '</div>';
-    html += '<div style="height:5px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden;">';
-    html += '<div style="height:100%;width:' + pct + '%;background:' + color + ';border-radius:3px;transition:width .5s cubic-bezier(.16,1,.3,1);"></div>';
-    html += '</div></div></div>';
-  });
-
-  html += '</div>';
-  html += '<div style="display:flex;justify-content:space-between;margin-top:10px;">';
-  html += '<button class="btn btn-ghost" onclick="_riskRenderStep1(document.getElementById(\'riskContent\'));_riskSetStep(1);" style="font-size:11px;">&larr; Back</button>';
-  html += '<button class="btn" onclick="_riskStep3_MonteCarlo()" style="font-size:11px;background:var(--accent-cyan);color:#000;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">Monte Carlo &rarr;</button>';
-  html += '</div>';
-  el.innerHTML = html;
-
-  // Bind weight sliders for live re-ranking
-  el.querySelectorAll('.topsis-weight').forEach(s => {
-    s.addEventListener('input', function() {
-      const field = this.dataset.field;
-      const val = parseInt(this.value);
-      if (!App._riskV2.weights) App._riskV2.weights = { impact: 40, likelihood: 35, controllability: 25 };
-      App._riskV2.weights[field] = val;
-      document.getElementById('tw_' + field).textContent = val + '%';
-      // Live re-rank (local TOPSIS, no API call)
-      _riskLiveRerank();
-    });
-  });
-}
-
-function _riskLiveRerank() {
-  // Client-side TOPSIS re-rank with current weights
-  const factors = App._riskV2.factors;
-  const w = App._riskV2.weights || { impact: 40, likelihood: 35, controllability: 25 };
-  const wNorm = { impact: w.impact / (w.impact + w.likelihood + w.controllability), likelihood: w.likelihood / (w.impact + w.likelihood + w.controllability), controllability: w.controllability / (w.impact + w.likelihood + w.controllability) };
-  const criteria = ['impact', 'likelihood', 'controllability'];
-  const benefit = new Set(['impact', 'likelihood']);
-  const n = factors.length;
-  if (!n) return;
-
-  // Vector normalization
-  const norm = criteria.map(c => {
-    const sumSq = Math.sqrt(factors.reduce((s, f) => s + Math.pow(f[c] || 5, 2), 0));
-    return factors.map(f => sumSq > 0 ? (f[c] || 5) / sumSq : 0);
-  });
-  // Weighted
-  const weighted = criteria.map((c, j) => norm[j].map(v => v * wNorm[c]));
-  // Ideal best/worst
-  const idealBest = criteria.map((c, j) => benefit.has(c) ? Math.max(...weighted[j]) : Math.min(...weighted[j]));
-  const idealWorst = criteria.map((c, j) => benefit.has(c) ? Math.min(...weighted[j]) : Math.max(...weighted[j]));
-  // Distances
-  factors.forEach((f, i) => {
-    const dBest = Math.sqrt(criteria.reduce((s, _, j) => s + Math.pow(weighted[j][i] - idealBest[j], 2), 0));
-    const dWorst = Math.sqrt(criteria.reduce((s, _, j) => s + Math.pow(weighted[j][i] - idealWorst[j], 2), 0));
-    f.topsis_score = dBest + dWorst > 0 ? dWorst / (dBest + dWorst) : 0.5;
-    f.risk_pct = Math.round(f.topsis_score * 1000) / 10;
-  });
-  factors.sort((a, b) => b.topsis_score - a.topsis_score);
-  factors.forEach((f, i) => f.rank = i + 1);
-
-  // Update bars without full re-render
-  const el = document.getElementById('riskContent');
-  if (el) _riskRenderStep2(el);
-}
-
-// ── STEP 3: Monte Carlo + Tornado + What-If ──
-App._riskV2.mcIterations = 10000;
-
-function _riskStep3_MonteCarlo() {
-  _riskSetStep(3);
-  const el = document.getElementById('riskContent');
-  if (!el) return;
-  const iters = App._riskV2.mcIterations;
-  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:12px;color:rgba(255,255,255,0.35);">Running ' + iters.toLocaleString() + ' Monte Carlo iterations...</span></div>';
-
-  const token = _getAuthToken() || '';
-  const body = { factors: App._riskV2.factors, rows: App.excelData.rows.slice(0, 500), headers: App.excelData.headers, top_n: 3, n_iterations: iters };
-
-  // MC is primary — render as soon as it returns. Tornado is optional secondary.
-  App._riskV2.tornado = [];
-  fetch('/api/risk-v2/simulate', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body) })
-    .then(r => r.json()).then(mcData => {
-      App._riskV2.simulations = mcData.simulations || [];
-      _riskRenderStep3(el);
-      // Tornado loads independently — if it fails, MC still shows
-      fetch('/api/risk-v2/tornado', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body) })
-        .then(r => r.json()).then(torData => {
-          App._riskV2.tornado = torData.tornado || [];
-          const torEl = document.getElementById('riskTornadoSection');
-          if (torEl && App._riskV2.tornado.length) _riskRenderTornado(torEl);
-        }).catch(() => {}); // tornado failure is silent
-    }).catch(err => { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Monte Carlo failed: ' + err.message + '</div>'; });
-}
-
-function _riskRenderStep3(el) {
-  const sims = App._riskV2.simulations;
-  const tornado = App._riskV2.tornado || [];
-  let html = '';
-
-  // Replications control
-  html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">';
-  html += '<span style="font-size:10px;color:var(--text-tertiary);">Iterations:</span>';
-  [1000, 5000, 10000, 50000].forEach(n => {
-    const active = n === App._riskV2.mcIterations;
-    html += '<button class="mc-iter-btn' + (active ? ' active' : '') + '" onclick="App._riskV2.mcIterations=' + n + ';_riskStep3_MonteCarlo();" style="padding:3px 8px;border-radius:5px;font-size:9px;font-weight:' + (active ? '600' : '400') + ';border:1px solid ' + (active ? 'var(--accent-cyan)' : 'rgba(255,255,255,0.08)') + ';background:' + (active ? 'rgba(6,182,212,0.12)' : 'transparent') + ';color:' + (active ? '#67e8f9' : 'var(--text-tertiary)') + ';cursor:pointer;">' + (n >= 1000 ? (n/1000) + 'K' : n) + '</button>';
-  });
   html += '</div>';
 
-  if (!sims.length) {
-    html += '<div class="glass-panel" style="padding:16px;text-align:center;margin-bottom:12px;">';
-    html += '<div style="font-size:11px;color:var(--text-tertiary);">No numeric metrics found for Monte Carlo simulation. TOPSIS ranking is still valid.</div>';
-    html += '</div>';
-  } else {
-    sims.forEach((s, si) => {
-      html += '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:10px;animation-delay:' + (si * 120) + 'ms">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-      html += '<span style="font-size:12px;font-weight:500;color:var(--text-primary);">' + escHtml(s.factor_name) + '</span>';
-      html += '<span style="font-size:8px;color:var(--text-tertiary);">' + escHtml(s.column) + ' &middot; ' + s.iterations.toLocaleString() + ' runs</span>';
-      html += '</div>';
-
-      // @RISK-style histogram with CI zones
-      html += '<div style="position:relative;"><canvas id="mcHist' + si + '" style="width:100%;height:140px;"></canvas></div>';
-
-      // CI zone labels (drawn by JS, positioned absolutely)
-      html += '<div id="mcLabels' + si + '" style="position:relative;height:14px;margin-top:-2px;font-size:8px;font-weight:600;"></div>';
-
-      // Stats panel (like @RISK sidebar)
-      html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:8px;">';
-      [{ l:'Min', v:s.data_stats.min, c:'var(--text-tertiary)' },
-       { l:'P5', v:s.percentiles.p5, c:'#06b6d4' },
-       { l:'Mean', v:s.data_stats.mean, c:'var(--text-primary)' },
-       { l:'P95', v:s.percentiles.p95, c:'#f43f5e' },
-       { l:'Max', v:s.data_stats.max, c:'var(--text-tertiary)' }
-      ].forEach(st => {
-        html += '<div style="text-align:center;padding:4px;border-radius:6px;background:rgba(255,255,255,0.02);">';
-        html += '<div style="font-size:7px;text-transform:uppercase;color:var(--text-tertiary);letter-spacing:0.5px;">' + st.l + '</div>';
-        html += '<div style="font-size:11px;font-weight:500;color:' + st.c + ';">' + st.v.toLocaleString() + '</div>';
-        html += '</div>';
-      });
-      html += '</div>';
-
-      // Probability summary
-      html += '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">';
-      html += '<div style="flex:1;padding:6px 8px;border-radius:6px;background:rgba(6,182,212,0.06);border:1px solid rgba(6,182,212,0.12);text-align:center;font-size:9px;"><div style="color:var(--text-tertiary);">90% CI</div><div style="color:#67e8f9;font-weight:600;">' + s.percentiles.p5.toLocaleString() + ' — ' + s.percentiles.p95.toLocaleString() + '</div></div>';
-      html += '<div style="flex:1;padding:6px 8px;border-radius:6px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.12);text-align:center;font-size:9px;"><div style="color:var(--text-tertiary);">P(> moderate)</div><div style="color:#fbbf24;font-weight:600;">' + s.probabilities.exceed_moderate + '%</div></div>';
-      html += '<div style="flex:1;padding:6px 8px;border-radius:6px;background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.12);text-align:center;font-size:9px;"><div style="color:var(--text-tertiary);">P(> high)</div><div style="color:#fb7185;font-weight:600;">' + s.probabilities.exceed_high + '%</div></div>';
-      html += '<div style="flex:1;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);text-align:center;font-size:9px;"><div style="color:var(--text-tertiary);">Std Dev</div><div style="color:var(--text-secondary);font-weight:600;">' + s.data_stats.std.toLocaleString() + '</div></div>';
-      html += '</div>';
+  // ── MC Distributions ──
+  if (sims.length) {
+    html += '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:14px;animation-delay:400ms">';
+    html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:10px;">Probability Distributions <span style="font-size:9px;color:var(--text-tertiary);font-weight:400;">Monte Carlo ' + (sims[0].iterations || 10000).toLocaleString() + ' iterations</span></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;">';
+    sims.forEach(function(s, si) {
+      html += '<div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);">';
+      html += '<div style="font-size:10px;font-weight:500;color:var(--text-primary);margin-bottom:6px;">' + escHtml(s.factor_name) + ' <span style="font-size:8px;color:var(--text-tertiary);">(' + escHtml(s.column) + ')</span></div>';
+      html += '<canvas id="mcHist' + si + '" style="width:100%;height:100px;"></canvas>';
+      html += '<div style="display:flex;justify-content:space-between;font-size:7px;color:var(--text-tertiary);margin-top:4px;"><span>P5: ' + s.percentiles.p5.toLocaleString() + '</span><span style="color:var(--text-secondary);font-weight:600;">Mean: ' + s.data_stats.mean.toLocaleString() + '</span><span>P95: ' + s.percentiles.p95.toLocaleString() + '</span></div>';
       html += '</div>';
     });
+    html += '</div></div>';
   }
 
-  // Tornado sensitivity placeholder — loads independently after MC
-  html += '<div id="riskTornadoSection">';
-  if (tornado.length) { /* render immediately if already loaded */ }
-  else { html += '<div style="font-size:9px;color:var(--text-tertiary);text-align:center;padding:8px;">Loading sensitivity analysis...</div>'; }
-  html += '</div>';
-
-  // What-If panel
-  html += '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:10px;animation-delay:400ms">';
-  html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">What-If Scenario</div>';
-  html += '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
-  html += '<span style="font-size:10px;color:var(--text-tertiary);">If</span>';
-  html += '<select id="whatifCol" style="padding:4px 8px;border-radius:6px;font-size:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--text-primary);">';
-  (App.excelChartConfig?.metrics || App.excelData.headers).forEach(h => { html += '<option value="' + h + '">' + h.replace(/_/g,' ') + '</option>'; });
-  html += '</select>';
-  html += '<span style="font-size:10px;color:var(--text-tertiary);">changes by</span>';
-  html += '<input type="number" id="whatifPct" value="20" style="width:50px;padding:4px 6px;border-radius:6px;font-size:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--text-primary);text-align:center;">';
-  html += '<span style="font-size:10px;color:var(--text-tertiary);">% →</span>';
-  html += '<select id="whatifTarget" style="padding:4px 8px;border-radius:6px;font-size:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:var(--text-primary);">';
-  (App.excelChartConfig?.metrics || App.excelData.headers).forEach(h => { html += '<option value="' + h + '">' + h.replace(/_/g,' ') + '</option>'; });
-  html += '</select>';
-  html += '<button onclick="_riskRunWhatIf()" style="padding:4px 12px;border-radius:6px;font-size:10px;background:var(--accent-cyan);color:#000;border:none;cursor:pointer;font-weight:600;">Run</button>';
-  html += '</div>';
-  html += '<div id="whatifResult" style="margin-top:8px;"></div>';
-  html += '</div>';
-
-  html += '<div style="display:flex;justify-content:space-between;margin-top:10px;">';
-  html += '<button class="btn btn-ghost" onclick="_riskRenderStep2(document.getElementById(\'riskContent\'));_riskSetStep(2);" style="font-size:11px;">&larr; Back</button>';
-  html += '<button class="btn" onclick="_riskStep4_Narrative()" style="font-size:11px;background:var(--accent-cyan);color:#000;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:600;">AI Briefing &rarr;</button>';
-  html += '</div>';
-  el.innerHTML = html;
-
-  // Draw @RISK-style histograms with CI zones
-  requestAnimationFrame(() => {
-    _riskDrawMCHistograms(sims);
-    // Render tornado if already loaded
-    const torEl = document.getElementById('riskTornadoSection');
-    if (torEl && App._riskV2.tornado.length) _riskRenderTornado(torEl);
-  });
-}
-
-function _riskDrawMCHistograms(sims) {
-  sims.forEach((s, si) => {
-    const canvas = document.getElementById('mcHist' + si);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.parentElement.getBoundingClientRect();
-    const w = rect.width, h = 140;
-    canvas.width = w * dpr; canvas.height = h * dpr;
-    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
-    ctx.scale(dpr, dpr);
-
-    const bins = s.histogram;
-    const maxCount = Math.max(...bins.map(b => b.count));
-    const pad = { l:10, r:10, t:18, b:14 };
-    const chartW = w - pad.l - pad.r;
-    const chartH = h - pad.t - pad.b;
-    const barW = chartW / bins.length;
-    const range = bins[bins.length-1].hi - bins[0].lo;
-    const toX = v => pad.l + ((v - bins[0].lo) / range) * chartW;
-
-    // Find P5 and P95 bin positions for CI zones
-    const p5x = toX(s.percentiles.p5);
-    const p95x = toX(s.percentiles.p95);
-
-    // Draw CI zone backgrounds
-    // Left tail (0-5%): faded
-    ctx.fillStyle = 'rgba(6,182,212,0.04)';
-    ctx.fillRect(pad.l, pad.t, p5x - pad.l, chartH);
-    // Middle (5-95%): highlighted
-    ctx.fillStyle = 'rgba(6,182,212,0.06)';
-    ctx.fillRect(p5x, pad.t, p95x - p5x, chartH);
-    // Right tail (95-100%): faded red
-    ctx.fillStyle = 'rgba(244,63,94,0.04)';
-    ctx.fillRect(p95x, pad.t, w - pad.r - p95x, chartH);
-
-    // CI zone labels at top
-    ctx.font = '700 8px Inter,sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
-    ctx.fillText('5%', (pad.l + p5x) / 2, pad.t - 4);
-    ctx.fillStyle = '#67e8f9';
-    ctx.fillText('90%', (p5x + p95x) / 2, pad.t - 4);
-    ctx.fillStyle = 'rgba(244,63,94,0.5)';
-    ctx.fillText('5%', (p95x + w - pad.r) / 2, pad.t - 4);
-
-    // Draw bars
-    bins.forEach((b, bi) => {
-      const barH = maxCount > 0 ? (b.count / maxCount) * chartH : 0;
-      const x = pad.l + bi * barW;
-      const y = pad.t + chartH - barH;
-      const mid = b.mid;
-
-      // Color based on CI zone
-      if (mid <= s.percentiles.p5) {
-        ctx.fillStyle = 'rgba(6,182,212,0.25)';
-      } else if (mid >= s.percentiles.p95) {
-        ctx.fillStyle = 'rgba(244,63,94,0.5)';
-      } else {
-        ctx.fillStyle = 'rgba(6,182,212,0.45)';
-      }
-      ctx.beginPath();
-      ctx.roundRect(x + 0.5, y, barW - 1, barH, 1.5);
-      ctx.fill();
-    });
-
-    // P5 and P95 boundary lines with value labels
-    [{ x: p5x, v: s.percentiles.p5, c: '#06b6d4', align: 'right' },
-     { x: p95x, v: s.percentiles.p95, c: '#f43f5e', align: 'left' }].forEach(line => {
-      ctx.strokeStyle = line.c;
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 3]);
-      ctx.beginPath(); ctx.moveTo(line.x, pad.t); ctx.lineTo(line.x, pad.t + chartH); ctx.stroke();
-      ctx.setLineDash([]);
-      // Value label
-      ctx.fillStyle = line.c;
-      ctx.font = '600 8px Inter,sans-serif';
-      ctx.textAlign = line.align === 'right' ? 'right' : 'left';
-      const lx = line.align === 'right' ? line.x - 3 : line.x + 3;
-      ctx.fillText(line.v.toLocaleString(), lx, pad.t + chartH + 10);
-    });
-
-    // Mean line
-    const meanX = toX(s.data_stats.mean);
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([2, 2]);
-    ctx.beginPath(); ctx.moveTo(meanX, pad.t); ctx.lineTo(meanX, pad.t + chartH); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '500 7px Inter,sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Mean', meanX, pad.t + chartH + 10);
-  });
-}
-
-function _riskRenderTornado(el) {
-  const tornado = App._riskV2.tornado || [];
-  if (!tornado.length) { el.innerHTML = ''; return; }
-  let html = '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:10px;">';
-  html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Sensitivity — Which Variables Swing the Output Most</div>';
-  tornado.forEach(t => {
-    const maxSwing = tornado[0].swing || 1;
-    const pct = Math.round((t.swing / maxSwing) * 100);
-    const corrColor = t.correlation >= 0 ? '#f43f5e' : '#06b6d4';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">';
-    html += '<span style="width:100px;font-size:9px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(t.factor_name) + '</span>';
-    html += '<div style="flex:1;height:8px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;position:relative;">';
-    html += '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.1);"></div>';
-    if (t.correlation >= 0) {
-      html += '<div style="position:absolute;left:50%;height:100%;width:' + (pct/2) + '%;background:#f43f5e;border-radius:0 4px 4px 0;"></div>';
-    } else {
-      html += '<div style="position:absolute;right:50%;height:100%;width:' + (pct/2) + '%;background:#06b6d4;border-radius:4px 0 0 4px;"></div>';
-    }
-    html += '</div>';
-    html += '<span style="width:50px;font-size:8px;color:' + corrColor + ';text-align:right;">swing: ' + t.swing.toLocaleString() + '</span>';
-    html += '</div>';
-  });
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-function _riskRunWhatIf() {
-  const col = document.getElementById('whatifCol')?.value;
-  const pct = parseFloat(document.getElementById('whatifPct')?.value || 20);
-  const target = document.getElementById('whatifTarget')?.value;
-  const el = document.getElementById('whatifResult');
-  if (!el || !col || !target) return;
-  el.innerHTML = '<div style="font-size:10px;color:var(--text-tertiary);">Running what-if...</div>';
-
-  fetch('/api/risk-v2/whatif', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_getAuthToken() || '') },
-    body: JSON.stringify({ rows: App.excelData.rows.slice(0, 500), headers: App.excelData.headers, column: col, change_pct: pct, target_col: target })
-  }).then(r => r.json()).then(data => {
-    if (data.error) { el.innerHTML = '<div style="font-size:10px;color:var(--accent-rose);">' + escHtml(data.error) + '</div>'; return; }
-    const b = data.baseline, sc = data.scenario;
-    const shifted = data.shift >= 0 ? '+' : '';
-    let h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;">';
-    h += '<div style="padding:8px;border-radius:8px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);">';
-    h += '<div style="font-size:9px;color:var(--text-tertiary);margin-bottom:4px;">Baseline</div>';
-    h += '<div style="font-size:14px;font-weight:300;color:var(--text-primary);">' + b.mean.toLocaleString() + '</div>';
-    h += '<div style="font-size:8px;color:var(--text-tertiary);">P5: ' + b.p5.toLocaleString() + ' — P95: ' + b.p95.toLocaleString() + '</div>';
-    h += '</div>';
-    h += '<div style="padding:8px;border-radius:8px;background:rgba(6,182,212,0.04);border:1px solid rgba(6,182,212,0.12);">';
-    h += '<div style="font-size:9px;color:var(--accent-cyan);margin-bottom:4px;">Scenario (' + shifted + data.change_pct + '% ' + escHtml(col.replace(/_/g,' ')) + ')</div>';
-    h += '<div style="font-size:14px;font-weight:300;color:#67e8f9;">' + sc.mean.toLocaleString() + ' <span style="font-size:10px;">(' + shifted + data.shift.toLocaleString() + ')</span></div>';
-    h += '<div style="font-size:8px;color:var(--text-tertiary);">P5: ' + sc.p5.toLocaleString() + ' — P95: ' + sc.p95.toLocaleString() + '</div>';
-    h += '</div></div>';
-    h += '<div style="font-size:8px;color:var(--text-tertiary);margin-top:4px;">Correlation: r=' + data.correlation + '</div>';
-    el.innerHTML = h;
-  }).catch(err => { el.innerHTML = '<div style="font-size:10px;color:var(--accent-rose);">What-if failed</div>'; });
-}
-
-// ── STEP 4: AI Narrative ──
-function _riskStep4_Narrative() {
-  _riskSetStep(4);
-  const el = document.getElementById('riskContent');
-  if (!el) return;
-  el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:12px;color:rgba(255,255,255,0.35);">AI is writing your executive risk briefing...</span></div>';
-
-  const token = _getAuthToken();
-  fetch('/api/risk-v2/narrative', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-    body: JSON.stringify({ domain: App._riskV2.domain, factors: App._riskV2.factors, simulations: App._riskV2.simulations })
-  }).then(r => r.json()).then(data => {
-    App._riskV2.narrative = data;
-    _riskRenderStep4(el);
-  }).catch(err => { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Narrative failed: ' + err.message + '</div>'; });
-}
-
-function _riskRenderStep4(el) {
-  const n = App._riskV2.narrative;
-  let html = '';
-
-  // Executive summary
-  html += '<div class="glass-panel reveal-step" style="padding:16px;margin-bottom:12px;">';
-  html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span style="font-size:12px;font-weight:500;color:var(--text-primary);">Executive Summary</span></div>';
-  html += '<div style="font-size:12px;color:var(--text-secondary);line-height:1.6;">' + escHtml(n.executive_summary || '') + '</div>';
-  html += '</div>';
-
-  // Distribution analysis (new V3 field)
-  if (n.distribution_analysis) {
-    html += '<div class="glass-panel reveal-step" style="padding:16px;margin-bottom:12px;animation-delay:80ms">';
-    html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Distribution Analysis</div>';
-    html += '<div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">' + escHtml(typeof n.distribution_analysis === 'string' ? n.distribution_analysis : JSON.stringify(n.distribution_analysis)) + '</div>';
-    html += '</div>';
-  }
-
-  // Key findings
-  if (n.key_findings && n.key_findings.length) {
-    html += '<div class="glass-panel reveal-step" style="padding:16px;margin-bottom:12px;animation-delay:150ms">';
-    html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Key Findings</div>';
-    n.key_findings.forEach(f => {
-      html += '<div style="display:flex;gap:6px;margin-bottom:6px;font-size:11px;color:var(--text-secondary);line-height:1.5;"><span style="color:var(--accent-cyan);flex-shrink:0;">&#8226;</span><span>' + escHtml(f) + '</span></div>';
+  // ── Sensitivity ──
+  if (tornado.length) {
+    html += '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:14px;animation-delay:500ms">';
+    html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Sensitivity Analysis</div>';
+    tornado.slice(0, 5).forEach(function(t) {
+      var maxSwing = tornado[0].swing || 1;
+      var pct = Math.round((t.swing / maxSwing) * 100);
+      var corrColor = t.correlation >= 0 ? '#f43f5e' : '#06b6d4';
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">';
+      html += '<span style="width:90px;font-size:9px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(t.factor_name) + '</span>';
+      html += '<div style="flex:1;height:6px;background:rgba(255,255,255,0.04);border-radius:3px;overflow:hidden;position:relative;">';
+      html += '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.08);"></div>';
+      if (t.correlation >= 0) { html += '<div style="position:absolute;left:50%;height:100%;width:' + (pct/2) + '%;background:#f43f5e;border-radius:0 3px 3px 0;"></div>'; }
+      else { html += '<div style="position:absolute;right:50%;height:100%;width:' + (pct/2) + '%;background:#06b6d4;border-radius:3px 0 0 3px;"></div>'; }
+      html += '</div>';
+      html += '<span style="width:35px;font-size:7px;color:' + corrColor + ';text-align:right;">r=' + t.correlation + '</span>';
+      html += '</div>';
     });
     html += '</div>';
   }
 
-  // Decision thresholds (new V3 field)
-  if (n.decision_thresholds) {
-    html += '<div class="glass-panel reveal-step" style="padding:16px;margin-bottom:12px;animation-delay:200ms">';
-    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 16.8l-6.2 4.5 2.4-7.4L2 9.4h7.6z"/></svg><span style="font-size:12px;font-weight:500;color:var(--text-primary);">Decision Thresholds</span></div>';
-    html += '<div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">' + escHtml(typeof n.decision_thresholds === 'string' ? n.decision_thresholds : JSON.stringify(n.decision_thresholds)) + '</div>';
-    html += '</div>';
-  }
-
-  // Recommendations
-  if (n.recommendations && n.recommendations.length) {
-    html += '<div class="glass-panel reveal-step" style="padding:16px;margin-bottom:12px;animation-delay:200ms">';
+  // ── Recommendations ──
+  if (narrative.recommendations && narrative.recommendations.length) {
+    html += '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:14px;animation-delay:600ms">';
     html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Recommendations</div>';
-    n.recommendations.forEach(r => {
-      const rec = typeof r === 'string' ? { action: r, priority: 'medium' } : r;
-      const pColor = rec.priority === 'critical' ? '#f43f5e' : rec.priority === 'high' ? '#f59e0b' : '#06b6d4';
-      html += '<div style="padding:8px 12px;margin-bottom:4px;border-radius:8px;background:rgba(255,255,255,0.02);border-left:3px solid ' + pColor + ';">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<span style="font-size:11px;color:var(--text-secondary);">' + escHtml(rec.action) + '</span>';
-      html += '<span style="font-size:8px;font-weight:600;color:' + pColor + ';text-transform:uppercase;">' + escHtml(rec.priority) + '</span>';
-      html += '</div>';
-      if (rec.expected_impact) html += '<div style="font-size:9px;color:var(--text-tertiary);margin-top:2px;">' + escHtml(rec.expected_impact) + '</div>';
+    narrative.recommendations.forEach(function(r) {
+      var rec = typeof r === 'string' ? { action: r, priority: 'medium' } : r;
+      var pColor = rec.priority === 'critical' ? '#f43f5e' : rec.priority === 'high' ? '#f59e0b' : '#06b6d4';
+      html += '<div style="padding:8px 10px;margin-bottom:4px;border-radius:8px;background:rgba(255,255,255,0.02);border-left:3px solid ' + pColor + ';">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:10px;color:var(--text-secondary);">' + escHtml(rec.action) + '</span><span style="font-size:7px;font-weight:700;color:' + pColor + ';text-transform:uppercase;">' + escHtml(rec.priority) + '</span></div>';
+      if (rec.expected_impact) html += '<div style="font-size:8px;color:var(--text-tertiary);margin-top:2px;">' + escHtml(rec.expected_impact) + '</div>';
       html += '</div>';
     });
     html += '</div>';
   }
 
-  // Methodology
-  if (n.methodology_note) {
-    html += '<div style="font-size:9px;color:var(--text-tertiary);text-align:center;margin-top:8px;font-style:italic;">' + escHtml(n.methodology_note) + '</div>';
+  // ── Key Findings (expandable) ──
+  if (narrative.key_findings && narrative.key_findings.length) {
+    html += '<details class="glass-panel reveal-step" style="padding:14px;margin-bottom:14px;animation-delay:700ms;cursor:pointer;">';
+    html += '<summary style="font-size:12px;font-weight:500;color:var(--text-primary);outline:none;">Key Findings <span style="font-size:9px;color:var(--text-tertiary);font-weight:400;">(' + narrative.key_findings.length + ')</span></summary>';
+    html += '<div style="margin-top:8px;">';
+    narrative.key_findings.forEach(function(f) {
+      html += '<div style="display:flex;gap:5px;margin-bottom:4px;font-size:10px;color:var(--text-secondary);line-height:1.4;"><span style="color:var(--accent-cyan);flex-shrink:0;">&#8226;</span><span>' + escHtml(f) + '</span></div>';
+    });
+    html += '</div></details>';
   }
 
-  html += '<div style="display:flex;justify-content:space-between;margin-top:16px;">';
-  html += '<button class="btn btn-ghost" onclick="_riskStep2_Rank()" style="font-size:11px;">&larr; Re-run Analysis</button>';
-  html += '<button class="btn btn-ghost" onclick="toast(\'Export coming soon\',\'info\')" style="font-size:11px;">Export PDF</button>';
+  // ── Methodology (collapsed) ──
+  html += '<details class="reveal-step" style="margin-bottom:14px;animation-delay:800ms;cursor:pointer;">';
+  html += '<summary style="font-size:9px;color:var(--text-tertiary);text-align:center;outline:none;">Methodology: TOPSIS + Monte Carlo</summary>';
+  html += '<div style="margin-top:6px;font-size:9px;color:var(--text-tertiary);text-align:center;line-height:1.5;">' + escHtml(narrative.methodology_note || 'Risk factors extracted via AI, ranked using TOPSIS, simulated with Monte Carlo.') + '</div>';
+  html += '</details>';
+
+  // ── Actions ──
+  html += '<div style="display:flex;justify-content:center;gap:8px;margin-top:8px;">';
+  html += '<button class="risk-btn-ghost" onclick="initRiskAnalyzer()">Re-analyze</button>';
   html += '</div>';
+
   el.innerHTML = html;
+  if (sims.length) requestAnimationFrame(function() { _riskDrawMCHistograms(sims); });
 }
 
 function renderInfluencersEmptyState() {

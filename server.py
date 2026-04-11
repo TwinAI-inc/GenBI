@@ -1038,6 +1038,30 @@ Rules:
 
     # ── Risk V2: TOPSIS + Monte Carlo ──────────────────────────────────────
 
+    @app.route('/api/risk-v2/full', methods=['POST'])
+    @limiter.limit('3/minute')
+    def risk_v2_full():
+        """Single-call full risk analysis: extract + TOPSIS + MC + tornado + narrative."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        quota_error = _check_ai_quota()
+        if quota_error:
+            return quota_error
+        try:
+            from services.risk_engine import run_full_risk_analysis
+            data = request.get_json()
+            headers = data.get('headers', [])
+            rows = data.get('rows', [])[:500]
+            if not headers or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+            result = run_full_risk_analysis(headers, rows)
+            if result.get('factors'):
+                _record_ai_usage()
+            return jsonify(result)
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/risk-v2/extract', methods=['POST'])
     @limiter.limit('5/minute')
     def risk_v2_extract():

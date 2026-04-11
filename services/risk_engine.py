@@ -664,6 +664,13 @@ def run_full_risk_analysis(headers, rows, weights=None, top_mc=3):
     # Step 3: Monte Carlo simulation on top factors
     simulations = monte_carlo_simulate(factors, rows, headers, top_n=top_mc)
 
+    # Step 3B: Tornado sensitivity
+    tornado = []
+    try:
+        tornado = tornado_sensitivity(factors, rows, headers)
+    except Exception:
+        pass
+
     # Step 4: AI narrative
     narrative = generate_risk_narrative_v2(domain, factors, simulations)
 
@@ -671,6 +678,7 @@ def run_full_risk_analysis(headers, rows, weights=None, top_mc=3):
         'domain': domain,
         'factors': factors,
         'simulations': simulations,
+        'tornado': tornado,
         'narrative': narrative,
     }
 
