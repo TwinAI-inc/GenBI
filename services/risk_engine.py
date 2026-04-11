@@ -408,27 +408,34 @@ def tornado_sensitivity(factors, rows, headers, target_col=None, n_iterations=50
         if stats['std'] < 1e-9:
             continue
 
-        # Simulate: what happens to target when this factor goes ±1σ
-        random.seed(42)
-        # Low scenario: factor at mean - 1σ
-        shift_ratio_low = (stats['mean'] - stats['std']) / stats['mean'] if stats['mean'] != 0 else 0.8
-        # High scenario: factor at mean + 1σ
-        shift_ratio_high = (stats['mean'] + stats['std']) / stats['mean'] if stats['mean'] != 0 else 1.2
-
-        # Simple correlation-based impact estimation
+        # Real ±1σ perturbation: vary this factor by its own σ,
+        # measure impact on target using regression coefficient (β = r × σ_target / σ_input)
         corr = _pearson_corr(rows, c, target_col)
-        impact_low = base_mean + corr * col_stats[target_col]['std'] * -1
-        impact_high = base_mean + corr * col_stats[target_col]['std'] * 1
+        target_std = col_stats[target_col]['std']
+        input_std = stats['std']
+
+        # Regression coefficient: how much target changes per unit change in input
+        beta = corr * (target_std / input_std) if input_std > 0 else 0
+
+        # Impact of ±1σ change in this input on the target
+        # Low scenario: input drops by 1σ → target shifts by -β×σ_input = -β×input_std
+        # High scenario: input rises by 1σ → target shifts by +β×σ_input = +β×input_std
+        impact_shift = beta * input_std  # = corr × target_std × (input_std / input_std) ... but β already accounts for scale
+        impact_low = base_mean - impact_shift
+        impact_high = base_mean + impact_shift
+        swing = abs(2 * impact_shift)  # total swing from -1σ to +1σ
 
         results.append({
             'factor_id': fc['factor']['id'],
             'factor_name': fc['factor']['name'],
             'column': c,
             'correlation': round(corr, 3),
+            'beta': round(beta, 4),
+            'input_std': round(input_std, 2),
             'base': round(base_mean, 2),
             'low': round(impact_low, 2),
             'high': round(impact_high, 2),
-            'swing': round(abs(impact_high - impact_low), 2),
+            'swing': round(swing, 2),
         })
 
     results.sort(key=lambda x: x['swing'], reverse=True)

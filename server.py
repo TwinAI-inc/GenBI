@@ -1088,9 +1088,10 @@ Rules:
             rows = data.get('rows', [])[:500]
             headers = data.get('headers', [])
             top_n = data.get('top_n', 3)
+            n_iterations = min(max(int(data.get('n_iterations', 10000)), 1000), 50000)
             if not factors or not rows:
                 return jsonify({'error': 'No data provided.'}), 400
-            results = monte_carlo_simulate(factors, rows, headers, top_n=top_n)
+            results = monte_carlo_simulate(factors, rows, headers, n_iterations=n_iterations, top_n=top_n)
             return jsonify({'simulations': results})
         except Exception as e:
             return _ai_error_response(e)

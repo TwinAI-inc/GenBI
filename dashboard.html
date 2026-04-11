@@ -4846,15 +4846,20 @@ function _riskStep3_MonteCarlo() {
   const token = localStorage.getItem('genbi-auth-token') || '';
   const body = { factors: App._riskV2.factors, rows: App.excelData.rows.slice(0, 500), headers: App.excelData.headers, top_n: 3, n_iterations: iters };
 
-  // Run MC + Tornado in parallel
-  Promise.all([
-    fetch('/api/risk-v2/simulate', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body) }).then(r=>r.json()),
-    fetch('/api/risk-v2/tornado', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body) }).then(r=>r.json())
-  ]).then(([mcData, torData]) => {
-    App._riskV2.simulations = mcData.simulations || [];
-    App._riskV2.tornado = torData.tornado || [];
-    _riskRenderStep3(el);
-  }).catch(err => { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Monte Carlo failed: ' + err.message + '</div>'; });
+  // MC is primary — render as soon as it returns. Tornado is optional secondary.
+  App._riskV2.tornado = [];
+  fetch('/api/risk-v2/simulate', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body) })
+    .then(r => r.json()).then(mcData => {
+      App._riskV2.simulations = mcData.simulations || [];
+      _riskRenderStep3(el);
+      // Tornado loads independently — if it fails, MC still shows
+      fetch('/api/risk-v2/tornado', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:JSON.stringify(body) })
+        .then(r => r.json()).then(torData => {
+          App._riskV2.tornado = torData.tornado || [];
+          const torEl = document.getElementById('riskTornadoSection');
+          if (torEl && App._riskV2.tornado.length) _riskRenderTornado(torEl);
+        }).catch(() => {}); // tornado failure is silent
+    }).catch(err => { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Monte Carlo failed: ' + err.message + '</div>'; });
 }
 
 function _riskRenderStep3(el) {
@@ -4915,29 +4920,11 @@ function _riskRenderStep3(el) {
     });
   }
 
-  // Tornado sensitivity chart
-  if (tornado.length) {
-    html += '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:10px;animation-delay:300ms">';
-    html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Sensitivity — Which Variables Swing the Output Most</div>';
-    tornado.forEach((t, ti) => {
-      const maxSwing = tornado[0].swing || 1;
-      const pct = Math.round((t.swing / maxSwing) * 100);
-      const corrColor = t.correlation >= 0 ? '#f43f5e' : '#06b6d4';
-      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">';
-      html += '<span style="width:100px;font-size:9px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(t.factor_name) + '</span>';
-      html += '<div style="flex:1;height:8px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;position:relative;">';
-      html += '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.1);"></div>';
-      if (t.correlation >= 0) {
-        html += '<div style="position:absolute;left:50%;height:100%;width:' + (pct/2) + '%;background:#f43f5e;border-radius:0 4px 4px 0;"></div>';
-      } else {
-        html += '<div style="position:absolute;right:50%;height:100%;width:' + (pct/2) + '%;background:#06b6d4;border-radius:4px 0 0 4px;"></div>';
-      }
-      html += '</div>';
-      html += '<span style="width:40px;font-size:8px;color:' + corrColor + ';text-align:right;">r=' + t.correlation + '</span>';
-      html += '</div>';
-    });
-    html += '</div>';
-  }
+  // Tornado sensitivity placeholder — loads independently after MC
+  html += '<div id="riskTornadoSection">';
+  if (tornado.length) { /* render immediately if already loaded */ }
+  else { html += '<div style="font-size:9px;color:var(--text-tertiary);text-align:center;padding:8px;">Loading sensitivity analysis...</div>'; }
+  html += '</div>';
 
   // What-If panel
   html += '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:10px;animation-delay:400ms">';
@@ -4965,7 +4952,12 @@ function _riskRenderStep3(el) {
   el.innerHTML = html;
 
   // Draw @RISK-style histograms with CI zones
-  requestAnimationFrame(() => _riskDrawMCHistograms(sims));
+  requestAnimationFrame(() => {
+    _riskDrawMCHistograms(sims);
+    // Render tornado if already loaded
+    const torEl = document.getElementById('riskTornadoSection');
+    if (torEl && App._riskV2.tornado.length) _riskRenderTornado(torEl);
+  });
 }
 
 function _riskDrawMCHistograms(sims) {
@@ -5062,6 +5054,32 @@ function _riskDrawMCHistograms(sims) {
     ctx.textAlign = 'center';
     ctx.fillText('Mean', meanX, pad.t + chartH + 10);
   });
+}
+
+function _riskRenderTornado(el) {
+  const tornado = App._riskV2.tornado || [];
+  if (!tornado.length) { el.innerHTML = ''; return; }
+  let html = '<div class="glass-panel reveal-step" style="padding:14px;margin-bottom:10px;">';
+  html += '<div style="font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:8px;">Sensitivity — Which Variables Swing the Output Most</div>';
+  tornado.forEach(t => {
+    const maxSwing = tornado[0].swing || 1;
+    const pct = Math.round((t.swing / maxSwing) * 100);
+    const corrColor = t.correlation >= 0 ? '#f43f5e' : '#06b6d4';
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">';
+    html += '<span style="width:100px;font-size:9px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(t.factor_name) + '</span>';
+    html += '<div style="flex:1;height:8px;background:rgba(255,255,255,0.04);border-radius:4px;overflow:hidden;position:relative;">';
+    html += '<div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.1);"></div>';
+    if (t.correlation >= 0) {
+      html += '<div style="position:absolute;left:50%;height:100%;width:' + (pct/2) + '%;background:#f43f5e;border-radius:0 4px 4px 0;"></div>';
+    } else {
+      html += '<div style="position:absolute;right:50%;height:100%;width:' + (pct/2) + '%;background:#06b6d4;border-radius:4px 0 0 4px;"></div>';
+    }
+    html += '</div>';
+    html += '<span style="width:50px;font-size:8px;color:' + corrColor + ';text-align:right;">swing: ' + t.swing.toLocaleString() + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
 function _riskRunWhatIf() {
