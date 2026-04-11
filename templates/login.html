@@ -12,8 +12,8 @@
 <body>
 <script>try{if(localStorage.getItem('genbi-theme')==='light')document.body.classList.add('theme-light');}catch(e){}</script>
 
-<img src="/public/images/wave-auth-login.png" alt="" class="auth-wave">
-<div class="auth-card">
+<img src="/public/images/wave-auth-login.png" alt="" class="auth-wave" style="opacity:0;transition:opacity .3s">
+<div class="auth-card" style="opacity:0;transition:opacity .3s">
   <div class="auth-brand">
     <div class="auth-brand-icon">
       <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
@@ -81,8 +81,14 @@
     document.querySelector('.auth-wave').style.display = 'none';
     handleGoogleCallback();
   } else {
-    // Redirect if already logged in
-    if (isLoggedIn()) window.location.href = _next;
+    // Redirect if already logged in — don't show login form
+    if (isLoggedIn()) {
+      window.location.href = _next;
+    } else {
+      // Not logged in — reveal the login form (was hidden to prevent flash)
+      document.querySelector('.auth-card').style.opacity = '1';
+      document.querySelector('.auth-wave').style.opacity = '1';
+    }
   }
 
   // Email + password login

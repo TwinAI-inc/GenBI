@@ -12,8 +12,8 @@
 <body>
 <script>try{if(localStorage.getItem('genbi-theme')==='light')document.body.classList.add('theme-light');}catch(e){}</script>
 
-<img src="/public/images/wave-auth-signup.png" alt="" class="auth-wave">
-<div class="auth-card">
+<img src="/public/images/wave-auth-signup.png" alt="" class="auth-wave" style="opacity:0;transition:opacity .3s">
+<div class="auth-card" style="opacity:0;transition:opacity .3s">
   <div class="auth-brand">
     <div class="auth-brand-icon">
       <svg width="24" height="24" viewBox="0 0 40 40" fill="none">
@@ -74,7 +74,12 @@
 
 <script src="/static/auth.js"></script>
 <script>
-  if (isLoggedIn()) window.location.href = '/dashboard';
+  if (isLoggedIn()) {
+    window.location.href = '/dashboard';
+  } else {
+    document.querySelector('.auth-card').style.opacity = '1';
+    document.querySelector('.auth-wave').style.opacity = '1';
+  }
 
   initStrengthMeter('password', 'strengthFill', 'strengthText');
 
