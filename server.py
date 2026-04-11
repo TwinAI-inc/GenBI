@@ -1057,7 +1057,8 @@ Rules:
                 return jsonify({'error': 'No data provided.'}), 400
             result = extract_risk_factors(headers, rows)
             if result.get('error'):
-                return jsonify({'error': 'Risk extraction failed: ' + result['error']}), 500
+                logger.error(f"Risk extraction error detail: {result['error']}")
+                return jsonify({'error': 'Risk factor extraction failed. Please try again or upload a different dataset.'}), 500
             _record_ai_usage()
             return jsonify(result)
         except Exception as e:
