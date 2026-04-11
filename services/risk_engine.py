@@ -357,7 +357,177 @@ def monte_carlo_simulate(factors, rows, headers, n_iterations=10000, top_n=3):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# STEP 4: AI Narrative
+# STEP 3B: Tornado Sensitivity Analysis
+# ══════════════════════════════════════════════════════════════════════════════
+
+def tornado_sensitivity(factors, rows, headers, target_col=None, n_iterations=5000):
+    """
+    Sensitivity analysis: vary each factor's metric ±1σ while holding
+    others at their mean. Shows which input variable swings the output most.
+
+    Returns list of {factor_name, column, base, low, high, swing} sorted by swing.
+    """
+    if not factors or not rows:
+        return []
+
+    # Find numeric columns associated with factors
+    factor_cols = []
+    for f in factors[:8]:
+        col = f.get('metric_column')
+        if not col or col not in headers:
+            col = _find_related_column(f, headers, rows)
+        if col:
+            factor_cols.append({'factor': f, 'col': col})
+
+    if not factor_cols:
+        return []
+
+    # Use first factor's column as target if not specified
+    if not target_col:
+        target_col = factor_cols[0]['col']
+
+    # Compute baseline stats for all columns
+    col_stats = {}
+    for fc in factor_cols:
+        c = fc['col']
+        vals = [float(r.get(c, 0)) for r in rows if _safe_float(r.get(c)) is not None]
+        if vals:
+            col_stats[c] = {'mean': sum(vals) / len(vals), 'std': _std(vals)}
+
+    if target_col not in col_stats:
+        return []
+
+    base_mean = col_stats[target_col]['mean']
+    results = []
+
+    for fc in factor_cols:
+        c = fc['col']
+        if c == target_col or c not in col_stats:
+            continue
+        stats = col_stats[c]
+        if stats['std'] < 1e-9:
+            continue
+
+        # Simulate: what happens to target when this factor goes ±1σ
+        random.seed(42)
+        # Low scenario: factor at mean - 1σ
+        shift_ratio_low = (stats['mean'] - stats['std']) / stats['mean'] if stats['mean'] != 0 else 0.8
+        # High scenario: factor at mean + 1σ
+        shift_ratio_high = (stats['mean'] + stats['std']) / stats['mean'] if stats['mean'] != 0 else 1.2
+
+        # Simple correlation-based impact estimation
+        corr = _pearson_corr(rows, c, target_col)
+        impact_low = base_mean + corr * col_stats[target_col]['std'] * -1
+        impact_high = base_mean + corr * col_stats[target_col]['std'] * 1
+
+        results.append({
+            'factor_id': fc['factor']['id'],
+            'factor_name': fc['factor']['name'],
+            'column': c,
+            'correlation': round(corr, 3),
+            'base': round(base_mean, 2),
+            'low': round(impact_low, 2),
+            'high': round(impact_high, 2),
+            'swing': round(abs(impact_high - impact_low), 2),
+        })
+
+    results.sort(key=lambda x: x['swing'], reverse=True)
+    return results
+
+
+def whatif_scenario(rows, headers, column, change_pct, target_col, n_iterations=10000):
+    """
+    What-if: "What if column X changes by Y%?" → re-run MC on target.
+
+    Returns baseline and scenario MC results for comparison.
+    """
+    if not rows or column not in headers or target_col not in headers:
+        return None
+
+    # Baseline target values
+    target_vals = [float(r.get(target_col, 0)) for r in rows if _safe_float(r.get(target_col)) is not None]
+    if len(target_vals) < 10:
+        return None
+
+    base_mean = sum(target_vals) / len(target_vals)
+    base_std = _std(target_vals)
+
+    # Compute correlation between column and target
+    corr = _pearson_corr(rows, column, target_col)
+
+    # Scenario: shift target distribution based on correlation and change
+    col_vals = [float(r.get(column, 0)) for r in rows if _safe_float(r.get(column)) is not None]
+    if not col_vals:
+        return None
+    col_std = _std(col_vals)
+    col_mean = sum(col_vals) / len(col_vals)
+
+    # Estimated shift in target mean due to column change
+    shift = corr * (base_std / col_std) * (col_mean * change_pct / 100) if col_std > 0 else 0
+    scenario_mean = base_mean + shift
+
+    # Run MC for both
+    random.seed(42)
+    base_samples = sorted([random.gauss(base_mean, base_std) for _ in range(n_iterations)])
+    random.seed(42)
+    scen_samples = sorted([random.gauss(scenario_mean, base_std) for _ in range(n_iterations)])
+
+    def _mc_stats(samples):
+        n = len(samples)
+        return {
+            'mean': round(sum(samples) / n, 2),
+            'std': round(_std(samples), 2),
+            'p5': round(samples[int(n * 0.05)], 2),
+            'p25': round(samples[int(n * 0.25)], 2),
+            'p50': round(samples[int(n * 0.50)], 2),
+            'p75': round(samples[int(n * 0.75)], 2),
+            'p95': round(samples[int(n * 0.95)], 2),
+            'min': round(samples[0], 2),
+            'max': round(samples[-1], 2),
+        }
+
+    return {
+        'column': column,
+        'change_pct': change_pct,
+        'target': target_col,
+        'correlation': round(corr, 3),
+        'baseline': _mc_stats(base_samples),
+        'scenario': _mc_stats(scen_samples),
+        'shift': round(shift, 2),
+    }
+
+
+def _safe_float(v):
+    try:
+        f = float(v)
+        return f if math.isfinite(f) else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _pearson_corr(rows, col1, col2):
+    pairs = []
+    for r in rows:
+        v1 = _safe_float(r.get(col1))
+        v2 = _safe_float(r.get(col2))
+        if v1 is not None and v2 is not None:
+            pairs.append((v1, v2))
+    if len(pairs) < 10:
+        return 0
+    n = len(pairs)
+    sx = sum(p[0] for p in pairs)
+    sy = sum(p[1] for p in pairs)
+    sxy = sum(p[0] * p[1] for p in pairs)
+    sx2 = sum(p[0] ** 2 for p in pairs)
+    sy2 = sum(p[1] ** 2 for p in pairs)
+    denom = math.sqrt((n * sx2 - sx ** 2) * (n * sy2 - sy ** 2))
+    if denom == 0:
+        return 0
+    return (n * sxy - sx * sy) / denom
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STEP 4: AI Narrative (Enhanced)
 # ══════════════════════════════════════════════════════════════════════════════
 
 def generate_risk_narrative_v2(domain, factors, simulations):
@@ -384,10 +554,16 @@ def generate_risk_narrative_v2(domain, factors, simulations):
             f"95th percentile={s['percentiles']['p95']}"
         )
 
-    prompt = f"""You are a senior risk analyst writing an executive risk briefing.
+    # Build tornado lines if available
+    tornado_lines = []
+    if isinstance(simulations, dict) and simulations.get('tornado'):
+        for t in simulations['tornado'][:5]:
+            tornado_lines.append(f"- {t['factor_name']}: swing={t['swing']}, correlation={t['correlation']}")
+
+    prompt = f"""You are a senior risk analyst writing an executive risk briefing for a decision-maker.
 
 DOMAIN: {domain}
-METHOD: TOPSIS multi-criteria ranking + Monte Carlo simulation (10,000 iterations)
+METHOD: TOPSIS multi-criteria ranking + Monte Carlo simulation
 
 TOP RISKS (TOPSIS-ranked):
 {chr(10).join(factor_lines)}
@@ -395,14 +571,31 @@ TOP RISKS (TOPSIS-ranked):
 MONTE CARLO RESULTS:
 {chr(10).join(mc_lines) if mc_lines else 'No numeric metrics available for simulation.'}
 
-Write a concise risk briefing:
-1. "executive_summary": 2-3 sentences for C-suite. What's the overall risk posture?
-2. "key_findings": list of 3-5 specific findings with numbers.
-3. "recommendations": list of 3-5 actionable recommendations, each with priority (critical/high/medium).
-4. "methodology_note": 1 sentence explaining TOPSIS + MC approach for the reader.
+{('SENSITIVITY (which variables swing the output most):' + chr(10) + chr(10).join(tornado_lines)) if tornado_lines else ''}
 
-Return JSON:
-{{"executive_summary": "...", "key_findings": ["..."], "recommendations": [{{"action": "...", "priority": "critical|high|medium"}}], "methodology_note": "..."}}"""
+═══ YOUR ANALYSIS MUST INCLUDE ═══
+
+1. "executive_summary": 2-3 sentences for C-suite. What's the overall risk posture? Is it manageable or concerning?
+
+2. "distribution_analysis": For each MC simulation, describe:
+   - Is the distribution skewed left/right or symmetric?
+   - How wide is the spread (P5 to P95 range)?
+   - Is there significant tail risk (P95 much higher than P50)?
+
+3. "key_findings": 3-5 specific findings WITH numbers. Compare across factors:
+   - "Factor A is Nx riskier than Factor B because..."
+   - "The gap between P50 and P95 suggests..."
+
+4. "decision_thresholds": Help the decision-maker set risk tolerance:
+   - "If your risk tolerance is [reasonable threshold], you have X% probability of exceeding it"
+   - "To reduce P95 below [threshold], focus on [specific factor]"
+
+5. "recommendations": 3-5 actionable recommendations with priority and expected impact:
+   [{{"action": "...", "priority": "critical|high|medium", "expected_impact": "Reduces P95 by ~X%"}}]
+
+6. "methodology_note": 1 sentence explaining TOPSIS + MC for non-technical readers.
+
+Return JSON with all 6 fields above."""
 
     try:
         parsed, usage = chat_completion_json(prompt, temperature=0.3, max_tokens=2000)

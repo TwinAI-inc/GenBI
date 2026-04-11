@@ -1117,6 +1117,45 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/risk-v2/tornado', methods=['POST'])
+    @limiter.limit('5/minute')
+    def risk_v2_tornado():
+        """Tornado sensitivity: which variable swings the output most."""
+        try:
+            from services.risk_engine import tornado_sensitivity
+            data = request.get_json()
+            factors = data.get('factors', [])
+            rows = data.get('rows', [])[:500]
+            headers = data.get('headers', [])
+            target_col = data.get('target_col')
+            if not factors or not rows:
+                return jsonify({'error': 'No data provided.'}), 400
+            results = tornado_sensitivity(factors, rows, headers, target_col)
+            return jsonify({'tornado': results})
+        except Exception as e:
+            return _ai_error_response(e)
+
+    @app.route('/api/risk-v2/whatif', methods=['POST'])
+    @limiter.limit('5/minute')
+    def risk_v2_whatif():
+        """What-if scenario: modify a factor, compare baseline vs scenario."""
+        try:
+            from services.risk_engine import whatif_scenario
+            data = request.get_json()
+            rows = data.get('rows', [])[:500]
+            headers = data.get('headers', [])
+            column = data.get('column', '')
+            change_pct = data.get('change_pct', 10)
+            target_col = data.get('target_col', '')
+            if not rows or not column or not target_col:
+                return jsonify({'error': 'Missing column or target.'}), 400
+            result = whatif_scenario(rows, headers, column, change_pct, target_col)
+            if not result:
+                return jsonify({'error': 'Could not run what-if analysis.'}), 200
+            return jsonify(result)
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/cost-decompose', methods=['POST'])
     @limiter.limit('5/minute')
     def cost_decompose():
