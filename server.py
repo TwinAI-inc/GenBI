@@ -1056,6 +1056,8 @@ Rules:
             if not headers or not rows:
                 return jsonify({'error': 'No data provided.'}), 400
             result = extract_risk_factors(headers, rows)
+            if result.get('error'):
+                return jsonify({'error': 'Risk extraction failed: ' + result['error']}), 500
             _record_ai_usage()
             return jsonify(result)
         except Exception as e:
@@ -1065,6 +1067,9 @@ Rules:
     @limiter.limit('10/minute')
     def risk_v2_rank():
         """Step 2: TOPSIS ranking (no AI, pure computation)."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         try:
             from services.risk_engine import topsis_rank
             data = request.get_json()
@@ -1081,6 +1086,9 @@ Rules:
     @limiter.limit('5/minute')
     def risk_v2_simulate():
         """Step 3: Monte Carlo simulation on top risk factors."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         try:
             from services.risk_engine import monte_carlo_simulate
             data = request.get_json()
@@ -1122,6 +1130,9 @@ Rules:
     @limiter.limit('5/minute')
     def risk_v2_tornado():
         """Tornado sensitivity: which variable swings the output most."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         try:
             from services.risk_engine import tornado_sensitivity
             data = request.get_json()
@@ -1140,6 +1151,9 @@ Rules:
     @limiter.limit('5/minute')
     def risk_v2_whatif():
         """What-if scenario: modify a factor, compare baseline vs scenario."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         try:
             from services.risk_engine import whatif_scenario
             data = request.get_json()

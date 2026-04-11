@@ -112,7 +112,7 @@ Be specific to THIS data — don't generate generic risks. Reference actual colu
         return {'domain': domain, 'factors': factors}
     except Exception as e:
         logger.error(f'Risk factor extraction failed: {e}')
-        return {'domain': 'general', 'factors': []}
+        return {'domain': 'general', 'factors': [], 'error': str(e)}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -276,9 +276,16 @@ def monte_carlo_simulate(factors, rows, headers, n_iterations=10000, top_n=3):
         if std < 1e-9:
             continue
 
-        # Monte Carlo: sample from fitted normal distribution
+        # Monte Carlo: sample from fitted normal distribution, clamped to valid range
         random.seed(42)  # Reproducible
-        samples = [random.gauss(mean, std) for _ in range(n_iterations)]
+        # Clamp to observed data bounds — prevents impossible values
+        # (e.g., negative counts, percentages > 100)
+        data_min = min_v
+        data_max = max_v
+        # Allow 10% beyond observed range for tail exploration, but not beyond zero for non-negative data
+        clamp_lo = max(0, data_min - 0.1 * (data_max - data_min)) if data_min >= 0 else data_min - 0.1 * (data_max - data_min)
+        clamp_hi = data_max + 0.1 * (data_max - data_min)
+        samples = [max(clamp_lo, min(clamp_hi, random.gauss(mean, std))) for _ in range(n_iterations)]
 
         # Compute probabilities at data-driven thresholds (percentile-based)
         # Thresholds come from actual data distribution, not the fitted normal
@@ -473,11 +480,15 @@ def whatif_scenario(rows, headers, column, change_pct, target_col, n_iterations=
     shift = corr * (base_std / col_std) * (col_mean * change_pct / 100) if col_std > 0 else 0
     scenario_mean = base_mean + shift
 
-    # Run MC for both
+    # Run MC for both — clamp to valid range
+    t_min = min(target_vals)
+    t_max = max(target_vals)
+    clamp_lo = max(0, t_min - 0.1 * (t_max - t_min)) if t_min >= 0 else t_min - 0.1 * (t_max - t_min)
+    clamp_hi = t_max + 0.1 * (t_max - t_min)
     random.seed(42)
-    base_samples = sorted([random.gauss(base_mean, base_std) for _ in range(n_iterations)])
+    base_samples = sorted([max(clamp_lo, min(clamp_hi, random.gauss(base_mean, base_std))) for _ in range(n_iterations)])
     random.seed(42)
-    scen_samples = sorted([random.gauss(scenario_mean, base_std) for _ in range(n_iterations)])
+    scen_samples = sorted([max(clamp_lo, min(clamp_hi, random.gauss(scenario_mean, base_std))) for _ in range(n_iterations)])
 
     def _mc_stats(samples):
         n = len(samples)
