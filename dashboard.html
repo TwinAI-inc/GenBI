@@ -3792,7 +3792,7 @@ async function loadSubscriptionPlans() {
     if (!data.plans) return;
 
     let currentPlanCode = 'free';
-    const token = localStorage.getItem('genbi-auth-token');
+    const token = _getAuthToken();
     if (token) {
       try {
         const subResp = await fetch('/api/billing/subscription', {
@@ -3942,7 +3942,7 @@ async function loadPricingData() {
 
     // Get current plan
     let currentPlanCode = 'free';
-    const token = localStorage.getItem('genbi-auth-token');
+    const token = _getAuthToken();
     if (token) {
       try {
         const subResp = await fetch('/api/billing/subscription', {
@@ -3963,7 +3963,7 @@ async function loadPricingData() {
 }
 
 async function switchPlan(planCode) {
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) {
     window.location.href = '/signup';
     return;
@@ -4006,7 +4006,7 @@ function billingCheckout(planCode) { switchPlan(planCode); }
 
 // ── Quota check + record (used before exports, chart saves, project creates) ──
 async function checkQuota(featureKey) {
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) return { allowed: true };
   try {
     const resp = await fetch('/api/billing/consume', {
@@ -4027,7 +4027,7 @@ async function checkQuota(featureKey) {
 
 // ── Billing success polling (after Stripe redirect) ────────────────────
 async function pollBillingSuccess(maxAttempts) {
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) return;
   const max = maxAttempts || 15;
   let attempts = 0;
@@ -4058,7 +4058,7 @@ async function pollBillingSuccess(maxAttempts) {
 }
 
 async function billingCancel() {
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) return;
   if (!confirm('Cancel your subscription? You\'ll keep access until the end of your billing period.')) return;
   try {
@@ -4074,7 +4074,7 @@ async function billingCancel() {
 }
 
 async function billingResume() {
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) return;
   try {
     const resp = await fetch('/api/billing/resume', {
@@ -4089,7 +4089,7 @@ async function billingResume() {
 }
 
 async function loadBillingSection() {
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   const badge = document.getElementById('billingBadge');
   const content = document.getElementById('billingContent');
   if (!badge || !content) return;
@@ -4304,7 +4304,7 @@ function renderSafetyCSA() {
 
 function initSafetyCSA() {
   if (!App.hasExcelData || !isLoggedIn()) return;
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   fetch('/api/safety-compare', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -4497,7 +4497,7 @@ function renderCostDrivers() {
 
 function initCostDrivers() {
   if (!App.hasExcelData || !isLoggedIn()) return;
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   fetch('/api/cost-decompose', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -4631,7 +4631,7 @@ function _riskStep1_Extract() {
   if (!el) return;
   el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:12px;color:rgba(255,255,255,0.35);">AI is analyzing your data for risk signals...</span></div>';
 
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   fetch('/api/risk-v2/extract', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -4726,7 +4726,7 @@ function _riskStep2_Rank() {
 
   fetch('/api/risk-v2/rank', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('genbi-auth-token') || '') },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_getAuthToken() || '') },
     body: JSON.stringify({ factors: selected, weights: App._riskV2.weights })
   }).then(r => r.json()).then(data => {
     App._riskV2.factors = data.factors || selected;
@@ -4843,7 +4843,7 @@ function _riskStep3_MonteCarlo() {
   const iters = App._riskV2.mcIterations;
   el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:12px;color:rgba(255,255,255,0.35);">Running ' + iters.toLocaleString() + ' Monte Carlo iterations...</span></div>';
 
-  const token = localStorage.getItem('genbi-auth-token') || '';
+  const token = _getAuthToken() || '';
   const body = { factors: App._riskV2.factors, rows: App.excelData.rows.slice(0, 500), headers: App.excelData.headers, top_n: 3, n_iterations: iters };
 
   // MC is primary — render as soon as it returns. Tornado is optional secondary.
@@ -5092,7 +5092,7 @@ function _riskRunWhatIf() {
 
   fetch('/api/risk-v2/whatif', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('genbi-auth-token') || '') },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (_getAuthToken() || '') },
     body: JSON.stringify({ rows: App.excelData.rows.slice(0, 500), headers: App.excelData.headers, column: col, change_pct: pct, target_col: target })
   }).then(r => r.json()).then(data => {
     if (data.error) { el.innerHTML = '<div style="font-size:10px;color:var(--accent-rose);">' + escHtml(data.error) + '</div>'; return; }
@@ -5121,7 +5121,7 @@ function _riskStep4_Narrative() {
   if (!el) return;
   el.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;"><div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div><span style="font-size:12px;color:rgba(255,255,255,0.35);">AI is writing your executive risk briefing...</span></div>';
 
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   fetch('/api/risk-v2/narrative', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -5745,7 +5745,7 @@ function runKeyInfluencers() {
     Object.entries(ec.colMeta).forEach(([k, v]) => {
       colMetaClean[k] = { ...v, vals: undefined, uniqueVals: v.uniqueVals?.slice(0,15) };
     });
-    const token = localStorage.getItem('genbi-auth-token');
+    const token = _getAuthToken();
 
     fetch('/api/key-influencers', {
       method: 'POST',
@@ -9509,7 +9509,7 @@ function openExplainDrawer(column, value, chartIdx) {
   '</div>';
   // Fire async AI explain
   setTimeout(() => {
-    const token = localStorage.getItem('genbi-auth-token');
+    const token = _getAuthToken();
     if (!token) { const el = document.getElementById('explainAiText'); if (el) el.innerHTML = '<span style="color:rgba(255,255,255,0.25)">Sign in for AI analysis</span>'; return; }
     fetch('/api/explain-point-ai', {
       method: 'POST',
@@ -11169,8 +11169,9 @@ function saveSettings() {
   toast('Settings saved!', 'success');
 }
 
+function _getAuthToken() { return sessionStorage.getItem('genbi-auth-token') || _getAuthToken(); }
 function isLoggedIn() {
-  try { return !!localStorage.getItem('genbi-auth-token'); } catch(e) { return false; }
+  try { return !!_getAuthToken(); } catch(e) { return false; }
 }
 
 // ══════════════════════════════════════════════
@@ -11178,7 +11179,7 @@ function isLoggedIn() {
 // ══════════════════════════════════════════════
 
 async function fetchAI(endpoint, body) {
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) throw new Error('AUTH_REQUIRED');
   const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
   const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
@@ -12161,7 +12162,7 @@ async function applyNLFilter() {
 async function loadAIUsage() {
   const container = document.getElementById('aiUsageCard');
   if (!container) return;
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) { container.innerHTML = '<div style="font-size:12px;color:var(--text-tertiary)">Log in to see AI usage.</div>'; return; }
   try {
     const resp = await fetch('/api/billing/subscription', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -12333,7 +12334,7 @@ function sendAssistantMsg() {
     // AI-powered mode
     const ec = App.excelChartConfig;
     const sampleRows = App.excelData.rows.slice(0, 3);
-    const token = localStorage.getItem('genbi-auth-token');
+    const token = _getAuthToken();
 
     // Check if this is a modify intent with a focused chart
     if (isModifyIntent(text) && App._focusedChart) {
@@ -13111,7 +13112,7 @@ function regenerateByGenre(idx, genre) {
       }[genre] || genre) + '.'
     : 'Suggest a completely different and surprising chart.';
 
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   fetch('/api/ask-data', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -13536,7 +13537,7 @@ function handleFiles(files) {
 // ── LLM-Driven Chart Intelligence ──
 async function smartAutoMap(rows) {
   if (!rows.length) return autoMapExcelData(rows); // fallback
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   if (!token) return autoMapExcelData(rows); // no auth, use rule engine
 
   try {
@@ -14451,14 +14452,17 @@ applyTheme('GenBI');
 
 // ── Auth helpers ──
 function isLoggedIn() {
-  return !!(localStorage.getItem('genbi-auth-token') && localStorage.getItem('genbi-auth-user'));
+  return !!_getAuthToken();
 }
 function getAuthUser() {
-  try { return JSON.parse(localStorage.getItem('genbi-auth-user') || 'null'); } catch(e) { return null; }
+  try { return JSON.parse(sessionStorage.getItem('genbi-auth-user') || localStorage.getItem('genbi-auth-user') || 'null'); } catch(e) { return null; }
 }
 function doLogout() {
+  sessionStorage.removeItem('genbi-auth-token');
+  sessionStorage.removeItem('genbi-auth-user');
   localStorage.removeItem('genbi-auth-token');
   localStorage.removeItem('genbi-auth-user');
+  localStorage.removeItem('genbi-remember');
   window.location.href = '/';
 }
 function toggleProfileMenu() {
@@ -14481,7 +14485,7 @@ document.addEventListener('click', function(e) {
   const isDashboard = path === '/dashboard';
   const isBillingSuccess = path === '/billing/success';
   const isBillingCancel = path === '/billing/cancel';
-  const token = localStorage.getItem('genbi-auth-token');
+  const token = _getAuthToken();
   const user = getAuthUser();
   const authBar = document.getElementById('authBar');
 
@@ -14544,6 +14548,8 @@ document.addEventListener('click', function(e) {
       .then(r => { if (!r.ok) throw new Error('invalid'); return r.json(); })
       .then(data => { if (data.user) App.user = data.user; })
       .catch(() => {
+        sessionStorage.removeItem('genbi-auth-token');
+        sessionStorage.removeItem('genbi-auth-user');
         localStorage.removeItem('genbi-auth-token');
         localStorage.removeItem('genbi-auth-user');
         window.location.href = '/login?next=/dashboard';

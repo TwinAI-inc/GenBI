@@ -48,7 +48,7 @@
     </div>
 
     <div class="auth-link-row">
-      <span></span>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:rgba(255,255,255,0.5);cursor:pointer;"><input type="checkbox" id="rememberMe" style="accent-color:#06b6d4;"> Remember this device</label>
       <a href="/forgot-password">Forgot password?</a>
     </div>
 
@@ -104,7 +104,8 @@
     });
 
     if (ok && data.token) {
-      saveAuth(data.token, data.user);
+      const remember = document.getElementById('rememberMe')?.checked || false;
+      saveAuth(data.token, data.user, remember);
       if (data.email_verification_required) {
         window.location.href = '/verify-email';
       } else {

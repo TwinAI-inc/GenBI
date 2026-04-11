@@ -4,25 +4,49 @@
 
 const AUTH_TOKEN_KEY = 'genbi-auth-token';
 const AUTH_USER_KEY = 'genbi-auth-user';
+const AUTH_REMEMBER_KEY = 'genbi-remember';
 
 // ── Token management ────────────────────────────────────────────────────────
+// By default, tokens go in sessionStorage (cleared on browser close).
+// If "Remember me" is checked, tokens go in localStorage (persists).
 
-function saveAuth(token, user) {
-  localStorage.setItem(AUTH_TOKEN_KEY, token);
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+function _getStore() {
+  return localStorage.getItem(AUTH_REMEMBER_KEY) === '1' ? localStorage : sessionStorage;
+}
+
+function saveAuth(token, user, remember) {
+  // Clear both stores first to avoid stale tokens
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_USER_KEY);
+
+  if (remember) {
+    localStorage.setItem(AUTH_REMEMBER_KEY, '1');
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  } else {
+    localStorage.removeItem(AUTH_REMEMBER_KEY);
+    sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+    sessionStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  }
 }
 
 function getToken() {
-  return localStorage.getItem(AUTH_TOKEN_KEY);
+  return sessionStorage.getItem(AUTH_TOKEN_KEY) || localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
 function getUser() {
-  try { return JSON.parse(localStorage.getItem(AUTH_USER_KEY)); } catch { return null; }
+  const raw = sessionStorage.getItem(AUTH_USER_KEY) || localStorage.getItem(AUTH_USER_KEY);
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
 function clearAuth() {
+  sessionStorage.removeItem(AUTH_TOKEN_KEY);
+  sessionStorage.removeItem(AUTH_USER_KEY);
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  localStorage.removeItem(AUTH_REMEMBER_KEY);
 }
 
 function isLoggedIn() {
@@ -191,7 +215,7 @@ async function handleGoogleCallback() {
     const data = await res.json();
 
     if (res.ok && data.token) {
-      saveAuth(data.token, data.user);
+      saveAuth(data.token, data.user, false);
       if (data.email_verification_required) {
         window.location.href = '/verify-email';
       } else {
