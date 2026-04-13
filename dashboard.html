@@ -9114,7 +9114,11 @@ function openExplainDrawer(column, value, chartIdx) {
     html += '</div>';
   }
 
-  // Use GenBI theme palette for breakdowns and sunburst (consistent with dashboard)
+  // Use the chart's own color for breakdown bars so they match the clicked bar
+  var chartBaseColor = (chart && (chart._userColor || chart.color)) || 'cyan';
+  var chartBaseRgb = getColorRgb(chartBaseColor);
+  var chartBaseHex = getColorHex(chartBaseColor);
+  // GenBI palette for sunburst (needs distinct colors per segment)
   var chartColors = ['#00e5ff','#b388ff','#69f0ae','#ffd740','#ff6b9d','#38bdf8','#818cf8','#14b8a6','#2dd4bf','#a3e635'];
 
   // Sunburst chart
@@ -9147,8 +9151,8 @@ function openExplainDrawer(column, value, chartIdx) {
     const maxEntry = bd.entries[0][1];
     bd.entries.forEach(([name, val], ei) => {
       const pct = maxEntry > 0 ? Math.round(val / maxEntry * 100) : 0;
-      const barHex = chartColors[ei % chartColors.length];
-      const br = parseInt(barHex.slice(1,3),16), bg = parseInt(barHex.slice(3,5),16), bb = parseInt(barHex.slice(5,7),16);
+      // Use chart's base color with varying opacity for each bar
+      const br = chartBaseRgb.split(',')[0], bg = chartBaseRgb.split(',')[1], bb = chartBaseRgb.split(',')[2];
       const drillClick = 'App._explainDrillPath=(App._explainDrillPath||[]).concat([{column:\\x27' + bd.dim + '\\x27,value:\\x27' + name.replace(/'/g, '') + '\\x27}]);setCrossFilter(\\x27' + bd.dim + '\\x27,\\x27' + name.replace(/'/g, '') + '\\x27,' + chartIdx + ');openExplainDrawer(\\x27' + column.replace(/'/g, '') + '\\x27,\\x27' + value.replace(/'/g, '') + '\\x27,' + chartIdx + ')';
       html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;padding:2px 0;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'\'" onclick="' + drillClick + '" title="Click to drill into ' + name + '">';
       html += '<div style="width:80px;font-size:11px;color:var(--text-secondary);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + name + '">' + name + '</div>';
