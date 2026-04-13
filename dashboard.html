@@ -3619,31 +3619,7 @@ function renderAnalytics() {
     const kpis = autoGenerateKPIs(ec);
     kpiHTML = renderKPICards(kpis);
 
-    // Smart metric stats row — exclude date/index/time columns
-    const metrics = (ec.metrics || []).filter(m => { const meta = ec.colMeta[m]; if (!meta) return false; if (meta.isDate || meta.isIndex) return false; const low = m.toLowerCase(); if (/^(month|year|quarter|week|day|date|time|timestamp|period|epoch)s?$/i.test(low) || /_(id|key)$/i.test(low)) return false; return true; });
-    const mColors = ['cyan', 'violet', 'emerald', 'amber'];
-    const nStatCols = Math.min(metrics.length + 1, 4);
-    // Pick the metrics that AREN'T already shown in the top KPI row, so the
-    // second row complements (with insights) instead of duplicating values.
-    const topKpiNames = new Set(autoGenerateKPIs(ec).map(k => k.label));
-    const insightMetrics = metrics.filter(m => !topKpiNames.has(m.replace(/_/g, ' '))).slice(0, 3);
-    // Fall back to the same metrics if no leftovers — but render INSIGHTS, not raw stats.
-    const insightSource = insightMetrics.length ? insightMetrics : metrics.slice(0, 3);
-    if (insightSource.length === 0) {
-      statsHTML = '';
-    } else {
-      const nIns = Math.min(insightSource.length, 4);
-      statsHTML = `<div class="stats-grid" style="grid-template-columns:repeat(${nIns},minmax(0,1fr));margin-bottom:24px">
-        ${insightSource.map((m, i) => {
-          const insights = computeMetricInsights(m, ec, App.excelData.headers, App.excelData.rows);
-          const accent = 'var(' + colorMap[mColors[i % mColors.length]] + ')';
-          const bullets = insights.map(s => '<div style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--text-secondary);margin-top:6px"><span style="color:' + accent + ';font-size:14px;line-height:1.2;flex-shrink:0">\u2022</span><span>' + s + '</span></div>').join('');
-          return '<div class="glass-panel" style="padding:18px 20px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:' + accent + ';margin-bottom:4px">' + m.replace(/_/g, ' ') + '</div>' +
-            '<div style="font-size:9px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px">Insights</div>' +
-            (bullets || '<div style="font-size:12px;color:var(--text-tertiary);margin-top:6px">No notable patterns detected.</div>') +
-            '</div>';
-        }).join('')}</div>`;
-    }
+    // Second row of metric insights removed — KPI cards above are sufficient
 
     // Chart grid from chartPlan — V2 uses 12-column grid
     chartsHTML = `<div id="crossFilterBar" class="cross-filter-bar" style="display:none"></div>` +
