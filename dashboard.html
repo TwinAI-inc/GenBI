@@ -3670,7 +3670,7 @@ function renderAnalytics() {
           '<div class="chart-info-bar visible" id="chartInfo'+i+'">' + desc + '</div>' +
           '<div class="drill-breadcrumb" id="drillBreadcrumb'+i+'"></div>' +
           '<div class="chart-container" style="height:240px"><canvas id="analyticsChart'+i+'"></canvas></div>' +
-          (chart.series && chart.series.length > 0 ? '<div class="chart-legend">' + chart.series.map(function(s) {
+          (chart.series && chart.series.length > 0 && /^(line|area|stacked|multiline)$/.test(curType) ? '<div class="chart-legend">' + chart.series.map(function(s) {
             return '<span class="legend-item"><span class="legend-dot" style="background:'+getColorHex(s.color)+'"></span>'+s.name+'</span>';
           }).join('') + '</div>' : '') +
           '<div class="ai-caption" id="aiCaption'+i+'"></div>' +
@@ -3699,7 +3699,7 @@ function renderAnalytics() {
       '</div></div>' +
       '<div class="chart-info-bar visible" id="customInfo'+i+'">' + desc + '</div>' +
       '<div class="chart-container" style="height:240px"><canvas id="customChart'+i+'"></canvas></div>' +
-      (c.series && c.series.length > 0 ? '<div class="chart-legend">' + c.series.map(s => {
+      (c.series && c.series.length > 0 && /^(line|area|stacked|multiline)$/.test(c._userType || c.type) ? '<div class="chart-legend">' + c.series.map(s => {
         return '<span class="legend-item"><span class="legend-dot" style="background:'+getColorHex(s.color)+'"></span>'+s.name+'</span>';
       }).join('') + '</div>' : '') +
       '</div>';
