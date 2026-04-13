@@ -6770,7 +6770,8 @@ function drawDonutChart(canvas, labels, data, opts = {}) {
   });
 
   // Store interactivity data
-  canvas._chartHit = { type: 'donut', cx, cy, outerR, innerR, segments, labels, data };
+  const cleanOpts = Object.assign({}, opts); delete cleanOpts._highlightIdx; delete cleanOpts._sweepProgress;
+  canvas._chartHit = { type: 'donut', cx, cy, outerR, innerR, segments, labels, data, opts: cleanOpts };
   if (!canvas._hasChartEvents) {
     canvas._hasChartEvents = true;
     canvas.addEventListener('mousemove', handleDonutHover);
@@ -8226,7 +8227,7 @@ function handleDonutHover(e) {
   }
   if (found !== canvas._lastHover) {
     canvas._lastHover = found;
-    drawDonutChart(canvas, hit.labels, hit.data, { _highlightIdx: found });
+    drawDonutChart(canvas, hit.labels, hit.data, { ...(hit.opts || {}), _highlightIdx: found });
     const tt = document.getElementById('chartTooltip');
     if (found >= 0) {
       const seg = hit.segments[found];
@@ -8279,7 +8280,7 @@ function handleChartLeave(e) {
   if (hit.type === 'bar') drawBarChart(canvas, hit.labels, hit.data, hit.colorName, hit.opts);
   else if (hit.type === 'hbar') drawHorizontalBarChart(canvas, hit.labels, hit.data, hit.colorName, hit.opts);
   else if (hit.type === 'stacked') drawStackedBarChart(canvas, hit.labels, hit.seriesData, hit.opts);
-  else if (hit.type === 'donut') drawDonutChart(canvas, hit.labels, hit.data, {});
+  else if (hit.type === 'donut') drawDonutChart(canvas, hit.labels, hit.data, hit.opts || {});
   else if (hit.type === 'multiline') {
     // Redraw clean (no crosshair)
     const chart = hit.chart;
