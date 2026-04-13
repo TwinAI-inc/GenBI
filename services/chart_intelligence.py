@@ -261,14 +261,14 @@ Generate 8-12 total candidates. The top {max_charts} by insight_score will be di
 def _validate_guardrails(plan, profile):
     """Validate and fix chart plan against guardrails."""
     validated = []
-    used_families = set()
+    family_counts = {}
 
     for chart in plan:
         chart_type = chart.get('type', 'bar')
         family = chart.get('family', _get_family(chart_type))
 
-        # One per family rule
-        if family in used_families:
+        # Allow up to 2 charts per family for variety
+        if family_counts.get(family, 0) >= 2:
             continue
 
         # Donut cardinality check
@@ -315,7 +315,7 @@ def _validate_guardrails(plan, profile):
                     chart['guardrail_notes'] = f'Limited to top 4 series (from {card})'
 
         validated.append(chart)
-        used_families.add(family)
+        family_counts[family] = family_counts.get(family, 0) + 1
 
     return validated
 

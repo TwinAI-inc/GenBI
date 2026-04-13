@@ -13269,12 +13269,28 @@ async function smartAutoMap(rows) {
         const catCol = xCol || groupCol;
         const metricCol = yCol || xCol;
         if (catCol && metricCol) {
+          // Verify catCol exists in data — LLM may return a misspelled column name
+          const sampleRow = rows[0] || {};
+          let resolvedCatCol = catCol;
+          if (!(catCol in sampleRow)) {
+            // Try case-insensitive match
+            const catLow = catCol.toLowerCase().replace(/[_ ]/g, '');
+            const match = Object.keys(sampleRow).find(h => h.toLowerCase().replace(/[_ ]/g, '') === catLow);
+            if (match) resolvedCatCol = match;
+          }
+          let resolvedMetricCol = metricCol;
+          if (!(metricCol in sampleRow)) {
+            const metLow = metricCol.toLowerCase().replace(/[_ ]/g, '');
+            const match = Object.keys(sampleRow).find(h => h.toLowerCase().replace(/[_ ]/g, '') === metLow);
+            if (match) resolvedMetricCol = match;
+          }
           const agg = {};
           const counts = {};
           rows.forEach(r => {
-            const k = String(r[catCol] || '').trim();
+            const raw = r[resolvedCatCol];
+            const k = (raw == null ? '' : String(raw)).trim();
             if (!k) return;
-            const v = parseFloat(r[metricCol]) || 0;
+            const v = parseFloat(r[resolvedMetricCol]) || 0;
             agg[k] = (agg[k] || 0) + (aggFn === 'count' ? 1 : v);
             counts[k] = (counts[k] || 0) + 1;
           });
