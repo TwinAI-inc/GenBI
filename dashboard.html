@@ -11324,6 +11324,7 @@ document.addEventListener('click', function(e) {
   }
 });
 
+if (!App._askDataCache) App._askDataCache = {};
 async function handleAskData() {
   const input = document.getElementById('askDataInput');
   const answerEl = document.getElementById('askDataAnswer');
@@ -11334,7 +11335,9 @@ async function handleAskData() {
   answerEl.innerHTML = aiLoadingHTML('askLoader');
   answerEl.style.display = 'block';
   try {
-    const data = await askData(question);
+    // Cache results so the same question always returns the same answer
+    const data = App._askDataCache[question] || await askData(question);
+    App._askDataCache[question] = data;
     const conf = data.confidence || 'medium';
     let html = '<div style="margin-bottom:12px">' + data.answer + ' <span class="confidence-badge ' + conf + '">' + conf + '</span></div>';
     if (data.chart) html += renderAskChart(data.chart);
