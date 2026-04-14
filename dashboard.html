@@ -6820,7 +6820,8 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
   const gap = Math.max(3, Math.min(8, ch / labels.length * 0.15));
   const barH = Math.max(6, Math.min(36, (ch - gap * (labels.length + 1)) / labels.length));
   const totalH = labels.length * barH + (labels.length - 1) * gap;
-  const startY = padT + (ch - totalH) / 2;
+  // Top-align bars when few, center when many — and never overflow past chart bottom
+  const startY = padT + Math.max(0, Math.min((ch - totalH) / 2, ch - totalH - 4));
   const hitAreas = [];
 
   data.forEach((val, i) => {
