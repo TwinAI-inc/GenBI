@@ -180,6 +180,15 @@ Total insight_score = average of 6 criteria (1.0 to 10.0).
 - Equal distribution: use bar with note, NOT donut
 - Titles must be INSIGHT-DRIVEN: "Revenue Peaks in Q4, Led by Enterprise" NOT "Revenue by Quarter"
 - Aggregation: SUM for amounts, AVG for rates/scores, COUNT for records
+- IMPORTANT — CHART TYPE DIVERSITY: Do NOT default everything to bar charts. Use the BEST chart type for the data:
+  * Time series → multiline or area (NOT bar)
+  * Proportions/shares → donut or treemap (NOT bar)
+  * Rankings with long labels → hbar (NOT bar)
+  * Sequential stages → funnel
+  * Single KPI → gauge
+  * Two numeric correlations → scatter
+  * Geographic data → usmap/worldmap
+  * Aim for at least 3 DIFFERENT chart types across your candidates
 
 ══ DOMAIN DETECTION ══
 Auto-detect domain and apply domain-specific intelligence:
