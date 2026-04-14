@@ -13139,12 +13139,14 @@ async function smartAutoMap(rows) {
             vals.sort((a, b) => a - b);
             const p33 = vals[Math.floor(vals.length * 0.33)];
             const p66 = vals[Math.floor(vals.length * 0.66)];
+            const fmtBin = v => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(1)+'K' : v.toFixed(1);
             rows.forEach(r => {
               const v = parseFloat(r[srcCol]) || 0;
               r[newCol] = v <= p33 ? 'Low' : v <= p66 ? 'Medium' : 'High';
             });
             if (!allHeaders.includes(newCol)) allHeaders.push(newCol);
             chart.xCol = newCol;
+            chart.desc = (chart.desc || '') + ' (Low: \u2264' + fmtBin(p33) + ', Medium: ' + fmtBin(p33) + '\u2013' + fmtBin(p66) + ', High: >' + fmtBin(p66) + ')';
           }
         }
         continue;
@@ -13694,7 +13696,7 @@ function autoMapExcelData(rows) {
           chartPlan.push({ type: 'donut',
             title: primaryMetric.replace(/_/g, ' ') + ' Distribution',
             labels: Object.keys(buckets), data: Object.values(buckets), color: 'multi',
-            desc: 'Shows the distribution of records across low, medium, and high ' + primaryMetric.replace(/_/g, ' ').toLowerCase() + ' ranges.'
+            desc: 'Shows the distribution of records across low (\u2264' + q1.toLocaleString() + '), medium (' + q1.toLocaleString() + '\u2013' + q2.toLocaleString() + '), and high (>' + q2.toLocaleString() + ') ' + primaryMetric.replace(/_/g, ' ').toLowerCase() + ' ranges.'
           });
         }
       }
