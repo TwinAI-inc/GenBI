@@ -13211,7 +13211,18 @@ async function smartAutoMap(rows) {
       const xCol = _fuzzyCol(chart.xCol || chart.groupCol);
       const yCol = _fuzzyCol(chart.yCol);
       const groupCol = _fuzzyCol(chart.groupCol);
-      const aggFn = chart.aggFn || 'sum';
+      let aggFn = chart.aggFn || 'sum';
+      // Don't sum year/date columns — it produces nonsensical totals (e.g., 2020+2021=4041)
+      if (aggFn === 'sum' && yCol) {
+        const yLow = yCol.toLowerCase();
+        const isYearLike = /^(year|date|month|quarter|week|day|period|time|release.?year)s?$/i.test(yLow);
+        if (isYearLike) aggFn = 'count';
+        // Also check if all values in the column look like years (1900-2099)
+        if (!isYearLike && _sampleRow[yCol] != null) {
+          const sampleVals = rows.slice(0, 20).map(r => r[yCol]).filter(v => v != null);
+          if (sampleVals.length > 0 && sampleVals.every(v => /^(19|20)\d{2}$/.test(String(v).trim()))) aggFn = 'count';
+        }
+      }
       const maxItems = chart.maxItems || 8;
       const type = chart.type || 'bar';
 
