@@ -6591,11 +6591,14 @@ function drawBarChart(canvas, labels, data, colorName, opts = {}) {
     ctx.fillText(vText, x + barW / 2, y - 6);
 
     // X label — themed font, executive uses CAPS
+    let lbl = labels[i] != null ? String(fmtChartLabel(labels[i])) : '';
+    if (lbl === 'undefined') lbl = '';
+    if (lbl) {
+      lbl = lbl.length > 9 ? lbl.substring(0, 8) + '..' : lbl;
+      if (th.labelCaps) lbl = lbl.toUpperCase();
+    }
     ctx.fillStyle = chartTextColor(isHover ? 0.8 : th.textAlpha);
     ctx.font = (isHover ? '500 ' : '') + '10px ' + th.fontFamily; ctx.textAlign = 'center';
-    let lbl = String(fmtChartLabel(labels[i]));
-    lbl = lbl.length > 9 ? lbl.substring(0, 8) + '..' : lbl;
-    if (th.labelCaps) lbl = lbl.toUpperCase();
     ctx.save(); ctx.translate(x + barW / 2, padT + ch + 14);
     if (labels.length > 7) ctx.rotate(-0.45);
     ctx.fillText(lbl, 0, 0); ctx.restore();
@@ -6872,12 +6875,14 @@ function drawHorizontalBarChart(canvas, labels, data, colorName, opts = {}) {
     const vText = typeof val === 'number' ? formatNumber(val, {abbreviate: val >= 1e4, decimals: val >= 1e6 ? 2 : (val >= 1e4 ? 1 : (val % 1 ? 1 : 0))}) : String(val);
     ctx.fillText(vText, x + barW + 6, y + barH / 2 + 3);
 
-    // Y label (left side)
-    ctx.fillStyle = chartTextColor(isHover ? 0.8 : 0.3);
-    ctx.font = (isHover ? '500 ' : '300 ') + (_g ? "10px 'Outfit', sans-serif" : '10px Inter'); ctx.textAlign = 'right';
-    var rawLbl = String(fmtChartLabel(labels[i]));
-    const lbl = rawLbl.length > 10 ? rawLbl.substring(0, 9) + '..' : rawLbl;
-    ctx.fillText(lbl, padL - 8, y + barH / 2 + 3);
+    // Y label (left side) — skip if undefined/null/empty
+    var rawLbl = labels[i] != null ? String(fmtChartLabel(labels[i])) : '';
+    if (rawLbl && rawLbl !== 'undefined') {
+      ctx.fillStyle = chartTextColor(isHover ? 0.8 : 0.3);
+      ctx.font = (isHover ? '500 ' : '300 ') + (_g ? "10px 'Outfit', sans-serif" : '10px Inter'); ctx.textAlign = 'right';
+      const lbl = rawLbl.length > 10 ? rawLbl.substring(0, 9) + '..' : rawLbl;
+      ctx.fillText(lbl, padL - 8, y + barH / 2 + 3);
+    }
   });
 
   // Axis labels
@@ -13392,6 +13397,17 @@ async function smartAutoMap(rows) {
       if (stateHits / labels.length >= 0.5) { c.type = 'usmap'; return; }
       const countryHits = labels.filter(l => _COUNTRIES.has(l.toLowerCase())).length;
       if (countryHits / labels.length >= 0.4) { c.type = 'worldmap'; }
+    });
+
+    // Auto-convert bar/hbar to scatter when both axes are numeric (correlation charts)
+    const _numericHeaders = new Set(Object.keys(data.profile?.column_types || {}).filter(h => data.profile.column_types[h] === 'numeric'));
+    chartPlan.forEach(c => {
+      if (/^(bar|hbar)$/.test(c.type) && c.xCol && c.yCol && _numericHeaders.has(c.xCol) && _numericHeaders.has(c.yCol)) {
+        c.type = 'scatter';
+        c.xData = rows.map(r => parseFloat(r[c.xCol]) || 0);
+        c.yData = rows.map(r => parseFloat(r[c.yCol]) || 0);
+        c.labels = [];
+      }
     });
 
     // Set _origXCol/_origYCol for explain sidebar
