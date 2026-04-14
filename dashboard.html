@@ -11296,6 +11296,8 @@ function buildAskAiPayload(source, idx, question) {
     yCol: chart.yCol || '',
     aggFn: chart.aggFn || '',
     columns: App.excelData ? App.excelData.headers.slice(0, 30) : [],
+    sampleRows: App.excelData ? App.excelData.rows.slice(0, 5) : [],
+    rowCount: App.excelData ? App.excelData.rows.length : 0,
     question: question
   };
 }
