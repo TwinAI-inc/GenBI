@@ -1297,7 +1297,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#050508;color:var(--tex
 .sidebar.collapsed~.main-content,.sidebar-collapsed .main-content{margin-left:68px;width:calc(100% - 68px);}
 
 /* ══════ SIDEBAR ══════ */
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:hsla(0 0% 4% / 0.8);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;padding:24px 16px;z-index:10;animation:slideInLeft .6s cubic-bezier(.16,1,.3,1) both;transition:width .3s cubic-bezier(.16,1,.3,1),padding .3s cubic-bezier(.16,1,.3,1);overflow:hidden;}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:hsla(0 0% 4% / 0.8);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-right:1px solid var(--glass-border);display:flex;flex-direction:column;padding:24px 16px;z-index:10;animation:slideInLeft .6s cubic-bezier(.16,1,.3,1) both;transition:width .3s cubic-bezier(.16,1,.3,1),padding .3s cubic-bezier(.16,1,.3,1);overflow:visible;overflow-y:auto;}
 .sidebar.collapsed{width:68px;padding:24px 10px;overflow:visible;}
 .sidebar.collapsed .brand-name,
 .sidebar.collapsed .nav-label,
@@ -1343,7 +1343,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#050508;color:var(--tex
 .profile-avatar::after{content:'';position:absolute;bottom:1px;right:1px;width:8px;height:8px;border-radius:50%;background:#22c55e;border:2px solid hsl(0 0% 3.5%);box-shadow:none;}
 .profile-info{flex:1;min-width:0;}
 .profile-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.profile-role{font-size:11px;color:var(--text-tertiary);}
+.profile-role{font-size:11px;color:var(--text-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .sidebar-profile{position:relative;}
 .profile-menu{display:none;position:absolute;bottom:calc(100% + 8px);left:0;right:0;background:hsl(0 0% 8%);border:1px solid var(--glass-border-bright);border-radius:var(--radius-sm);padding:4px;box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:200;}
 .profile-menu.open{display:block;}
