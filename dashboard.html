@@ -13199,10 +13199,17 @@ async function smartAutoMap(rows) {
     }
 
     // Build chart config from LLM plan
+    const _sampleRow = rows[0] || {};
+    const _fuzzyCol = (col) => {
+      if (!col) return col;
+      if (col in _sampleRow) return col;
+      const low = col.toLowerCase().replace(/[_ ]/g, '');
+      return Object.keys(_sampleRow).find(h => h.toLowerCase().replace(/[_ ]/g, '') === low) || col;
+    };
     const chartPlan = data.chart_plan.map(chart => {
-      const xCol = chart.xCol || chart.groupCol;
-      const yCol = chart.yCol;
-      const groupCol = chart.groupCol;
+      const xCol = _fuzzyCol(chart.xCol || chart.groupCol);
+      const yCol = _fuzzyCol(chart.yCol);
+      const groupCol = _fuzzyCol(chart.groupCol);
       const aggFn = chart.aggFn || 'sum';
       const maxItems = chart.maxItems || 8;
       const type = chart.type || 'bar';
@@ -13302,28 +13309,13 @@ async function smartAutoMap(rows) {
         const catCol = xCol || groupCol;
         const metricCol = yCol || xCol;
         if (catCol && metricCol) {
-          // Verify catCol exists in data — LLM may return a misspelled column name
-          const sampleRow = rows[0] || {};
-          let resolvedCatCol = catCol;
-          if (!(catCol in sampleRow)) {
-            // Try case-insensitive match
-            const catLow = catCol.toLowerCase().replace(/[_ ]/g, '');
-            const match = Object.keys(sampleRow).find(h => h.toLowerCase().replace(/[_ ]/g, '') === catLow);
-            if (match) resolvedCatCol = match;
-          }
-          let resolvedMetricCol = metricCol;
-          if (!(metricCol in sampleRow)) {
-            const metLow = metricCol.toLowerCase().replace(/[_ ]/g, '');
-            const match = Object.keys(sampleRow).find(h => h.toLowerCase().replace(/[_ ]/g, '') === metLow);
-            if (match) resolvedMetricCol = match;
-          }
           const agg = {};
           const counts = {};
           rows.forEach(r => {
-            const raw = r[resolvedCatCol];
+            const raw = r[catCol];
             const k = (raw == null ? '' : String(raw)).trim();
             if (!k) return;
-            const v = parseFloat(r[resolvedMetricCol]) || 0;
+            const v = parseFloat(r[metricCol]) || 0;
             agg[k] = (agg[k] || 0) + (aggFn === 'count' ? 1 : v);
             counts[k] = (counts[k] || 0) + 1;
           });
@@ -13353,7 +13345,13 @@ async function smartAutoMap(rows) {
         xCol: xCol, yCol: yCol, groupCol: groupCol, aggFn: aggFn,
         xLabel: (xCol || '').replace(/_/g, ' '), yLabel: (yCol || '').replace(/_/g, ' ')
       };
-    }).filter(Boolean);
+    }).filter(Boolean).filter(c => {
+      // Remove charts with "undefined" labels — indicates broken column mapping
+      if (c.labels && c.labels.some(l => l === 'undefined' || l === undefined)) return false;
+      // Remove charts with no data
+      if (c.type !== 'scatter' && c.type !== 'gauge' && (!c.labels || !c.labels.length) && (!c.boxes || !c.boxes.length)) return false;
+      return true;
+    });
 
     // Assign deterministic colors by index so charts don't change color on re-run
     const stableColors = ['cyan', 'violet', 'emerald', 'amber', 'rose', 'teal', 'indigo', 'lime'];
