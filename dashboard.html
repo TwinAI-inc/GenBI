@@ -11761,7 +11761,7 @@ function renderChartAssistant() {
       <div style="display:flex;flex-wrap:wrap;gap:6px" id="assistantExamples">${buildSmartExamples()}</div>
     </div>
     <div class="chat-messages" id="assistantMessages" style="flex:1;min-height:160px">${history}</div>
-    <div class="chat-input-wrap"><input class="chat-input" id="assistantInput" placeholder="Describe the chart you want..." onkeydown="if(event.key==='Enter')sendAssistantMsg()"><div class="chat-send" onclick="sendAssistantMsg()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div></div>
+    <div class="chat-input-wrap"><input class="chat-input" id="assistantInput" placeholder="e.g. &quot;Show revenue trend as a line chart&quot; or &quot;Create a donut of sales by region&quot;" onkeydown="if(event.key==='Enter')sendAssistantMsg()"><div class="chat-send" onclick="sendAssistantMsg()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></div></div>
   </div>`;
 }
 
