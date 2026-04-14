@@ -7787,14 +7787,14 @@ function drawBoxplotChart(canvas, chart, opts = {}) {
 
     // Whisker line
     ctx.beginPath(); ctx.moveTo(x, wHigh); ctx.lineTo(x, wLow);
-    ctx.strokeStyle = 'rgba(' + rgb + ',0.4)'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
     // Whisker caps
     ctx.beginPath(); ctx.moveTo(x - boxW * 0.3, wHigh); ctx.lineTo(x + boxW * 0.3, wHigh); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(x - boxW * 0.3, wLow); ctx.lineTo(x + boxW * 0.3, wLow); ctx.stroke();
     // Box (Q1 to Q3)
-    ctx.fillStyle = 'rgba(' + rgb + ',0.2)';
+    ctx.fillStyle = 'rgba(' + rgb + ',0.35)';
     ctx.fillRect(x - boxW / 2, yQ3, boxW, yQ1 - yQ3);
-    ctx.strokeStyle = 'rgba(' + rgb + ',0.7)'; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(' + rgb + ',0.85)'; ctx.lineWidth = 1.5;
     ctx.strokeRect(x - boxW / 2, yQ3, boxW, yQ1 - yQ3);
     // Median
     ctx.beginPath(); ctx.moveTo(x - boxW / 2, yMed); ctx.lineTo(x + boxW / 2, yMed);
@@ -13259,6 +13259,25 @@ async function smartAutoMap(rows) {
             color: seriesColors[i % seriesColors.length]
           }));
           labels = allX;
+        }
+      } else if (type === 'boxplot') {
+        // Boxplot: compute quartiles per category
+        const catCol = xCol || groupCol;
+        const metricCol = yCol || xCol;
+        if (catCol && metricCol) {
+          const groups = {};
+          rows.forEach(r => { const k = String(r[catCol] || '').trim(); if (!k) return; if (!groups[k]) groups[k] = []; const v = parseFloat(r[metricCol]); if (!isNaN(v)) groups[k].push(v); });
+          const boxes = Object.entries(groups).filter(([,v]) => v.length >= 3).map(([label, vals]) => {
+            vals.sort((a, b) => a - b);
+            const q1 = vals[Math.floor(vals.length * 0.25)], median = vals[Math.floor(vals.length * 0.5)], q3 = vals[Math.floor(vals.length * 0.75)];
+            const iqr = q3 - q1;
+            return { label, q1, median, q3, whiskerLow: Math.max(vals[0], q1 - 1.5 * iqr), whiskerHigh: Math.min(vals[vals.length - 1], q3 + 1.5 * iqr) };
+          });
+          return {
+            type: 'boxplot', title: chart.title, desc: chart.desc || '',
+            boxes, color: chart.color || 'cyan', labels: boxes.map(b => b.label), data: boxes.map(b => b.median),
+            xCol, yCol, xLabel: (catCol || '').replace(/_/g, ' '), yLabel: (metricCol || '').replace(/_/g, ' ')
+          };
         }
       } else if (type === 'scatter') {
         // Scatter: raw x/y values
