@@ -673,12 +673,17 @@ Respond with ONLY valid JSON (no markdown):
 {{"insights": [{{"text": "insight description", "type": "trend|outlier|correlation|pattern", "severity": "high|medium|low"}}]}}
 
 Rules:
-- Focus on actionable business insights
+- Focus on ACTIONABLE, SPECIFIC business insights — cite exact numbers, column names, and categories
+- AVOID generic statements like "the data shows variety" or "there is a range of values" — these add no value
+- Each insight MUST contain a specific finding: a number, comparison, trend direction, or anomaly
+- Good: "The Action genre has 2x more titles (2,820) than the next genre, suggesting market saturation"
+- Bad: "The dataset contains various genres with different numbers of titles"
 - Include a mix of types (trends, outliers, correlations, patterns)
 - Each insight should be 1-2 sentences
 - severity=high for critical findings, medium for notable, low for informational
 - ALWAYS use abbreviated numbers: $1.2M, $450K, 3.5B, 82%, 4.2x — NEVER write full numbers like 12,500,000
-- Use $ prefix for currency metrics (Revenue, Cost, Profit, Sales, Price)"""
+- Use $ prefix for currency metrics (Revenue, Cost, Profit, Sales, Price)
+- Do NOT compute sum/average of ID-like or year columns — these are identifiers, not measures"""
         try:
             parsed, _usage = _call_ai(prompt)
             return jsonify(parsed)
