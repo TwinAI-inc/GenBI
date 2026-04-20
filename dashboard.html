@@ -13405,6 +13405,16 @@ async function smartAutoMap(rows) {
       if (countryHits / labels.length >= 0.4) { c.type = 'worldmap'; }
     });
 
+    // Auto-convert bar/hbar to line/multiline when labels are time-series
+    const _datePattern = /^\d{4}[-\/]\d{2}$|^\d{4}[-\/]\d{2}[-\/]\d{2}$|^Q[1-4]\s+\d{4}$|^\d{4}-Q[1-4]$|^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i;
+    chartPlan.forEach(c => {
+      if (!/^(bar|hbar)$/.test(c.type) || !c.labels || c.labels.length < 4) return;
+      const dateHits = c.labels.filter(l => _datePattern.test(String(l).trim())).length;
+      if (dateHits / c.labels.length >= 0.5) {
+        c.type = c.series && c.series.length > 0 ? 'line' : 'line';
+      }
+    });
+
     // Auto-convert bar/hbar to scatter when both axes are numeric (correlation charts)
     const _numericHeaders = new Set(Object.keys(data.profile?.column_types || {}).filter(h => data.profile.column_types[h] === 'numeric'));
     chartPlan.forEach(c => {
