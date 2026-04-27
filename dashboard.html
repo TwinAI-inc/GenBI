@@ -9197,11 +9197,11 @@ function openExplainDrawer(column, value, chartIdx) {
 
   // Draw sunburst after DOM is ready
   if (breakdowns.length >= 1) {
-    setTimeout(function() { _drawExplainSunburst(breakdowns, fmtVal, chartColors); }, 100);
+    setTimeout(function() { _drawExplainSunburst(breakdowns, fmtVal, chartBaseRgb); }, 100);
   }
 }
 
-function _drawExplainSunburst(breakdowns, fmtVal, _chartColors) {
+function _drawExplainSunburst(breakdowns, fmtVal, baseRgbParam) {
   const canvas = document.getElementById('explainSunburst');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
@@ -9215,7 +9215,7 @@ function _drawExplainSunburst(breakdowns, fmtVal, _chartColors) {
   const cx = w / 2, cy = h / 2;
   const innerR = 40, midR = 85, outerR = 115;
   // Use monochrome shades of the chart's base color for a cohesive look
-  const baseRgb = chartBaseRgb || '0,229,255';
+  const baseRgb = baseRgbParam || '0,229,255';
   const br = baseRgb.split(',')[0], bg = baseRgb.split(',')[1], bb = baseRgb.split(',')[2];
   const colors = [];
   const nSegs = Math.max((breakdowns[0] || {entries:[]}).entries.length, (breakdowns[1] || {entries:[]}).entries.length, 4);
