@@ -13418,13 +13418,38 @@ async function smartAutoMap(rows) {
       if (countryHits / labels.length >= 0.4) { c.type = 'worldmap'; }
     });
 
-    // Auto-convert bar/hbar to line/multiline when labels are time-series
+    // Auto-convert bar/hbar to line when labels are time-series
+    // Also rebuild as multiline if groupCol is available but wasn't processed
     const _datePattern = /^\d{4}[-\/]\d{2}$|^\d{4}[-\/]\d{2}[-\/]\d{2}$|^Q[1-4]\s+\d{4}$|^\d{4}-Q[1-4]$|^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i;
     chartPlan.forEach(c => {
       if (!/^(bar|hbar)$/.test(c.type) || !c.labels || c.labels.length < 4) return;
       const dateHits = c.labels.filter(l => _datePattern.test(String(l).trim())).length;
       if (dateHits / c.labels.length >= 0.5) {
-        c.type = c.series && c.series.length > 0 ? 'line' : 'line';
+        c.type = 'line';
+        // Rebuild as multiline if groupCol exists but series wasn't built
+        if (c.groupCol && c.yCol && (!c.series || !c.series.length)) {
+          const grouped = {};
+          rows.forEach(r => {
+            const g = String(r[c.groupCol] || '').trim();
+            const x = String(r[c.xCol] || '').trim();
+            if (!g || !x) return;
+            if (!grouped[g]) grouped[g] = {};
+            if (!grouped[g][x]) grouped[g][x] = [];
+            grouped[g][x].push(parseFloat(r[c.yCol]) || 0);
+          });
+          const allX = [...new Set(rows.map(r => String(r[c.xCol] || '').trim()).filter(Boolean))].sort();
+          const groupTotals = {};
+          Object.entries(grouped).forEach(([g, xmap]) => { groupTotals[g] = Object.values(xmap).flat().reduce((a, b) => a + b, 0); });
+          const topGroups = Object.entries(groupTotals).sort((a, b) => b[1] - a[1]).slice(0, 6).map(e => e[0]);
+          const seriesColors = linePalettes['GenBI'];
+          c.series = topGroups.map((g, i) => ({
+            name: g,
+            data: allX.map(x => { const vals = (grouped[g] && grouped[g][x]) || []; return vals.length ? vals.reduce((a, b) => a + b, 0) : 0; }),
+            color: seriesColors[i % seriesColors.length]
+          }));
+          c.labels = allX;
+          c.data = null;
+        }
       }
     });
 
