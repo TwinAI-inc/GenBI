@@ -12053,7 +12053,18 @@ function removeThinkingMsg() {
 function buildChartFromAI(aiResponse) {
   const rows = App.excelData.rows;
   const ec = App.excelChartConfig;
-  const { chartType, xCol, yCol, aggFn, title, groupCol } = aiResponse;
+  let { chartType, xCol, yCol, aggFn, title, groupCol } = aiResponse;
+
+  // Guard: reject usmap/worldmap if xCol data isn't actually geographic
+  if ((chartType === 'usmap' || chartType === 'worldmap') && xCol) {
+    const _states = new Set(['alabama','alaska','arizona','arkansas','california','colorado','connecticut','delaware','florida','georgia','hawaii','idaho','illinois','indiana','iowa','kansas','kentucky','louisiana','maine','maryland','massachusetts','michigan','minnesota','mississippi','missouri','montana','nebraska','nevada','new hampshire','new jersey','new mexico','new york','north carolina','north dakota','ohio','oklahoma','oregon','pennsylvania','rhode island','south carolina','south dakota','tennessee','texas','utah','vermont','virginia','washington','west virginia','wisconsin','wyoming']);
+    const _countries = new Set(['united states','usa','china','india','japan','germany','france','italy','spain','canada','australia','brazil','mexico','russia','united kingdom','uk']);
+    const sampleVals = rows.slice(0, 30).map(r => String(r[xCol] || '').trim().toLowerCase()).filter(Boolean);
+    const geoHits = sampleVals.filter(v => _states.has(v) || _countries.has(v)).length;
+    if (sampleVals.length > 0 && geoHits / sampleVals.length < 0.3) {
+      chartType = 'bar'; // fall back to bar if data isn't geographic
+    }
+  }
 
   // Donut with single column (yCol is null)
   if (chartType === 'donut' && xCol && !yCol) {
@@ -12113,12 +12124,14 @@ function buildChartFromAI(aiResponse) {
     });
     return {
       type: 'line',
+      _userType: null, // prevent stale type overrides
       title,
       labels: allLabels,
       series,
       data: null, // null signals multi-series mode
       color: 'cyan',
       suffix: '',
+      xCol, yCol, groupCol,
       xLabel: xCol.replace(/_/g, ' '),
       yLabel: yCol ? yCol.replace(/_/g, ' ') : 'Count'
     };
