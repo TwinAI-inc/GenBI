@@ -13454,9 +13454,17 @@ async function smartAutoMap(rows) {
     });
 
     // Auto-convert bar/hbar to scatter when both axes are numeric (correlation charts)
-    const _numericHeaders = new Set(Object.keys(data.profile?.column_types || {}).filter(h => data.profile.column_types[h] === 'numeric'));
+    const _serverTypes = data.profile?.column_types || {};
+    const _isNumCol = (col) => {
+      // Check server profile
+      if (_serverTypes[col] === 'numeric') return true;
+      // Fallback: check if 80%+ of sample values are numbers
+      const vals = rows.slice(0, 30).map(r => r[col]).filter(v => v != null);
+      if (vals.length === 0) return false;
+      return vals.filter(v => !isNaN(parseFloat(v))).length > vals.length * 0.8;
+    };
     chartPlan.forEach(c => {
-      if (/^(bar|hbar)$/.test(c.type) && c.xCol && c.yCol && _numericHeaders.has(c.xCol) && _numericHeaders.has(c.yCol)) {
+      if (/^(bar|hbar)$/.test(c.type) && c.xCol && c.yCol && _isNumCol(c.xCol) && _isNumCol(c.yCol)) {
         c.type = 'scatter';
         c.xData = rows.map(r => parseFloat(r[c.xCol]) || 0);
         c.yData = rows.map(r => parseFloat(r[c.yCol]) || 0);
