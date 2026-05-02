@@ -1170,6 +1170,56 @@ body.theme-genbi .anomaly-badge { background: rgba(255,107,157,0.06); border-col
 .risk-chip-data.active { background:rgba(6,182,212,0.10); border-color:rgba(6,182,212,0.25); color:#67e8f9; }
 .risk-chip-ai.active { background:rgba(179,136,255,0.10); border-color:rgba(179,136,255,0.25); color:#c4b5fd; }
 .risk-chip-both.active { background:rgba(105,240,174,0.10); border-color:rgba(105,240,174,0.25); color:#6ee7b7; }
+/* Risk wizard mode toggle (top of risk panel) */
+.risk-mode-toggle { display:flex; gap:4px; justify-content:flex-end; margin-bottom:10px; }
+.risk-mode-btn { font-size:9px; font-weight:500; padding:4px 11px; border-radius:5rem; background:transparent; border:1px solid rgba(255,255,255,0.08); color:var(--text-tertiary); cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; }
+.risk-mode-btn:hover { border-color:rgba(255,255,255,0.15); color:var(--text-secondary); }
+.risk-mode-btn.active { background:rgba(6,182,212,0.10); border-color:rgba(6,182,212,0.25); color:#67e8f9; }
+/* Wizard stepper */
+.risk-wiz-stepper { display:flex; align-items:center; justify-content:center; gap:0; margin:6px 0 16px; }
+.risk-wiz-step { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:8px; cursor:pointer; transition:all .2s; }
+.risk-wiz-step:hover { background:rgba(255,255,255,0.02); }
+.risk-wiz-num { width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.06); color:var(--text-tertiary); font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+.risk-wiz-lbl { font-size:10px; color:var(--text-tertiary); font-weight:500; }
+.risk-wiz-step.active .risk-wiz-num { background:var(--accent-cyan); color:#000; }
+.risk-wiz-step.active .risk-wiz-lbl { color:var(--text-primary); }
+.risk-wiz-step.done .risk-wiz-num { background:rgba(6,182,212,0.2); color:#67e8f9; }
+.risk-wiz-step.done .risk-wiz-lbl { color:var(--text-secondary); }
+.risk-wiz-line { width:24px; height:1px; background:rgba(255,255,255,0.08); }
+/* Insight panel (per-step explainer) */
+.risk-insight { padding:10px 12px; border-radius:8px; background:rgba(167,139,250,0.05); border-left:2px solid rgba(167,139,250,0.45); margin-bottom:12px; }
+.risk-insight-h { font-size:9px; color:#c4b5fd; letter-spacing:0.5px; font-weight:600; margin-bottom:4px; text-transform:uppercase; }
+.risk-insight-b { font-size:11px; color:var(--text-secondary); line-height:1.6; }
+/* Step 1 factor cards */
+.risk-factor-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:8px; }
+.risk-fcard { padding:10px 12px; border-radius:9px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); cursor:pointer; transition:all .15s; }
+.risk-fcard:hover { border-color:rgba(255,255,255,0.12); background:rgba(255,255,255,0.03); }
+.risk-fcard.sel { border-color:rgba(6,182,212,0.40); background:rgba(6,182,212,0.06); }
+.risk-fcard-head { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+.risk-fcheck { width:14px; height:14px; border:1px solid rgba(255,255,255,0.20); border-radius:3px; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--accent-cyan); flex-shrink:0; }
+.risk-fcard.sel .risk-fcheck { background:rgba(6,182,212,0.15); border-color:rgba(6,182,212,0.55); }
+.risk-fname { font-size:11px; font-weight:500; color:var(--text-primary); flex:1; }
+.risk-fsrc { font-size:7px; font-weight:700; padding:2px 5px; border-radius:4px; letter-spacing:0.3px; background:rgba(255,255,255,0.04); }
+.risk-fdesc { font-size:10px; color:var(--text-secondary); line-height:1.45; margin-bottom:6px; }
+.risk-fmetrics { display:flex; gap:10px; font-size:9px; color:var(--text-tertiary); font-family:'JetBrains Mono',ui-monospace,monospace; }
+.risk-fcomp { margin-left:auto; color:var(--accent-cyan); font-weight:600; }
+/* Step 2 weight sliders + ranking */
+.risk-weights { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:14px; align-items:end; margin-bottom:14px; padding:10px 12px; border-radius:9px; background:rgba(255,255,255,0.02); }
+.risk-wslider label { display:flex; justify-content:space-between; font-size:9px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.5px; font-weight:600; margin-bottom:6px; }
+.risk-wslider label span { color:var(--accent-cyan); font-family:'JetBrains Mono',ui-monospace,monospace; text-transform:none; letter-spacing:0; font-weight:500; }
+.risk-wslider input[type="range"] { width:100%; height:4px; -webkit-appearance:none; appearance:none; background:rgba(255,255,255,0.06); border-radius:2px; outline:none; margin:0; }
+.risk-wslider input[type="range"]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent-cyan); cursor:pointer; }
+.risk-rank-list { display:flex; flex-direction:column; gap:5px; }
+.risk-rank-row { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:7px; background:rgba(255,255,255,0.02); }
+.risk-rank-num { font-size:13px; font-weight:300; font-family:'Outfit','Inter',sans-serif; min-width:26px; }
+.risk-rank-name { flex:1; font-size:11px; color:var(--text-primary); }
+.risk-rank-bar { width:160px; height:4px; background:rgba(255,255,255,0.04); border-radius:2px; overflow:hidden; }
+.risk-rank-bar > div { height:100%; border-radius:2px; transition:width .5s cubic-bezier(.16,1,.3,1); }
+.risk-rank-score { min-width:24px; font-size:10px; font-weight:600; text-align:right; }
+/* Step 3 iteration buttons */
+.risk-iter-btn { font-size:9px; padding:3px 9px; border-radius:5px; border:1px solid rgba(255,255,255,0.08); background:transparent; color:var(--text-tertiary); cursor:pointer; font-weight:500; font-family:'Inter',sans-serif; transition:all .15s; }
+.risk-iter-btn:hover { border-color:rgba(255,255,255,0.15); }
+.risk-iter-btn.active { background:rgba(6,182,212,0.12); border-color:rgba(6,182,212,0.30); color:#67e8f9; font-weight:600; }
 /* GenBI-style buttons for risk */
 .risk-btn-primary { font-size:11px; background:var(--accent-cyan); color:#000; border:none; padding:7px 18px; border-radius:8px; cursor:pointer; font-weight:600; font-family:'Outfit','Inter',sans-serif; transition:all .15s; }
 .risk-btn-primary:hover { box-shadow:0 0 14px rgba(6,182,212,0.3); }
@@ -4619,6 +4669,32 @@ function initRiskAnalyzer() {
   if (!App.hasExcelData || !isLoggedIn()) return;
   const el = document.getElementById('riskContent');
   if (!el) return;
+  // Reset wizard state on each entry. Mode persists across re-entries.
+  App._riskWizard = App._riskWizard || { mode: 'wizard' };
+  App._riskWizard.step = 1;
+  App._riskWizard.factors = null;
+  App._riskWizard.selected = null;
+  App._riskWizard.weights = { impact: 0.4, likelihood: 0.35, consequence: 0.25 };
+  App._riskWizard.iterations = 10000;
+  App._riskWizard.simulations = null;
+  App._riskWizard.narrative = null;
+  App._riskWizard.tornado = null;
+  if (App._riskWizard.mode === 'quick') {
+    _riskRunQuick(el);
+  } else {
+    _riskRenderWizardShell(el);
+    _riskWizardStep1();
+  }
+}
+
+// Shared "Quick" path — preserves the prior single-call /api/risk-v2/full
+// behaviour for users who don't want the step flow.
+function _riskRunQuick(el) {
+  el.innerHTML = '<div style="text-align:center;padding:48px 20px;">' +
+    '<div class="genbi-fill-bars" style="margin:0 auto 16px;"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
+    '<div style="font-size:13px;color:rgba(255,255,255,0.45);font-family:Outfit,sans-serif;font-weight:300;">Analyzing your data for risks...</div>' +
+    '<div style="font-size:10px;color:rgba(255,255,255,0.2);margin-top:6px;" id="riskLoadMsg">Extracting risk signals</div>' +
+    _riskModeToggleHtml() + '</div>';
   const msgs = ['Extracting risk signals from data + AI knowledge','Running TOPSIS multi-criteria ranking','Simulating 10,000 Monte Carlo scenarios','Generating executive briefing...'];
   let mi = 0;
   const msgInt = setInterval(() => { mi++; const m = document.getElementById('riskLoadMsg'); if (m && mi < msgs.length) m.textContent = msgs[mi]; }, 3000);
@@ -4629,9 +4705,384 @@ function initRiskAnalyzer() {
     body: JSON.stringify({ headers: App.excelData.headers, rows: App.excelData.rows.slice(0, 500) })
   }).then(r => r.json()).then(data => {
     clearInterval(msgInt);
-    if (data.error) { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
+    if (data.error) { el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>' + _riskModeToggleHtml(); return; }
     _riskRenderResults(el, data);
-  }).catch(err => { clearInterval(msgInt); el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk analysis failed. Please try again.</div>'; });
+    el.insertAdjacentHTML('afterbegin', _riskModeToggleHtml());
+  }).catch(err => {
+    clearInterval(msgInt);
+    el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk analysis failed. Please try again.</div>' + _riskModeToggleHtml();
+  });
+}
+
+// ── Wizard mode toggle (top-right pill on every panel) ───────────────────
+function _riskModeToggleHtml() {
+  const m = (App._riskWizard && App._riskWizard.mode) || 'wizard';
+  return '<div class="risk-mode-toggle">' +
+    '<button class="risk-mode-btn' + (m === 'wizard' ? ' active' : '') + '" onclick="_riskSetMode(\'wizard\')">Step-by-step</button>' +
+    '<button class="risk-mode-btn' + (m === 'quick' ? ' active' : '') + '" onclick="_riskSetMode(\'quick\')">Quick</button>' +
+    '</div>';
+}
+function _riskSetMode(mode) {
+  if (!App._riskWizard) App._riskWizard = {};
+  if (App._riskWizard.mode === mode) return;
+  App._riskWizard.mode = mode;
+  initRiskAnalyzer();
+}
+
+// ── Wizard shell: stepper + content slot ─────────────────────────────────
+function _riskRenderWizardShell(el) {
+  el.innerHTML = _riskModeToggleHtml() +
+    '<div class="risk-wiz-stepper" id="riskStepper">' +
+      _riskStepNode(1, 'Identify') +
+      '<div class="risk-wiz-line"></div>' +
+      _riskStepNode(2, 'Rank') +
+      '<div class="risk-wiz-line"></div>' +
+      _riskStepNode(3, 'Simulate') +
+    '</div>' +
+    '<div id="riskWizBody"></div>';
+}
+function _riskStepNode(n, label) {
+  const cur = (App._riskWizard && App._riskWizard.step) || 1;
+  const cls = cur === n ? 'risk-wiz-step active' : (n < cur ? 'risk-wiz-step done' : 'risk-wiz-step');
+  return '<div class="' + cls + '" onclick="_riskGoStep(' + n + ')"><span class="risk-wiz-num">' + n + '</span><span class="risk-wiz-lbl">' + label + '</span></div>';
+}
+function _riskUpdateStepper() {
+  const s = document.getElementById('riskStepper');
+  if (!s) return;
+  s.innerHTML = _riskStepNode(1, 'Identify') + '<div class="risk-wiz-line"></div>' +
+                _riskStepNode(2, 'Rank') + '<div class="risk-wiz-line"></div>' +
+                _riskStepNode(3, 'Simulate');
+}
+function _riskGoStep(n) {
+  const w = App._riskWizard;
+  if (!w) return;
+  // Don't allow jumping forward past the latest completed step.
+  if (n === 1) { w.step = 1; _riskWizardStep1(true); }
+  else if (n === 2 && w.factors) { w.step = 2; _riskWizardStep2(true); }
+  else if (n === 3 && w.factors && w.simulations) { w.step = 3; _riskWizardStep3(true); }
+  _riskUpdateStepper();
+}
+
+// ── STEP 1: Identify Risks ───────────────────────────────────────────────
+function _riskWizardStep1(useCache) {
+  const w = App._riskWizard;
+  const body = document.getElementById('riskWizBody');
+  if (!body) return;
+  if (useCache && w.factors) {
+    _riskRenderStep1(body);
+    return;
+  }
+  body.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;">' +
+    '<div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
+    '<span style="font-size:12px;color:rgba(255,255,255,0.35);">AI is identifying risk signals from your data...</span></div>';
+  const token = _getAuthToken();
+  fetch('/api/risk-v2/extract', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ headers: App.excelData.headers, rows: App.excelData.rows.slice(0, 500) })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
+    w.domain = data.domain || 'general';
+    w.factors = data.factors || [];
+    // Pre-select: top 6 by composite score so user has a sane default.
+    w.selected = new Set((w.factors.slice(0, 6)).map(f => f.id));
+    _riskRenderStep1(body);
+  }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk extraction failed. Please try again.</div>'; });
+}
+function _riskRenderStep1(body) {
+  const w = App._riskWizard;
+  if (!w.factors || !w.factors.length) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">No risk factors detected in this dataset.</div>'; return; }
+  let html = '<div class="glass-panel" style="padding:14px;margin-bottom:12px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
+  html += '<div style="display:flex;align-items:center;gap:6px;">' +
+    '<span style="font-size:13px;font-weight:500;color:var(--text-primary);">Risk Factors</span>' +
+    '<span style="font-size:9px;padding:2px 8px;border-radius:5rem;background:rgba(255,255,255,0.04);color:var(--text-tertiary);">' + w.factors.length + ' identified</span>' +
+    '<span style="font-size:9px;padding:2px 8px;border-radius:5rem;background:rgba(6,182,212,0.08);color:#67e8f9;">' + escHtml(w.domain) + '</span>' +
+    '</div>';
+  html += '<div style="font-size:10px;color:var(--text-tertiary);"><span id="riskSelCount">' + w.selected.size + '</span> selected</div>';
+  html += '</div>';
+  // AI insight panel (derived from factor descriptions; no extra LLM call)
+  html += _riskInsightPanel('Why these factors matter',
+    'AI scanned your data and surfaced ' + w.factors.length + ' risk signals across the ' + escHtml(w.domain) +
+    ' domain. Each factor blends data evidence (variance, outliers, missingness) with domain knowledge. Tick the factors you want to rank, untick anything irrelevant.');
+  // Factor cards
+  html += '<div class="risk-factor-grid">';
+  w.factors.forEach(function(f) {
+    var sel = w.selected.has(f.id);
+    var srcColor = f.source === 'data' ? '#67e8f9' : f.source === 'knowledge' ? '#c4b5fd' : '#6ee7b7';
+    var srcLabel = f.source === 'data' ? 'DATA' : f.source === 'knowledge' ? 'AI' : 'BOTH';
+    var compositeScore = (((f.impact || 5) + (f.likelihood || 5) + (f.consequence || 5)) / 3).toFixed(1);
+    html += '<div class="risk-fcard' + (sel ? ' sel' : '') + '" onclick="_riskToggleFactor(\'' + f.id + '\')">';
+    html += '<div class="risk-fcard-head">';
+    html += '<span class="risk-fcheck">' + (sel ? '✓' : '') + '</span>';
+    html += '<span class="risk-fname">' + escHtml(f.name) + '</span>';
+    html += '<span class="risk-fsrc" style="color:' + srcColor + '">' + srcLabel + '</span>';
+    html += '</div>';
+    html += '<div class="risk-fdesc">' + escHtml(f.description || '') + '</div>';
+    html += '<div class="risk-fmetrics">';
+    html += '<span title="Impact">I&nbsp;' + (f.impact || '—') + '</span>';
+    html += '<span title="Likelihood">L&nbsp;' + (f.likelihood || '—') + '</span>';
+    html += '<span title="Consequence">C&nbsp;' + (f.consequence || '—') + '</span>';
+    html += '<span class="risk-fcomp" title="Composite (avg)">∑&nbsp;' + compositeScore + '</span>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  // Continue button
+  html += '<div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">';
+  html += '<button class="risk-btn-primary" onclick="_riskWizardStep2()">Continue to Ranking →</button>';
+  html += '</div>';
+  html += '</div>';
+  body.innerHTML = html;
+}
+function _riskToggleFactor(id) {
+  const w = App._riskWizard;
+  if (!w.selected) return;
+  if (w.selected.has(id)) w.selected.delete(id);
+  else w.selected.add(id);
+  // Invalidate downstream state — ranking and simulation must re-run.
+  w.simulations = null; w.narrative = null;
+  _riskRenderStep1(document.getElementById('riskWizBody'));
+}
+
+// ── STEP 2: TOPSIS Ranking with Re-rank button ───────────────────────────
+function _riskWizardStep2(useCache) {
+  const w = App._riskWizard;
+  if (!w.factors || !w.selected) return;
+  w.step = 2; _riskUpdateStepper();
+  const body = document.getElementById('riskWizBody');
+  const subset = w.factors.filter(f => w.selected.has(f.id));
+  if (!subset.length) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">No factors selected. <button class="risk-btn-ghost" onclick="_riskGoStep(1)">Go back</button></div>'; return; }
+  // Rank synchronously via /rank — pure compute, no AI.
+  body.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;">' +
+    '<div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
+    '<span style="font-size:12px;color:rgba(255,255,255,0.35);">Ranking with TOPSIS...</span></div>';
+  const token = _getAuthToken();
+  fetch('/api/risk-v2/rank', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ factors: subset, weights: w.weights })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
+    w.ranked = data.factors || [];
+    _riskRenderStep2(body);
+  }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Ranking failed.</div>'; });
+}
+function _riskRenderStep2(body) {
+  const w = App._riskWizard;
+  const top = w.ranked && w.ranked[0] ? w.ranked[0].name : '—';
+  const dom = ['impact','likelihood','consequence'].sort(function(a,b){ return w.weights[b] - w.weights[a]; })[0];
+  let html = '<div class="glass-panel" style="padding:14px;margin-bottom:12px;">';
+  html += '<div style="font-size:13px;font-weight:500;margin-bottom:10px;">TOPSIS Ranking</div>';
+  // AI-style insight derived client-side.
+  html += _riskInsightPanel('What the ranking is telling you',
+    'Current weights emphasise <b>' + dom + '</b> (' + (w.weights[dom] * 100).toFixed(0) + '%). ' +
+    'The top-ranked risk under these weights is <b>' + escHtml(top) + '</b>. Adjust weights and click Re-rank to test sensitivity to different priorities.');
+  // Weight sliders
+  html += '<div class="risk-weights">';
+  ['impact','likelihood','consequence'].forEach(function(k) {
+    var v = w.weights[k];
+    html += '<div class="risk-wslider">' +
+      '<label>' + k.charAt(0).toUpperCase() + k.slice(1) + ' <span id="rw_' + k + '_v">' + v.toFixed(2) + '</span></label>' +
+      '<input type="range" min="0" max="1" step="0.05" value="' + v + '" oninput="_riskWeightChange(\'' + k + '\', this.value)"/>' +
+    '</div>';
+  });
+  html += '<button class="risk-btn-primary" onclick="_riskWizardStep2()">Re-rank</button>';
+  html += '</div>';
+  // Ranked list
+  html += '<div class="risk-rank-list">';
+  (w.ranked || []).forEach(function(f, i) {
+    var pct = Math.round((f.topsis_score || 0) * 100);
+    var color = pct >= 70 ? '#f43f5e' : pct >= 45 ? '#f59e0b' : '#06b6d4';
+    html += '<div class="risk-rank-row">';
+    html += '<span class="risk-rank-num" style="color:' + color + '">#' + (i + 1) + '</span>';
+    html += '<span class="risk-rank-name">' + escHtml(f.name) + '</span>';
+    html += '<div class="risk-rank-bar"><div style="width:' + pct + '%;background:' + color + '"></div></div>';
+    html += '<span class="risk-rank-score" style="color:' + color + '">' + pct + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  // Continue
+  html += '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;">';
+  html += '<button class="risk-btn-ghost" onclick="_riskGoStep(1)">← Back</button>';
+  html += '<button class="risk-btn-primary" onclick="_riskWizardStep3()">Continue to Simulation →</button>';
+  html += '</div>';
+  html += '</div>';
+  body.innerHTML = html;
+}
+function _riskWeightChange(key, val) {
+  App._riskWizard.weights[key] = parseFloat(val);
+  const v = document.getElementById('rw_' + key + '_v');
+  if (v) v.textContent = parseFloat(val).toFixed(2);
+}
+
+// ── STEP 3: Monte Carlo + AI Briefing ────────────────────────────────────
+function _riskWizardStep3(useCache) {
+  const w = App._riskWizard;
+  if (!w.ranked || !w.ranked.length) return;
+  w.step = 3; _riskUpdateStepper();
+  const body = document.getElementById('riskWizBody');
+  if (useCache && w.simulations && w.narrative) {
+    _riskRenderStep3(body); return;
+  }
+  body.innerHTML = '<div style="display:flex;align-items:center;gap:10px;padding:40px;justify-content:center;">' +
+    '<div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
+    '<span style="font-size:12px;color:rgba(255,255,255,0.35);">Running ' + w.iterations.toLocaleString() + ' Monte Carlo iterations...</span></div>';
+  const token = _getAuthToken();
+  fetch('/api/risk-v2/simulate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ factors: w.ranked, rows: App.excelData.rows.slice(0, 500), headers: App.excelData.headers, top_n: 3, n_iterations: w.iterations })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
+    w.simulations = data.simulations || [];
+    // After simulation, fire the AI narrative call. This is the only LLM
+    // call in the wizard path beyond extraction.
+    return fetch('/api/risk-v2/narrative', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ domain: w.domain, factors: w.ranked, simulations: w.simulations })
+    }).then(r => r.json()).then(narr => {
+      w.narrative = narr || {};
+      _riskRenderStep3(body);
+    });
+  }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Simulation failed.</div>'; });
+}
+function _riskRenderStep3(body) {
+  const w = App._riskWizard;
+  const sims = w.simulations || [];
+  const narr = w.narrative || {};
+  const topSim = sims[0];
+  let html = '<div class="glass-panel" style="padding:14px;margin-bottom:12px;">';
+  // Iteration picker
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
+  html += '<div style="font-size:13px;font-weight:500;">Monte Carlo Simulation</div>';
+  html += '<div style="display:flex;gap:4px;">';
+  [1000, 5000, 10000, 50000].forEach(function(n) {
+    var active = w.iterations === n;
+    html += '<button class="risk-iter-btn' + (active ? ' active' : '') + '" onclick="App._riskWizard.iterations=' + n + ';App._riskWizard.simulations=null;_riskWizardStep3()">' + (n >= 1000 ? (n / 1000) + 'K' : n) + '</button>';
+  });
+  html += '</div></div>';
+  // AI insight derived from sim percentiles
+  if (topSim) {
+    var p5 = topSim.percentiles.p5, p95 = topSim.percentiles.p95, mean = topSim.percentiles.mean || ((p5 + p95) / 2);
+    var spread = ((p95 - p5) / Math.max(1, mean)) * 100;
+    var skew = p95 - mean > mean - p5 ? 'right (toward higher loss)' : 'left (toward lower loss)';
+    html += _riskInsightPanel('Distribution interpretation',
+      'The top risk <b>' + escHtml(topSim.factor_name || '') + '</b> shows a P5–P95 spread of ' + spread.toFixed(0) + '% around its mean, ' +
+      'skewed ' + skew + '. P(exceeds high) = <b>' + topSim.probabilities.exceed_high + '%</b>. Tail risk is ' +
+      (topSim.probabilities.exceed_high > 25 ? 'material — plan mitigation' : 'modest — monitor only') + '.');
+  }
+  // Executive summary from AI narrative
+  if (narr.executive_summary) {
+    html += '<div style="padding:10px;border-radius:8px;background:rgba(6,182,212,0.04);border-left:2px solid rgba(6,182,212,0.45);margin-bottom:12px;">';
+    html += '<div style="font-size:9px;color:#67e8f9;letter-spacing:0.5px;font-weight:600;margin-bottom:4px;">EXECUTIVE SUMMARY</div>';
+    html += '<div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">' + escHtml(narr.executive_summary) + '</div>';
+    html += '</div>';
+  }
+  // Histograms grid
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+  sims.forEach(function(s, i) {
+    var color = s.probabilities.exceed_high > 50 ? '#f43f5e' : s.probabilities.exceed_high > 20 ? '#f59e0b' : '#06b6d4';
+    html += '<div class="glass-panel" style="padding:12px;border-left:3px solid ' + color + ';">';
+    html += '<div style="font-size:11px;font-weight:500;margin-bottom:6px;">' + escHtml(s.factor_name || '') + '</div>';
+    html += '<canvas id="riskHist' + i + '" width="260" height="80" style="display:block;width:100%;height:80px"></canvas>';
+    html += '<div style="display:flex;gap:4px;margin-top:6px;font-size:9px;color:var(--text-tertiary);">' +
+            '<span>P5: ' + s.percentiles.p5.toLocaleString() + '</span>' +
+            '<span>Mean: ' + (s.percentiles.mean || Math.round((s.percentiles.p5 + s.percentiles.p95)/2)).toLocaleString() + '</span>' +
+            '<span>P95: ' + s.percentiles.p95.toLocaleString() + '</span></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  // Recommendations
+  if (narr.recommendations && narr.recommendations.length) {
+    html += '<div style="margin-top:14px;font-size:11px;font-weight:500;margin-bottom:6px;">Recommendations</div>';
+    narr.recommendations.forEach(function(r) {
+      var rec = typeof r === 'string' ? { action: r, priority: 'medium' } : r;
+      var pColor = rec.priority === 'critical' ? '#f43f5e' : rec.priority === 'high' ? '#f59e0b' : '#06b6d4';
+      html += '<div style="padding:8px 10px;margin-bottom:4px;border-radius:8px;background:rgba(255,255,255,0.02);border-left:3px solid ' + pColor + ';">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:10px;">' + escHtml(rec.action) + '</span>' +
+        '<span style="font-size:7px;font-weight:700;color:' + pColor + ';text-transform:uppercase;">' + escHtml(rec.priority) + '</span></div>';
+      if (rec.expected_impact) html += '<div style="font-size:8px;color:var(--text-tertiary);margin-top:2px;">' + escHtml(rec.expected_impact) + '</div>';
+      html += '</div>';
+    });
+  }
+  // Back / Re-analyze
+  html += '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;">';
+  html += '<button class="risk-btn-ghost" onclick="_riskGoStep(2)">← Back</button>';
+  html += '<button class="risk-btn-ghost" onclick="initRiskAnalyzer()">Start over</button>';
+  html += '</div>';
+  html += '</div>';
+  body.innerHTML = html;
+  // Draw histograms after layout
+  if (sims.length) requestAnimationFrame(function() { _riskDrawMCHistograms(sims); });
+}
+
+// ── Helper: insight panel (consistent visual treatment) ──────────────────
+function _riskInsightPanel(title, htmlBody) {
+  return '<div class="risk-insight">' +
+    '<div class="risk-insight-h">' + escHtml(title) + '</div>' +
+    '<div class="risk-insight-b">' + htmlBody + '</div>' +
+    '</div>';
+}
+
+// ── Histogram drawer for Monte Carlo distributions ───────────────────────
+// Each canvas id is `riskHist{i}`. Each sim has either `histogram` (array of
+// counts) or `samples` (raw values we bin client-side). P5/Mean/P95 markers
+// are overlaid as vertical guides.
+function _riskDrawMCHistograms(sims) {
+  if (!sims || !sims.length) return;
+  sims.forEach(function(s, i) {
+    var canvas = document.getElementById('riskHist' + i);
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    // Choose bin counts
+    var counts = null;
+    var minV = s.percentiles.p5, maxV = s.percentiles.p95;
+    if (Array.isArray(s.histogram) && s.histogram.length) {
+      counts = s.histogram;
+    } else if (Array.isArray(s.samples) && s.samples.length) {
+      var bins = 20;
+      counts = new Array(bins).fill(0);
+      var lo = Math.min.apply(null, s.samples), hi = Math.max.apply(null, s.samples);
+      var step = (hi - lo) / bins || 1;
+      s.samples.forEach(function(v) {
+        var idx = Math.min(bins - 1, Math.max(0, Math.floor((v - lo) / step)));
+        counts[idx]++;
+      });
+      minV = lo; maxV = hi;
+    }
+    if (!counts) return;
+    var maxCount = Math.max.apply(null, counts) || 1;
+    var color = s.probabilities.exceed_high > 50 ? '#f43f5e' : s.probabilities.exceed_high > 20 ? '#f59e0b' : '#06b6d4';
+    var bw = W / counts.length;
+    // Bars
+    counts.forEach(function(c, j) {
+      var h = (c / maxCount) * (H - 12);
+      var x = j * bw;
+      var y = H - h - 2;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.25 + (c / maxCount) * 0.6;
+      ctx.fillRect(x + 1, y, bw - 2, h);
+    });
+    ctx.globalAlpha = 1;
+    // P5 / Mean / P95 markers
+    var range = maxV - minV || 1;
+    function markX(v) { return ((v - minV) / range) * W; }
+    var markers = [
+      { v: s.percentiles.p5, label: 'P5', color: 'rgba(255,255,255,0.30)' },
+      { v: s.percentiles.mean || ((s.percentiles.p5 + s.percentiles.p95) / 2), label: 'Mean', color: 'rgba(255,255,255,0.65)' },
+      { v: s.percentiles.p95, label: 'P95', color: 'rgba(255,255,255,0.30)' },
+    ];
+    markers.forEach(function(m) {
+      var x = markX(m.v);
+      ctx.strokeStyle = m.color;
+      ctx.setLineDash(m.label === 'Mean' ? [] : [2, 3]);
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+  });
 }
 
 function _riskRenderResults(el, data) {
