@@ -4974,36 +4974,58 @@ function _riskWizardStep3(useCache) {
     });
   }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Simulation failed.</div>'; });
 }
-// Normalise one simulation entry — coerces missing nested fields to a safe
-// shape so the renderer never dereferences null. Any sim missing both
-// percentiles AND probabilities is dropped; partial sims get sentinel
-// values so the card still renders.
+// Normalise one simulation entry. Strict semantic check — a sim is only
+// kept when it has at least one finite percentile, otherwise we'd be
+// rendering a confidently-named factor with all-zero numbers, which is
+// worse than a crash because partial backend failure would look like real
+// "zero risk" analysis. Any sim that fails the bar is returned with
+// is_partial = true so the renderer can show an "unavailable" placeholder
+// in its slot instead of fake numbers.
 function _riskNormalizeSim(s) {
   if (!s || typeof s !== 'object') return null;
-  const p = s.percentiles || {};
-  const pr = s.probabilities || {};
-  const numOr = (v, fb) => (typeof v === 'number' && isFinite(v)) ? v : fb;
-  // Drop entirely if neither block is usable.
-  if (typeof s.percentiles !== 'object' && typeof s.probabilities !== 'object') return null;
+  const p = (s.percentiles && typeof s.percentiles === 'object') ? s.percentiles : null;
+  const pr = (s.probabilities && typeof s.probabilities === 'object') ? s.probabilities : null;
+  const isFiniteNum = (v) => typeof v === 'number' && isFinite(v);
+  const finitePctCount = p ? ['p5', 'mean', 'p95'].filter((k) => isFiniteNum(p[k])).length : 0;
+  const finiteProbCount = pr ? ['exceed_moderate', 'exceed_high'].filter((k) => isFiniteNum(pr[k])).length : 0;
+  const factor_name = s.factor_name || s.name || 'Unnamed factor';
+  // If neither percentiles nor probabilities carry a single finite number,
+  // mark the sim partial so the card can render an explicit unavailable
+  // state. Don't pretend zero risk.
+  if (finitePctCount === 0 && finiteProbCount === 0) {
+    return { factor_id: s.factor_id, factor_name, is_partial: true };
+  }
+  const numOr = (v, fb) => isFiniteNum(v) ? v : fb;
+  // We have at least one finite number — fill in any missing siblings.
+  const p5 = isFiniteNum(p && p.p5) ? p.p5 : (isFiniteNum(p && p.mean) ? p.mean : null);
+  const p95 = isFiniteNum(p && p.p95) ? p.p95 : (isFiniteNum(p && p.mean) ? p.mean : null);
   return Object.assign({}, s, {
-    factor_name: s.factor_name || s.name || 'Unnamed factor',
+    factor_name,
     percentiles: {
-      p5: numOr(p.p5, 0),
-      mean: numOr(p.mean, (numOr(p.p5, 0) + numOr(p.p95, 0)) / 2),
-      p95: numOr(p.p95, 0),
+      p5: numOr(p && p.p5, p5 != null ? p5 : 0),
+      mean: numOr(p && p.mean, ((p5 != null ? p5 : 0) + (p95 != null ? p95 : 0)) / 2),
+      p95: numOr(p && p.p95, p95 != null ? p95 : 0),
     },
     probabilities: {
-      exceed_moderate: numOr(pr.exceed_moderate, 0),
-      exceed_high: numOr(pr.exceed_high, 0),
+      exceed_moderate: numOr(pr && pr.exceed_moderate, 0),
+      exceed_high: numOr(pr && pr.exceed_high, 0),
     },
+    is_partial: false,
   });
 }
 function _riskRenderStep3(body) {
   const w = App._riskWizard;
   const rawSims = w.simulations || [];
-  const sims = rawSims.map(_riskNormalizeSim).filter(Boolean);
+  // Keep partial sims in the list so the user sees the slot, but mark them
+  // explicitly so the render path shows "simulation unavailable" instead of
+  // fabricating zero-risk numbers. The insight panel and aggregate stats
+  // only consider the top FULL (non-partial) sim.
+  const allSims = rawSims.map(_riskNormalizeSim).filter(Boolean);
+  const sims = allSims;
+  const fullSims = allSims.filter(function(s) { return !s.is_partial; });
+  const partialCount = allSims.length - fullSims.length;
   const narr = w.narrative || {};
-  const topSim = sims[0];
+  const topSim = fullSims[0];
   let html = '<div class="glass-panel" style="padding:14px;margin-bottom:12px;">';
   // Iteration picker
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">';
@@ -5031,12 +5053,23 @@ function _riskRenderStep3(body) {
     html += '<div style="font-size:11px;color:var(--text-secondary);line-height:1.6;">' + escHtml(narr.executive_summary) + '</div>';
     html += '</div>';
   }
-  // Histograms grid
+  // Histograms grid. Partial sims render an explicit unavailable card so
+  // the user can see which slot failed without being fed fake numbers.
+  if (partialCount > 0) {
+    html += '<div style="font-size:10px;color:#fbbf24;margin-bottom:6px;">⚠ ' + partialCount + ' simulation' + (partialCount === 1 ? '' : 's') + ' unavailable — backend returned partial data for those factors.</div>';
+  }
   html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
   sims.forEach(function(s, i) {
+    if (s.is_partial) {
+      html += '<div class="glass-panel" style="padding:12px;border-left:3px solid rgba(251,191,36,0.55);opacity:0.65;">';
+      html += '<div style="font-size:11px;font-weight:500;margin-bottom:6px;">' + escHtml(s.factor_name) + '</div>';
+      html += '<div style="font-size:10px;color:var(--text-tertiary);font-style:italic;padding:14px 0;">Simulation unavailable</div>';
+      html += '</div>';
+      return;
+    }
     var color = s.probabilities.exceed_high > 50 ? '#f43f5e' : s.probabilities.exceed_high > 20 ? '#f59e0b' : '#06b6d4';
     html += '<div class="glass-panel" style="padding:12px;border-left:3px solid ' + color + ';">';
-    html += '<div style="font-size:11px;font-weight:500;margin-bottom:6px;">' + escHtml(s.factor_name || '') + '</div>';
+    html += '<div style="font-size:11px;font-weight:500;margin-bottom:6px;">' + escHtml(s.factor_name) + '</div>';
     html += '<canvas id="riskHist' + i + '" width="260" height="80" style="display:block;width:100%;height:80px"></canvas>';
     html += '<div style="display:flex;gap:4px;margin-top:6px;font-size:9px;color:var(--text-tertiary);">' +
             '<span>P5: ' + s.percentiles.p5.toLocaleString() + '</span>' +
@@ -5086,6 +5119,9 @@ function _riskDrawMCHistograms(sims) {
   sims.forEach(function(s, i) {
     var canvas = document.getElementById('riskHist' + i);
     if (!canvas) return;
+    // Skip sims explicitly marked partial — the renderer already showed an
+    // "unavailable" placeholder for that slot, no canvas was emitted.
+    if (s && s.is_partial) return;
     // Guard: a partial server response may omit percentiles entirely.
     // Skip the card silently rather than throwing on null deref — the
     // surrounding card markup already shows the factor name.
