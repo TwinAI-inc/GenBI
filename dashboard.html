@@ -10570,11 +10570,82 @@ $('#projectModalOverlay').addEventListener('click', function(e) { if(e.target ==
 $('#projectModalClose').addEventListener('click', closeProjectModal);
 
 // ══════════════════════════════════════════════
-// PROJECT PERSISTENCE (localStorage)
+// PROJECT PERSISTENCE (server-backed via /api/projects, with localStorage
+// kept only as an offline fallback when the user is not logged in).
 // ══════════════════════════════════════════════
 const PM_INDEX_KEY = 'genbi-saved-projects';
 const PM_DATA_PREFIX = 'genbi-project-';
 let _activeProjectId = null;
+// Map { server_project_id -> local_id } so we can correlate the two stores.
+let _serverProjectIds = {};
+
+// ── Server sync helpers ────────────────────────────────────────────────
+// Multi-tenant guarantee: every endpoint reads request._billing_user
+// server-side and filters all queries by owner_id, so cross-user reads are
+// structurally impossible. The browser bearer token is the single source
+// of identity here.
+async function _projectsApiList() {
+  if (!isLoggedIn()) return null;
+  try {
+    const token = _getAuthToken();
+    const r = await fetch('/api/projects', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!r.ok) return null;
+    const data = await r.json();
+    return Array.isArray(data.projects) ? data.projects : [];
+  } catch (e) { return null; }
+}
+async function _projectsApiCreate(name, dataset, charts) {
+  if (!isLoggedIn()) return null;
+  const token = _getAuthToken();
+  const r = await fetch('/api/projects', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ name, dataset, charts })
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error || ('Save failed (' + r.status + ')'));
+  }
+  return r.json();
+}
+async function _projectsApiUpdate(id, name, dataset, charts) {
+  if (!isLoggedIn()) return null;
+  const token = _getAuthToken();
+  const body = {};
+  if (name !== undefined) body.name = name;
+  if (dataset !== undefined) body.dataset = dataset;
+  if (charts !== undefined) body.charts = charts;
+  const r = await fetch('/api/projects/' + encodeURIComponent(id), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    throw new Error(err.error || ('Save failed (' + r.status + ')'));
+  }
+  return r.json();
+}
+async function _projectsApiGet(id) {
+  if (!isLoggedIn()) return null;
+  const token = _getAuthToken();
+  const r = await fetch('/api/projects/' + encodeURIComponent(id), {
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  if (!r.ok) return null;
+  return r.json();
+}
+async function _projectsApiDelete(id) {
+  if (!isLoggedIn()) return null;
+  const token = _getAuthToken();
+  const r = await fetch('/api/projects/' + encodeURIComponent(id), {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
+  });
+  return r.ok;
+}
 
 function getProjectIndex() {
   try {
@@ -10862,7 +10933,7 @@ function downloadProjectToDevice(name, meta) {
   }
 }
 
-function saveProject(name) {
+async function saveProject(name) {
   const idx = getProjectIndex();
   const id = _activeProjectId || ('proj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
   const isUpdate = !!idx.projects[id];
@@ -10873,7 +10944,8 @@ function saveProject(name) {
     updatedAt: new Date().toISOString(),
     fileName: App.excelData ? (App.uploadedFiles.length > 0 ? App.uploadedFiles[0].name : 'Unknown') : '',
     rowCount: App.excelData ? App.excelData.rows.length : 0,
-    colCount: App.excelData ? App.excelData.headers.length : 0
+    colCount: App.excelData ? App.excelData.headers.length : 0,
+    serverId: idx.projects[id] ? idx.projects[id].serverId : null
   };
   idx.projects[id] = meta;
   idx.activeProjectId = id;
@@ -10889,41 +10961,117 @@ function saveProject(name) {
     console.error('Failed to save project data:', e);
     return false;
   }
-  // Also download to device
+  // Server sync — durable, per-user, cross-device. The local save above is
+  // a fast-path cache; the server is the source of truth when logged in.
+  if (isLoggedIn()) {
+    try {
+      const datasetBlob = {
+        headers: (App.excelData && App.excelData.headers) || [],
+        rows: (App.excelData && App.excelData.rows) || [],
+        sheet_name: (App.excelData && App.excelData.sheetName) || '',
+        file_name: meta.fileName,
+        n_rows: meta.rowCount,
+      };
+      const chartsBlob = {
+        excelChartConfig: App.excelChartConfig,
+        customCharts: App.customCharts,
+        crossFilter: App.crossFilter,
+        drillStates: App.drillStates,
+        dashChartIdx: App.dashChartIdx,
+      };
+      let serverProj;
+      if (meta.serverId) {
+        serverProj = await _projectsApiUpdate(meta.serverId, name, datasetBlob, chartsBlob);
+      } else {
+        serverProj = await _projectsApiCreate(name, datasetBlob, chartsBlob);
+        if (serverProj && serverProj.id) {
+          meta.serverId = serverProj.id;
+          idx.projects[id] = meta;
+          saveProjectIndex(idx);
+        }
+      }
+      toast(isUpdate ? 'Project updated and synced.' : ('Project "' + name + '" saved and synced.'), 'success');
+    } catch (e) {
+      // Local save still succeeded — surface a soft warning.
+      toast('Saved locally, but server sync failed: ' + e.message, 'info');
+    }
+  } else {
+    toast(isUpdate ? 'Project updated locally.' : ('Project "' + name + '" saved locally. Sign in to sync across devices.'), 'success');
+  }
+  // Also download to device for offline portability.
   downloadProjectToDevice(name, meta);
-  toast(isUpdate ? 'Project updated!' : 'Project "' + name + '" saved!', 'success');
   updateProjectIndicator();
   return true;
 }
 
-function loadProject(id) {
+async function loadProject(id) {
   const idx = getProjectIndex();
   const meta = idx.projects[id];
   if (!meta) { toast('Project not found.', 'error'); return; }
-  try {
-    const raw = localStorage.getItem(PM_DATA_PREFIX + id);
-    if (!raw) { toast('Project data missing.', 'error'); return; }
-    const data = JSON.parse(raw);
-    restoreProjectData(data);
-    _activeProjectId = id;
-    idx.activeProjectId = id;
-    saveProjectIndex(idx);
-    closeProjectModal();
-    navigate('analytics');
-    toast('Loaded "' + meta.name + '"', 'success');
-    updateProjectIndicator();
-  } catch(e) {
-    console.error('Failed to load project:', e);
-    toast('Failed to load project — data may be corrupted.', 'error');
+  // Prefer the server copy when available (newer / cross-device data).
+  // Fall back to localStorage when offline or not signed in.
+  let restored = false;
+  if (meta.serverId && isLoggedIn()) {
+    try {
+      const proj = await _projectsApiGet(meta.serverId);
+      if (proj && proj.dataset) {
+        const ds = proj.dataset || {};
+        const ch = proj.charts || {};
+        const data = {
+          excelData: { headers: ds.headers || [], rows: ds.rows || [], sheetName: ds.sheet_name || '' },
+          excelChartConfig: ch.excelChartConfig || { labelCol: null, dataCols: [], numericCols: [], labelCols: [], chartPlan: [], metrics: [], categoricals: [], colMeta: {} },
+          customCharts: ch.customCharts || [],
+          crossFilter: ch.crossFilter || null,
+          drillStates: ch.drillStates || {},
+          dashChartIdx: ch.dashChartIdx || 0,
+          uploadedFiles: ds.file_name ? [{ name: ds.file_name }] : [],
+          hasExcelData: (ds.rows || []).length > 0,
+        };
+        restoreProjectData(data);
+        restored = true;
+      }
+    } catch (e) {
+      console.warn('Server project load failed, falling back to local:', e);
+    }
   }
+  if (!restored) {
+    try {
+      const raw = localStorage.getItem(PM_DATA_PREFIX + id);
+      if (!raw) { toast('Project data missing.', 'error'); return; }
+      restoreProjectData(JSON.parse(raw));
+      restored = true;
+    } catch(e) {
+      console.error('Failed to load project:', e);
+      toast('Failed to load project — data may be corrupted.', 'error');
+      return;
+    }
+  }
+  _activeProjectId = id;
+  idx.activeProjectId = id;
+  saveProjectIndex(idx);
+  closeProjectModal();
+  navigate('analytics');
+  toast('Loaded "' + meta.name + '"', 'success');
+  updateProjectIndicator();
 }
 
 async function deleteProject(id) {
   const idx = getProjectIndex();
   if (!idx.projects[id]) return;
-  const name = idx.projects[id].name;
+  const meta = idx.projects[id];
+  const name = meta.name;
   const ok = await showConfirm('Delete Project', 'Are you sure you want to delete "' + name + '"? This cannot be undone.', 'Delete');
   if (!ok) return;
+  // Mirror to server when applicable; if it fails the local delete still
+  // proceeds and a soft warning surfaces.
+  if (meta.serverId && isLoggedIn()) {
+    try {
+      const okServer = await _projectsApiDelete(meta.serverId);
+      if (!okServer) console.warn('Server delete returned non-OK for project ' + meta.serverId);
+    } catch (e) {
+      console.warn('Server delete failed:', e);
+    }
+  }
   delete idx.projects[id];
   if (idx.activeProjectId === id) { idx.activeProjectId = null; _activeProjectId = null; }
   saveProjectIndex(idx);
@@ -10957,10 +11105,58 @@ function newProject() {
   updateProjectIndicator();
 }
 
-function openProjectManager() {
+async function openProjectManager() {
   const overlay = $('#projectModalOverlay');
   const body = $('#projectModalBody');
   const hasData = App.hasExcelData || (App.customCharts && App.customCharts.length > 0);
+  // Pull server projects first so the list reflects what's actually saved
+  // server-side (matters cross-device, after cache clears, etc.). The
+  // server response is filtered by owner_id at the API layer; this client
+  // only ever sees its own projects.
+  if (isLoggedIn()) {
+    try {
+      const serverProjects = await _projectsApiList();
+      if (Array.isArray(serverProjects)) {
+        const idx0 = getProjectIndex();
+        // Build a fast map of existing local entries by serverId.
+        const byServerId = {};
+        Object.keys(idx0.projects || {}).forEach(localId => {
+          const m = idx0.projects[localId];
+          if (m && m.serverId) byServerId[m.serverId] = localId;
+        });
+        let touched = false;
+        serverProjects.forEach(sp => {
+          if (!byServerId[sp.id]) {
+            // Server has a project the local index doesn't know about — add a
+            // shadow entry so it shows up in the list. Data is fetched on
+            // demand in loadProject; we keep dataset_json off the index.
+            const localId = 'srv_' + sp.id;
+            idx0.projects[localId] = {
+              id: localId,
+              serverId: sp.id,
+              name: sp.name,
+              createdAt: sp.created_at,
+              updatedAt: sp.updated_at,
+              fileName: '',
+              rowCount: sp.n_rows || 0,
+              colCount: sp.n_cols || 0,
+            };
+            touched = true;
+          } else {
+            // Refresh server-known fields on the local entry.
+            const localId = byServerId[sp.id];
+            const local = idx0.projects[localId];
+            local.name = sp.name;
+            local.updatedAt = sp.updated_at;
+            local.rowCount = sp.n_rows || local.rowCount || 0;
+            local.colCount = sp.n_cols || local.colCount || 0;
+            touched = true;
+          }
+        });
+        if (touched) saveProjectIndex(idx0);
+      }
+    } catch (e) { console.warn('Server project list failed:', e); }
+  }
   const idx = getProjectIndex();
   const defaultName = _activeProjectId && idx.projects[_activeProjectId] ? idx.projects[_activeProjectId].name : (App.uploadedFiles.length > 0 ? App.uploadedFiles[0].name.replace(/\.[^.]+$/, '') : 'My Project');
 
@@ -11951,25 +12147,12 @@ async function handleAskData() {
     answerEl.innerHTML = html;
     if (data.chart && data.chart.type !== 'stats') {
       initAskChart(data.chart);
-      // Add to custom charts grid
-      if (data.chart.labels && data.chart.values && data.chart.labels.length > 0) {
-        var askCustomChart = {
-          type: data.chart.type === 'doughnut' || data.chart.type === 'pie' ? 'donut' : data.chart.type,
-          title: question,
-          labels: data.chart.labels,
-          data: data.chart.values,
-          color: 'cyan',
-          desc: data.answer || ''
-        };
-        var isDup = App.customCharts.some(function(c) {
-          return c.title === askCustomChart.title && c.type === askCustomChart.type;
-        });
-        if (!isDup) {
-          App.customCharts.unshift(askCustomChart);
-          navigate('analytics');
-          setTimeout(function() { drawCustomCharts(); }, 200);
-        }
-      }
+      // Inline-render only. Do NOT auto-pin to App.customCharts here —
+      // that was the cause of "I click a suggestion and the chart appears
+      // at the bottom of the page". The chart is already shown in the
+      // answer card right next to the question; the explicit "Pin to
+      // Dashboard" button (rendered by renderAskChart) is the single
+      // path for promoting an inline preview into the dashboard.
     }
   } catch(e) {
     if (e.message === 'NO_KEY') answerEl.innerHTML = aiNoAuthHTML();
@@ -11986,8 +12169,11 @@ function renderAskChart(chart) {
   }
   if (chart.labels && chart.values && chart.labels.length > 0 && chart.values.length > 0) {
     return '<div class="chart-container" style="height:220px;margin-top:8px"><canvas id="askChartCanvas"></canvas></div>' +
-      '<button class="btn btn-ghost" style="margin-top:8px;font-size:11px;padding:4px 12px;" onclick="pinAskChart()" title="Add this chart to your dashboard">' +
-      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Pin to Dashboard</button>';
+      '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;">' +
+      '<button class="btn btn-ghost" style="font-size:11px;padding:4px 12px;" onclick="pinAskChart()" title="Add this chart to your dashboard">' +
+      '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Add to Dashboard</button>' +
+      '<span style="font-size:10px;color:var(--text-tertiary);">Preview only — click to keep this chart.</span>' +
+      '</div>';
   }
   return '';
 }

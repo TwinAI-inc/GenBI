@@ -65,3 +65,64 @@ class PasswordResetToken(db.Model):
     @property
     def is_used(self):
         return self.used_at is not None
+
+
+class Project(db.Model):
+    """Saved user workspace.
+
+    Stores enough state to restore the user's analytics view: the dataset
+    they uploaded (rows, headers, original file name) plus their custom
+    chart layout. Multi-tenant isolation is enforced at the application
+    layer — every read/write must filter by ``owner_id`` against the
+    authenticated user.
+
+    Storage strategy: dataset and charts are JSON blobs on a single row.
+    For very large uploads this is denormalised; we cap project payloads
+    at the API layer (see services.project_service.MAX_PAYLOAD_BYTES).
+    """
+
+    __tablename__ = 'projects'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    owner_id = db.Column(db.String(36), db.ForeignKey('users.id', ondelete='CASCADE'),
+                         nullable=False, index=True)
+    name = db.Column(db.String(200), nullable=False)
+    # Original dataset blob: { headers: [...], rows: [...], file_name, n_rows, sheet_name? }
+    dataset_json = db.Column(db.JSON, nullable=False, default=dict)
+    # Saved chart layout: { chartPlan, customCharts, kpis, theme, ... }
+    charts_json = db.Column(db.JSON, nullable=False, default=dict)
+    # Approximate size in bytes of the JSON payload (computed at write time)
+    # so we can enforce per-user storage quotas without re-serialising.
+    size_bytes = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True),
+                           default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime(timezone=True),
+                           default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    owner = db.relationship('User', backref=db.backref('projects', lazy='dynamic',
+                                                       cascade='all, delete-orphan'))
+
+    def to_summary(self):
+        """List view — does NOT include the dataset rows or chart blob."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'n_rows': (self.dataset_json or {}).get('n_rows', 0),
+            'n_cols': len((self.dataset_json or {}).get('headers', [])),
+            'size_bytes': self.size_bytes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    def to_full(self):
+        """Detail view — includes everything needed to restore the workspace."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'dataset': self.dataset_json or {},
+            'charts': self.charts_json or {},
+            'size_bytes': self.size_bytes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }

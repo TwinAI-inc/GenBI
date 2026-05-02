@@ -1801,6 +1801,74 @@ IMPORTANT: Return ONLY the JSON object above. No markdown. No code fences. Each 
         except Exception as e:
             return _ai_error_response(e)
 
+    # ── Projects: save / load user workspaces (multi-tenant isolated) ─────
+    # Every endpoint reads request._billing_user (set by _inject_billing_user)
+    # and passes that into the service layer; the service filters every query
+    # by owner_id, so cross-user reads / writes are structurally impossible.
+
+    from services import project_service
+
+    def _project_user_id():
+        u = getattr(request, '_billing_user', None)
+        return u.id if u else None
+
+    def _project_error_response(e):
+        return jsonify({'error': str(e)}), getattr(e, 'status', 400)
+
+    @app.route('/api/projects', methods=['GET'])
+    @limiter.limit('60/minute')
+    def projects_list():
+        try:
+            return jsonify({'projects': project_service.list_projects(_project_user_id())})
+        except project_service.ProjectError as e:
+            return _project_error_response(e)
+
+    @app.route('/api/projects', methods=['POST'])
+    @limiter.limit('20/minute')
+    def projects_create():
+        try:
+            data = request.get_json(silent=True) or {}
+            return jsonify(project_service.create_project(
+                user_id=_project_user_id(),
+                name=data.get('name', ''),
+                dataset=data.get('dataset', {}),
+                charts=data.get('charts', {}),
+            )), 201
+        except project_service.ProjectError as e:
+            return _project_error_response(e)
+
+    @app.route('/api/projects/<project_id>', methods=['GET'])
+    @limiter.limit('60/minute')
+    def projects_get(project_id):
+        try:
+            return jsonify(project_service.get_project(_project_user_id(), project_id))
+        except project_service.ProjectError as e:
+            return _project_error_response(e)
+
+    @app.route('/api/projects/<project_id>', methods=['PUT'])
+    @limiter.limit('20/minute')
+    def projects_update(project_id):
+        try:
+            data = request.get_json(silent=True) or {}
+            return jsonify(project_service.update_project(
+                user_id=_project_user_id(),
+                project_id=project_id,
+                name=data.get('name'),
+                dataset=data.get('dataset'),
+                charts=data.get('charts'),
+            ))
+        except project_service.ProjectError as e:
+            return _project_error_response(e)
+
+    @app.route('/api/projects/<project_id>', methods=['DELETE'])
+    @limiter.limit('20/minute')
+    def projects_delete(project_id):
+        try:
+            project_service.delete_project(_project_user_id(), project_id)
+            return jsonify({'ok': True})
+        except project_service.ProjectError as e:
+            return _project_error_response(e)
+
     return app
 
 
