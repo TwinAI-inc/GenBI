@@ -92,28 +92,81 @@ def create_project(user_id: str, name: str, dataset: dict, charts: dict):
     if len(name) > 200:
         raise ProjectError('Project name too long (max 200 chars)', 400)
     size = _validate_payload(dataset, charts)
-    # Enforce per-user cap.
-    count = Project.query.filter(Project.owner_id == user_id).count()
-    if count >= MAX_PROJECTS_PER_USER:
-        raise ProjectError(
-            f'Project limit reached ({MAX_PROJECTS_PER_USER}). '
-            f'Delete an existing project before saving a new one.', 409)
-    p = Project(owner_id=user_id, name=name,
-                dataset_json=dataset, charts_json=charts,
-                size_bytes=size)
-    db.session.add(p)
-    db.session.commit()
-    return p.to_full()
+
+    # Race protection: two concurrent POSTs from the same user could each
+    # observe count < MAX_PROJECTS_PER_USER and both commit, exceeding the
+    # cap. Take a row-level lock on the user record for the duration of
+    # the count+insert so the second request blocks until the first
+    # finishes. Cheap on Postgres; on SQLite the lock is process-wide
+    # (single writer), which is also fine.
+    from auth.models import User
+    locked_user = (User.query
+                       .filter(User.id == user_id)
+                       .with_for_update()
+                       .first())
+    if not locked_user:
+        # Authenticated session pointed at a now-deleted user — extremely
+        # unlikely but worth a defensive 401 rather than a 500.
+        db.session.rollback()
+        raise ProjectError('Authentication required', 401)
+
+    try:
+        count = Project.query.filter(Project.owner_id == user_id).count()
+        if count >= MAX_PROJECTS_PER_USER:
+            db.session.rollback()
+            raise ProjectError(
+                f'Project limit reached ({MAX_PROJECTS_PER_USER}). '
+                f'Delete an existing project before saving a new one.', 409)
+        p = Project(owner_id=user_id, name=name,
+                    dataset_json=dataset, charts_json=charts,
+                    size_bytes=size)
+        db.session.add(p)
+        db.session.commit()
+        return p.to_full()
+    except ProjectError:
+        raise
+    except Exception:
+        db.session.rollback()
+        raise
 
 
 def update_project(user_id: str, project_id: str, name=None,
-                   dataset=None, charts=None):
+                   dataset=None, charts=None, expected_updated_at=None):
+    """Update a project. Optionally pass ``expected_updated_at`` (the
+    ``updated_at`` value the client last read) for optimistic concurrency
+    control: if it doesn't match the current row, return 409 Conflict
+    instead of overwriting.
+
+    This is the ETag/If-Match pattern adapted to a JSON API. Without it,
+    two tabs editing the same project race and the slower request silently
+    clobbers the faster one — a real data-loss path, especially given the
+    feature is explicitly cross-device.
+    """
     p = Project.query.filter(
         Project.id == project_id,
         Project.owner_id == user_id,
     ).first()
     if not p:
         raise ProjectError('Project not found', 404)
+    if expected_updated_at:
+        # Compare on second precision to tolerate timezone-format round-trip
+        # noise; if the client and server disagree on the timestamp, the
+        # client is operating on stale state.
+        try:
+            from datetime import datetime as _dt
+            server_iso = p.updated_at.isoformat() if p.updated_at else ''
+            # Allow exact match OR equality up to the seconds field, since
+            # JSON / Python timestamp round-trips can drop microseconds.
+            if expected_updated_at != server_iso and \
+               expected_updated_at[:19] != server_iso[:19]:
+                raise ProjectError(
+                    'Project was modified by another session — reload before saving.',
+                    409)
+        except ProjectError:
+            raise
+        except Exception:
+            # Malformed timestamp from client — be permissive but log.
+            pass
     if name is not None:
         name = name.strip()
         if not name:

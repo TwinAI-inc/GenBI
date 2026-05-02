@@ -1808,6 +1808,28 @@ IMPORTANT: Return ONLY the JSON object above. No markdown. No code fences. Each 
 
     from services import project_service
 
+    # Hard pre-parse request-body cap on project writes. Flask's get_json()
+    # will deserialise whatever it receives, so a 200 MB body can chew worker
+    # memory before any post-parse quota check has a chance to reject it.
+    # Cap is set slightly above the stored-payload cap (8 MB) to allow for
+    # JSON encoding overhead without legitimate saves bouncing.
+    PROJECT_MAX_REQUEST_BYTES = 9 * 1024 * 1024
+
+    @app.before_request
+    def _enforce_project_body_size():
+        path = request.path or ''
+        if not path.startswith('/api/projects'):
+            return None
+        if request.method not in ('POST', 'PUT'):
+            return None
+        cl = request.content_length
+        if cl is not None and cl > PROJECT_MAX_REQUEST_BYTES:
+            return jsonify({
+                'error': f'Request too large ({cl:,} bytes). '
+                         f'Limit is {PROJECT_MAX_REQUEST_BYTES:,} bytes.'
+            }), 413
+        return None
+
     def _project_user_id():
         u = getattr(request, '_billing_user', None)
         return u.id if u else None
@@ -1856,6 +1878,7 @@ IMPORTANT: Return ONLY the JSON object above. No markdown. No code fences. Each 
                 name=data.get('name'),
                 dataset=data.get('dataset'),
                 charts=data.get('charts'),
+                expected_updated_at=data.get('expected_updated_at'),
             ))
         except project_service.ProjectError as e:
             return _project_error_response(e)

@@ -10610,13 +10610,18 @@ async function _projectsApiCreate(name, dataset, charts) {
   }
   return r.json();
 }
-async function _projectsApiUpdate(id, name, dataset, charts) {
+async function _projectsApiUpdate(id, name, dataset, charts, expectedUpdatedAt) {
   if (!isLoggedIn()) return null;
   const token = _getAuthToken();
   const body = {};
   if (name !== undefined) body.name = name;
   if (dataset !== undefined) body.dataset = dataset;
   if (charts !== undefined) body.charts = charts;
+  // Optimistic-concurrency precondition. Server returns 409 if the row's
+  // updated_at no longer matches what we last read — meaning another tab
+  // or device has saved over us. We surface that as a clear error rather
+  // than silently overwriting the newer state.
+  if (expectedUpdatedAt) body.expected_updated_at = expectedUpdatedAt;
   const r = await fetch('/api/projects/' + encodeURIComponent(id), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
@@ -10624,6 +10629,11 @@ async function _projectsApiUpdate(id, name, dataset, charts) {
   });
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
+    if (r.status === 409) {
+      const e = new Error(err.error || 'Project was modified elsewhere — reload before saving.');
+      e.conflict = true;
+      throw e;
+    }
     throw new Error(err.error || ('Save failed (' + r.status + ')'));
   }
   return r.json();
@@ -10981,19 +10991,31 @@ async function saveProject(name) {
       };
       let serverProj;
       if (meta.serverId) {
-        serverProj = await _projectsApiUpdate(meta.serverId, name, datasetBlob, chartsBlob);
+        // Send the last-seen updated_at so the server can detect cross-
+        // device / cross-tab races and reject with 409 instead of silently
+        // overwriting newer state.
+        serverProj = await _projectsApiUpdate(
+          meta.serverId, name, datasetBlob, chartsBlob,
+          meta.serverUpdatedAt || null);
       } else {
         serverProj = await _projectsApiCreate(name, datasetBlob, chartsBlob);
         if (serverProj && serverProj.id) {
           meta.serverId = serverProj.id;
           idx.projects[id] = meta;
-          saveProjectIndex(idx);
         }
+      }
+      if (serverProj && serverProj.updated_at) {
+        meta.serverUpdatedAt = serverProj.updated_at;
+        idx.projects[id] = meta;
+        saveProjectIndex(idx);
       }
       toast(isUpdate ? 'Project updated and synced.' : ('Project "' + name + '" saved and synced.'), 'success');
     } catch (e) {
-      // Local save still succeeded — surface a soft warning.
-      toast('Saved locally, but server sync failed: ' + e.message, 'info');
+      if (e && e.conflict) {
+        toast('Save blocked: project was changed in another session. Reload from My Projects to merge.', 'error');
+      } else {
+        toast('Saved locally, but server sync failed: ' + e.message, 'info');
+      }
     }
   } else {
     toast(isUpdate ? 'Project updated locally.' : ('Project "' + name + '" saved locally. Sign in to sync across devices.'), 'success');
@@ -11015,6 +11037,13 @@ async function loadProject(id) {
     try {
       const proj = await _projectsApiGet(meta.serverId);
       if (proj && proj.dataset) {
+        // Track the server's updated_at so the next save sends it as the
+        // optimistic-concurrency precondition.
+        if (proj.updated_at) {
+          meta.serverUpdatedAt = proj.updated_at;
+          idx.projects[id] = meta;
+          saveProjectIndex(idx);
+        }
         const ds = proj.dataset || {};
         const ch = proj.charts || {};
         const data = {
@@ -11134,6 +11163,7 @@ async function openProjectManager() {
             idx0.projects[localId] = {
               id: localId,
               serverId: sp.id,
+              serverUpdatedAt: sp.updated_at,
               name: sp.name,
               createdAt: sp.created_at,
               updatedAt: sp.updated_at,
@@ -11148,6 +11178,7 @@ async function openProjectManager() {
             const local = idx0.projects[localId];
             local.name = sp.name;
             local.updatedAt = sp.updated_at;
+            local.serverUpdatedAt = sp.updated_at;
             local.rowCount = sp.n_rows || local.rowCount || 0;
             local.colCount = sp.n_cols || local.colCount || 0;
             touched = true;
@@ -11260,14 +11291,25 @@ function renderProjectList() {
     container.innerHTML = '<div class="pm-empty">No saved projects yet.</div>';
     return;
   }
+  // Project name and fileName now flow through server-backed storage, so
+  // they are persisted across sessions and could carry hostile HTML from
+  // an earlier upload or save. Escape every interpolation point. id is
+  // also escaped — if it ever contains a quote it would break out of the
+  // attribute and execute. Numbers are coerced via Number(...) so a
+  // crafted numeric-looking string can't smuggle markup either.
   container.innerHTML = '<div class="pm-project-list-title">Saved Projects (' + projects.length + ')</div>' +
     '<div class="pm-project-list">' + projects.map(function(p) {
       const isActive = p.id === _activeProjectId;
-      return '<div class="pm-project-item' + (isActive ? ' active' : '') + '" onclick="loadProject(\'' + p.id + '\')">' +
-        '<div class="pm-project-info"><div class="pm-project-name">' + p.name + '</div>' +
-        '<div class="pm-project-meta"><span>' + (p.fileName || 'No file') + '</span><span>' + p.rowCount + ' rows, ' + p.colCount + ' cols</span><span>' + timeAgo(p.updatedAt) + '</span></div></div>' +
+      const safeId = escHtml(p.id);
+      const safeName = escHtml(p.name || 'Untitled');
+      const safeFile = escHtml(p.fileName || 'No file');
+      const rowCount = Number(p.rowCount) || 0;
+      const colCount = Number(p.colCount) || 0;
+      return '<div class="pm-project-item' + (isActive ? ' active' : '') + '" data-project-id="' + safeId + '" onclick="loadProject(this.dataset.projectId)">' +
+        '<div class="pm-project-info"><div class="pm-project-name">' + safeName + '</div>' +
+        '<div class="pm-project-meta"><span>' + safeFile + '</span><span>' + rowCount + ' rows, ' + colCount + ' cols</span><span>' + escHtml(timeAgo(p.updatedAt)) + '</span></div></div>' +
         (isActive ? '<span class="pm-project-badge">Active</span>' : '') +
-        '<button class="pm-project-delete" onclick="event.stopPropagation();deleteProject(\'' + p.id + '\')" title="Delete project"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div>';
+        '<button class="pm-project-delete" data-project-id="' + safeId + '" onclick="event.stopPropagation();deleteProject(this.dataset.projectId)" title="Delete project"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button></div>';
     }).join('') + '</div>';
 }
 
