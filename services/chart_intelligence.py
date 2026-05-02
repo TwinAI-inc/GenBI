@@ -26,6 +26,10 @@ CHART_FAMILIES = {
     'geographic': ['usmap', 'worldmap'],
 }
 
+# Flat set of every chart type the renderer actually supports. Used to reject
+# unknown LLM output before it reaches the dashboard.
+ALL_CHART_TYPES = {t for types in CHART_FAMILIES.values() for t in types}
+
 # ── Data Profiler ─────────────────────────────────────────────────────────────
 
 def profile_data(headers, rows, max_sample=50):
@@ -63,8 +67,15 @@ def profile_data(headers, rows, max_sample=50):
         # Geographic detection
         is_geo = _detect_geographic(h, unique[:20])
 
-        # Boolean detection
-        is_boolean = set(s.lower() for s in unique) <= {'true', 'false', 'yes', 'no', '1', '0', 't', 'f', 'y', 'n'}
+        # Boolean detection — require at least one real value, otherwise an
+        # all-null column would silently match the empty-set subset rule and
+        # be reported as boolean to the LLM.
+        is_empty = len(unique) == 0
+        is_boolean = (
+            not is_empty
+            and set(s.lower() for s in unique)
+                <= {'true', 'false', 'yes', 'no', '1', '0', 't', 'f', 'y', 'n'}
+        )
 
         # ID/Index detection
         is_id = bool(_is_id_column(h, is_numeric, unique, len(vals)))
@@ -83,7 +94,15 @@ def profile_data(headers, rows, max_sample=50):
                 }
 
         col_profile = {
-            'type': 'date' if is_date else 'geographic' if is_geo else 'boolean' if is_boolean else 'numeric' if (is_numeric and not is_id) else 'id' if is_id else 'categorical',
+            'type': (
+                'empty' if is_empty else
+                'date' if is_date else
+                'geographic' if is_geo else
+                'boolean' if is_boolean else
+                'numeric' if (is_numeric and not is_id) else
+                'id' if is_id else
+                'categorical'
+            ),
             'cardinality': len(unique),
             'null_pct': round((n_rows - len(vals)) / n_rows * 100, 1),
             'sample_values': unique[:8],
@@ -250,35 +269,63 @@ Generate 8-12 total candidates. The top {max_charts} by insight_score will be di
         # Validate and enforce guardrails
         chart_plan = _validate_guardrails(chart_plan, profile)
 
-        # Sort by insight score descending, pick top N
+        # Sort by insight score descending, then apply diversity selection.
         chart_plan.sort(key=lambda c: c.get('insight_score', 0), reverse=True)
-        chart_plan = chart_plan[:max_charts]
+        chart_plan = _select_diverse(chart_plan, max_charts)
+
+        # If LLM output is unusable for any reason, fall back to a deterministic
+        # rule-based planner so the dashboard never returns an empty plan.
+        if not chart_plan:
+            logger.warning('LLM chart plan empty after validation; using rule-based fallback')
+            chart_plan = _fallback_chart_plan(profile, max_charts)
 
         logger.info(f'Final chart plan: {len(chart_plan)} charts, scores: {[c.get("insight_score", 0) for c in chart_plan]}')
         return chart_plan
 
     except json.JSONDecodeError as e:
         logger.error(f'Failed to parse chart plan JSON: {e}')
-        return []
+        return _fallback_chart_plan(profile, max_charts)
     except Exception as e:
         logger.error(f'Chart plan generation failed: {e}')
-        return []
+        return _fallback_chart_plan(profile, max_charts)
 
 
 # ── Guardrail Validator ───────────────────────────────────────────────────────
 
 def _validate_guardrails(plan, profile):
-    """Validate and fix chart plan against guardrails."""
+    """Validate and fix chart plan against guardrails.
+
+    Rejects charts that don't conform to the renderer's contract: must be a
+    dict, must have a recognised type, and must reference real columns when
+    they specify any. Family-diversity selection is handled separately by
+    ``_select_diverse`` after this pass.
+    """
     validated = []
-    family_counts = {}
+
+    if not isinstance(plan, list):
+        return validated
+
+    valid_columns = set((profile or {}).get('columns', {}).keys())
 
     for chart in plan:
-        chart_type = chart.get('type', 'bar')
-        family = chart.get('family', _get_family(chart_type))
-
-        # Allow up to 2 charts per family for variety
-        if family_counts.get(family, 0) >= 2:
+        if not isinstance(chart, dict):
             continue
+
+        chart_type = chart.get('type', 'bar')
+        # Coerce unknown types to the closest safe default rather than letting
+        # them reach the renderer (where they would silently render nothing).
+        if chart_type not in ALL_CHART_TYPES:
+            chart_type = 'bar'
+            chart['type'] = 'bar'
+            chart['guardrail_notes'] = 'Coerced unknown chart type to bar'
+        family = chart.get('family', _get_family(chart_type))
+        chart['family'] = family
+
+        # Drop charts that reference columns that don't exist in the dataset.
+        for key in ('xCol', 'yCol', 'groupCol'):
+            ref = chart.get(key)
+            if ref and valid_columns and ref not in valid_columns:
+                chart[key] = None
 
         # Donut cardinality check
         if chart_type == 'donut':
@@ -324,9 +371,140 @@ def _validate_guardrails(plan, profile):
                     chart['guardrail_notes'] = f'Limited to top 4 series (from {card})'
 
         validated.append(chart)
-        family_counts[family] = family_counts.get(family, 0) + 1
 
     return validated
+
+
+def _select_diverse(plan, max_charts):
+    """Pick up to ``max_charts`` charts with one-per-family priority.
+
+    First pass: best-scoring chart from each family, in family order. Second
+    pass: fill any remaining slots from the leftovers (allowing repeat
+    families) by score. Guarantees the returned plan covers the maximum
+    number of distinct families before any family is duplicated.
+    """
+    if not plan or max_charts <= 0:
+        return []
+
+    by_family = {}
+    for chart in plan:
+        family = chart.get('family') or _get_family(chart.get('type', 'bar'))
+        by_family.setdefault(family, []).append(chart)
+
+    selected = []
+    taken_ids = set()
+
+    # First pass: one chart per family, best score first.
+    for family, charts in by_family.items():
+        charts.sort(key=lambda c: c.get('insight_score', 0), reverse=True)
+        if len(selected) >= max_charts:
+            break
+        best = charts[0]
+        selected.append(best)
+        taken_ids.add(id(best))
+
+    # Second pass: fill remaining slots by overall score, allowing repeats.
+    remaining = [c for c in plan if id(c) not in taken_ids]
+    remaining.sort(key=lambda c: c.get('insight_score', 0), reverse=True)
+    for chart in remaining:
+        if len(selected) >= max_charts:
+            break
+        selected.append(chart)
+
+    return selected
+
+
+def _fallback_chart_plan(profile, max_charts):
+    """Deterministic rule-based chart plan used when the LLM path fails or
+    returns nothing usable. Picks one representative chart per applicable
+    family from the data profile.
+    """
+    if not profile or not profile.get('columns'):
+        return []
+
+    cols = profile['columns']
+    by_type = {t: [] for t in ('numeric', 'date', 'categorical', 'geographic', 'boolean')}
+    for name, info in cols.items():
+        t = info.get('type')
+        if t in by_type:
+            by_type[t].append((name, info))
+
+    plan = []
+
+    def add(chart):
+        chart.setdefault('family', _get_family(chart.get('type', 'bar')))
+        chart.setdefault('insight_score', 5.0)
+        chart.setdefault('color', 'cyan')
+        chart.setdefault('guardrail_notes', 'Rule-based fallback')
+        plan.append(chart)
+
+    numeric = by_type['numeric']
+    dates   = by_type['date']
+    cats    = by_type['categorical']
+    geos    = by_type['geographic']
+
+    # 1. Trend: first date column × first numeric column.
+    if dates and numeric:
+        add({
+            'type': 'line', 'title': f'{numeric[0][0]} over {dates[0][0]}',
+            'xCol': dates[0][0], 'yCol': numeric[0][0], 'aggFn': 'sum',
+            'desc': f'Trend of {numeric[0][0]} across {dates[0][0]}.',
+        })
+
+    # 2. Comparison: first low-cardinality categorical × first numeric.
+    cat_pick = next(
+        ((n, i) for n, i in cats if 2 <= i.get('cardinality', 0) <= 30),
+        None,
+    )
+    if cat_pick and numeric:
+        add({
+            'type': 'bar', 'title': f'{numeric[0][0]} by {cat_pick[0]}',
+            'xCol': cat_pick[0], 'yCol': numeric[0][0], 'aggFn': 'sum',
+            'maxItems': 8,
+            'desc': f'{numeric[0][0]} broken down by {cat_pick[0]}.',
+        })
+
+    # 3. Composition: small-cardinality categorical (<=6) -> donut.
+    small_cat = next(
+        ((n, i) for n, i in cats if 2 <= i.get('cardinality', 0) <= 6),
+        None,
+    )
+    if small_cat and numeric:
+        add({
+            'type': 'donut', 'title': f'{numeric[0][0]} share by {small_cat[0]}',
+            'xCol': small_cat[0], 'yCol': numeric[0][0], 'aggFn': 'sum',
+            'desc': f'Share of {numeric[0][0]} across {small_cat[0]}.',
+        })
+
+    # 4. Relationship: highest-correlation numeric pair.
+    correlations = profile.get('correlations') or []
+    if correlations:
+        best = correlations[0]
+        add({
+            'type': 'scatter', 'title': f'{best["col1"]} vs {best["col2"]}',
+            'xCol': best['col1'], 'yCol': best['col2'],
+            'desc': f'Relationship between {best["col1"]} and {best["col2"]} (r = {best["correlation"]}).',
+        })
+
+    # 5. Distribution: first numeric -> boxplot.
+    if numeric:
+        add({
+            'type': 'boxplot', 'title': f'Distribution of {numeric[0][0]}',
+            'yCol': numeric[0][0],
+            'desc': f'Spread, median, and outliers of {numeric[0][0]}.',
+        })
+
+    # 6. Geographic: any geo column with a numeric measure.
+    if geos and numeric:
+        geo_name, geo_info = geos[0]
+        chart_type = 'usmap' if geo_info.get('geo_type') == 'us_state' else 'worldmap'
+        add({
+            'type': chart_type, 'title': f'{numeric[0][0]} by {geo_name}',
+            'xCol': geo_name, 'yCol': numeric[0][0], 'aggFn': 'sum',
+            'desc': f'{numeric[0][0]} distribution across {geo_name}.',
+        })
+
+    return plan[:max_charts]
 
 
 # ── Helper Functions ──────────────────────────────────────────────────────────

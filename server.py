@@ -1280,10 +1280,13 @@ Rules:
     @app.route('/api/map/us', methods=['POST'])
     def render_us_map():
         """Generate US choropleth map HTML using Plotly."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         try:
             import plotly.express as px
             import pandas as pd
-            data = request.get_json()
+            data = request.get_json(silent=True) or {}
             raw_data = data.get('data', {})  # {"CA": 100, "Indiana": 200, ...}
             title = data.get('title', 'US Map')
             value_label = data.get('valueLabel', 'Value')
@@ -1344,10 +1347,13 @@ Rules:
     @app.route('/api/map/world', methods=['POST'])
     def render_world_map():
         """Generate world choropleth map HTML using Plotly."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
         try:
             import plotly.express as px
             import pandas as pd
-            data = request.get_json()
+            data = request.get_json(silent=True) or {}
             country_data = data.get('data', {})
             title = data.get('title', 'World Map')
             value_label = data.get('valueLabel', 'Value')

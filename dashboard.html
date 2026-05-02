@@ -3633,12 +3633,15 @@ function renderAnalytics() {
       ${ec.chartPlan.map((chart, i) => {
         const curType = chart._userType || chart.type;
         const curColor = chart._userColor || chart.color || 'cyan';
-        const desc = (chart.desc || '').replace(/'/g, '&#39;');
+        // AI-derived strings are HTML-escaped — chart.title and chart.desc come from
+        // LLM output, so naive interpolation is an XSS / prompt-injection sink.
+        const safeTitle = escHtml(chart.title || '');
+        const desc = escHtml(chart.desc || '');
         const isLine = (curType === 'line');
         const widthCls = chartWidthClass(chart, i, ec.chartPlan.length);
         const scoreHtml = chart.insight_score ? '<span class="insight-score" title="Insight Score: ' + chart.insight_score.toFixed(1) + '/10">' + chart.insight_score.toFixed(1) + '</span>' : '';
         const catBadge = chart.category ? '<span class="chart-cat-badge">' + ({A_single:'Single',B_combined:'Combined',C_derived:'Derived'}[chart.category] || '') + '</span>' : '';
-        return '<div class="' + widthCls + ' reveal-step" style="animation-delay:' + (i * 100) + 'ms"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + chart.title + scoreHtml + catBadge + '</h2>' +
+        return '<div class="' + widthCls + ' reveal-step" style="animation-delay:' + (i * 100) + 'ms"><div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">' + safeTitle + scoreHtml + catBadge + '</h2>' +
           '<div style="display:flex;align-items:center;gap:6px">' +
           '<button class="chart-clear-btn" onclick="event.stopPropagation();removeChart(' + i + ')" title="Remove chart"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Clear</button>' +
           '<span id="anomalyBadge' + i + '"></span>' +
@@ -3686,8 +3689,10 @@ function renderAnalytics() {
     </div>`;
   }
   const customChartsHTML = App.customCharts && App.customCharts.length > 0 ? `<div style="margin-bottom:24px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><h2 style="font-family:Inter;font-size:16px;font-weight:600">Your Custom Charts</h2><div style="display:flex;align-items:center;gap:12px"><span style="font-size:12px;color:var(--text-tertiary)">${App.customCharts.length} chart${App.customCharts.length>1?'s':''}</span><button onclick="clearAllCustomCharts()" style="font-size:11px;padding:5px 14px;border-radius:8px;background:rgba(255,107,157,0.08);border:1px solid rgba(255,107,157,0.18);color:var(--accent-rose);cursor:pointer;transition:all .15s;font-family:Inter,sans-serif;font-weight:500" onmouseover="this.style.background='rgba(255,107,157,0.18)'" onmouseout="this.style.background='rgba(255,107,157,0.08)'">Clear All</button></div></div><div style="display:grid;grid-template-columns:1fr;gap:20px">${App.customCharts.map((c,i) => {
-    const desc = (c.desc || 'Custom chart created via Chart Assistant.').replace(/'/g, '&#39;');
-    return '<div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">'+c.title+'</h2>' +
+    // AI-derived strings escaped — same XSS concern as the analytics card path.
+    const desc = escHtml(c.desc || 'Custom chart created via Chart Assistant.');
+    const safeCustomTitle = escHtml(c.title || '');
+    return '<div class="glass-panel" style="position:relative"><div class="panel-header"><h2 class="panel-title">'+safeCustomTitle+'</h2>' +
       '<div style="display:flex;gap:6px;align-items:center">' +
       '<button class="ask-ai-btn" onclick="openAskAiModal(\'custom\',' + i + ',event)" title="Ask AI"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Ask AI</button>' +
       '<div class="chart-actions-bolt">' +
@@ -9883,18 +9888,36 @@ function initAnalyticsCharts() {
       }
     });
   }, 1000);
-  // Hide chart cards that failed to render (no _chartHit means draw didn't complete)
+  // Render-state machine. Mark every card as pending up front; the per-type
+  // draw functions set canvas._chartHit when they finish successfully. After a
+  // generous safety window we promote pending cards to ready or failed based
+  // on the presence of _chartHit AND non-zero canvas dimensions. Only failed
+  // cards are hidden — slow geo / Plotly renders no longer disappear at 1.5s.
+  ec.chartPlan.forEach(function(chart, i) {
+    var cv = document.getElementById('analyticsChart' + i);
+    if (!cv) return;
+    var card = cv.closest('.glass-panel');
+    if (card) card.dataset.renderState = 'pending';
+  });
   setTimeout(function() {
     ec.chartPlan.forEach(function(chart, i) {
       var cv = document.getElementById('analyticsChart' + i);
       if (!cv) return;
-      // If canvas has zero dimensions or no chart hit data, the chart didn't render
-      if (cv.width === 0 || cv.height === 0 || !cv._chartHit) {
-        var card = cv.closest('.glass-panel');
-        if (card && card.parentElement) card.parentElement.style.display = 'none';
+      var card = cv.closest('.glass-panel');
+      if (!card) return;
+      var hit = cv._chartHit;
+      var hasDims = cv.width > 0 && cv.height > 0;
+      if (hit) {
+        card.dataset.renderState = 'ready';
+      } else if (!hasDims) {
+        // Genuine render failure: zero-dimension canvas with no hit data.
+        card.dataset.renderState = 'failed';
+        if (card.parentElement) card.parentElement.style.display = 'none';
       }
+      // If !hit but dims are non-zero, leave as 'pending' — the chart may
+      // still be in flight (notably Plotly maps that fetch topojson).
     });
-  }, 1500);
+  }, 8000);
   // Draw custom user-created charts
   drawCustomCharts();
   // Register charts in Visual Editor after render
