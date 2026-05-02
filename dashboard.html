@@ -4839,8 +4839,14 @@ function _riskToggleFactor(id) {
   if (!w.selected) return;
   if (w.selected.has(id)) w.selected.delete(id);
   else w.selected.add(id);
-  // Invalidate downstream state — ranking and simulation must re-run.
-  w.simulations = null; w.narrative = null;
+  // Invalidate ALL downstream state — ranking, simulation, and narrative
+  // are all stale once the factor selection changes.
+  w.ranked = null; w.simulations = null; w.narrative = null;
+  // Also update the in-place selected count without re-rendering everything,
+  // so the user gets fast feedback on click.
+  const counter = document.getElementById('riskSelCount');
+  if (counter) counter.textContent = w.selected.size;
+  // Re-render the cards so the checkmark / sel border updates.
   _riskRenderStep1(document.getElementById('riskWizBody'));
 }
 
@@ -4864,6 +4870,10 @@ function _riskWizardStep2(useCache) {
   }).then(r => r.json()).then(data => {
     if (data.error) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
     w.ranked = data.factors || [];
+    // Re-ranking invalidates the Monte Carlo distribution and AI narrative,
+    // because both were computed against the previous ranking. Step 3 will
+    // re-fire its endpoints when entered.
+    w.simulations = null; w.narrative = null;
     _riskRenderStep2(body);
   }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Ranking failed.</div>'; });
 }
