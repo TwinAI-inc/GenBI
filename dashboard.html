@@ -9599,10 +9599,15 @@ function animateChartFromPlan(canvas, chart, delay) {
       const abort = new AbortController();
       canvas._mapAbort = abort;
 
+      // Map endpoints now require auth (fixed in Phase 1); send the same
+      // bearer token that fetchAI uses so the choropleth still renders.
+      var _mapToken = (typeof _getAuthToken === 'function') ? _getAuthToken() : '';
+      var _mapHeaders = { 'Content-Type': 'application/json' };
+      if (_mapToken) _mapHeaders['Authorization'] = 'Bearer ' + _mapToken;
       fetch(endpoint, {
         method: 'POST',
         signal: abort.signal,
-        headers: { 'Content-Type': 'application/json' },
+        headers: _mapHeaders,
         body: JSON.stringify({
           data: dataMap,
           title: chart.title || '',

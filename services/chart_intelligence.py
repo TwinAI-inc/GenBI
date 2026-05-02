@@ -520,11 +520,21 @@ def _fallback_chart_plan(profile, max_charts):
     # with only date / categorical / geographic columns and no numeric
     # measure should never produce an empty plan.
     if not plan:
-        if dates:
+        # A line chart needs >= 2 distinct x values; the renderer divides
+        # by (labels.length - 1). Use line only when the date column
+        # actually has 2+ buckets, otherwise downgrade to bar (which
+        # handles a single category gracefully).
+        if dates and dates[0][1].get('cardinality', 0) >= 2:
             add({
                 'type': 'line', 'title': f'Record count over {dates[0][0]}',
                 'xCol': dates[0][0], 'aggFn': 'count',
                 'desc': f'How many records appear at each {dates[0][0]} value.',
+            })
+        elif dates:
+            add({
+                'type': 'bar', 'title': f'Record count for {dates[0][0]}',
+                'xCol': dates[0][0], 'aggFn': 'count', 'maxItems': 8,
+                'desc': f'Records grouped by {dates[0][0]}.',
             })
         elif cats:
             cat_name = cats[0][0]
