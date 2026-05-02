@@ -171,8 +171,36 @@ def create_app():
                 if user:
                     request._billing_user = user
 
+    # Whitelist of /api/* paths that intentionally do NOT require auth (public
+    # health checks, CSRF token mint, etc.). Anything else under /api/* will
+    # be rejected by the before_request gate below — defense in depth so a
+    # newly added route can never silently leak unauthenticated.
+    _PUBLIC_API_PATHS = {
+        '/api/csrf-token',
+    }
+
+    @app.before_request
+    def _enforce_api_auth():
+        """Block unauthenticated access to /api/* routes by default."""
+        path = request.path or ''
+        if not path.startswith('/api/'):
+            return None
+        if path in _PUBLIC_API_PATHS:
+            return None
+        # Allow auth blueprint routes (login, signup, refresh, logout) through
+        # — they handle their own credential checks.
+        if path.startswith('/api/auth/') or path.startswith('/api/billing/'):
+            return None
+        if not getattr(request, '_billing_user', None):
+            return jsonify({'error': 'Authentication required. Please sign in.'}), 401
+        return None
+
     def _require_ai_auth():
-        """Return an error response if user is not authenticated, else None."""
+        """Return an error response if user is not authenticated, else None.
+
+        Kept for back-compat with existing per-endpoint call sites; the
+        before_request gate above is now the canonical enforcement point.
+        """
         if not request._billing_user:
             return jsonify({'error': 'Authentication required. Please sign in.'}), 401
         return None
