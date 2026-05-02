@@ -4805,14 +4805,20 @@ function _riskRenderStep1(body) {
   html += _riskInsightPanel('Why these factors matter',
     'AI scanned your data and surfaced ' + w.factors.length + ' risk signals across the ' + escHtml(w.domain) +
     ' domain. Each factor blends data evidence (variance, outliers, missingness) with domain knowledge. Tick the factors you want to rank, untick anything irrelevant.');
-  // Factor cards
-  html += '<div class="risk-factor-grid">';
+  // Factor cards. NEVER concatenate f.id into an inline onclick — the id
+  // is AI/server-controlled and a stray quote breaks out of the attribute
+  // string into executable JS. Use data-factor-id and a delegated click
+  // handler attached after innerHTML.
+  html += '<div class="risk-factor-grid" id="riskFactorGrid">';
   w.factors.forEach(function(f) {
     var sel = w.selected.has(f.id);
     var srcColor = f.source === 'data' ? '#67e8f9' : f.source === 'knowledge' ? '#c4b5fd' : '#6ee7b7';
     var srcLabel = f.source === 'data' ? 'DATA' : f.source === 'knowledge' ? 'AI' : 'BOTH';
     var compositeScore = (((f.impact || 5) + (f.likelihood || 5) + (f.consequence || 5)) / 3).toFixed(1);
-    html += '<div class="risk-fcard' + (sel ? ' sel' : '') + '" onclick="_riskToggleFactor(\'' + f.id + '\')">';
+    // f.id is escaped both for the attribute (escHtml handles &, <, >, ", ')
+    // AND will be read back via dataset, where the browser unescapes it
+    // safely. f.id never reaches a JS execution context.
+    html += '<div class="risk-fcard' + (sel ? ' sel' : '') + '" data-factor-id="' + escHtml(f.id) + '">';
     html += '<div class="risk-fcard-head">';
     html += '<span class="risk-fcheck">' + (sel ? '✓' : '') + '</span>';
     html += '<span class="risk-fname">' + escHtml(f.name) + '</span>';
@@ -4833,6 +4839,17 @@ function _riskRenderStep1(body) {
   html += '</div>';
   html += '</div>';
   body.innerHTML = html;
+  // Bind delegated click after innerHTML is in place. f.id never touches a
+  // JS string context — only an HTML attribute (escaped) and dataset read.
+  var grid = document.getElementById('riskFactorGrid');
+  if (grid) {
+    grid.addEventListener('click', function(e) {
+      var card = e.target.closest('.risk-fcard');
+      if (!card) return;
+      var fid = card.dataset.factorId;
+      if (fid != null) _riskToggleFactor(fid);
+    });
+  }
 }
 function _riskToggleFactor(id) {
   const w = App._riskWizard;
@@ -4957,9 +4974,34 @@ function _riskWizardStep3(useCache) {
     });
   }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Simulation failed.</div>'; });
 }
+// Normalise one simulation entry — coerces missing nested fields to a safe
+// shape so the renderer never dereferences null. Any sim missing both
+// percentiles AND probabilities is dropped; partial sims get sentinel
+// values so the card still renders.
+function _riskNormalizeSim(s) {
+  if (!s || typeof s !== 'object') return null;
+  const p = s.percentiles || {};
+  const pr = s.probabilities || {};
+  const numOr = (v, fb) => (typeof v === 'number' && isFinite(v)) ? v : fb;
+  // Drop entirely if neither block is usable.
+  if (typeof s.percentiles !== 'object' && typeof s.probabilities !== 'object') return null;
+  return Object.assign({}, s, {
+    factor_name: s.factor_name || s.name || 'Unnamed factor',
+    percentiles: {
+      p5: numOr(p.p5, 0),
+      mean: numOr(p.mean, (numOr(p.p5, 0) + numOr(p.p95, 0)) / 2),
+      p95: numOr(p.p95, 0),
+    },
+    probabilities: {
+      exceed_moderate: numOr(pr.exceed_moderate, 0),
+      exceed_high: numOr(pr.exceed_high, 0),
+    },
+  });
+}
 function _riskRenderStep3(body) {
   const w = App._riskWizard;
-  const sims = w.simulations || [];
+  const rawSims = w.simulations || [];
+  const sims = rawSims.map(_riskNormalizeSim).filter(Boolean);
   const narr = w.narrative || {};
   const topSim = sims[0];
   let html = '<div class="glass-panel" style="padding:14px;margin-bottom:12px;">';
@@ -5044,12 +5086,19 @@ function _riskDrawMCHistograms(sims) {
   sims.forEach(function(s, i) {
     var canvas = document.getElementById('riskHist' + i);
     if (!canvas) return;
+    // Guard: a partial server response may omit percentiles entirely.
+    // Skip the card silently rather than throwing on null deref — the
+    // surrounding card markup already shows the factor name.
+    if (!s || !s.percentiles || !s.probabilities) return;
+    var p5 = (typeof s.percentiles.p5 === 'number') ? s.percentiles.p5 : null;
+    var p95 = (typeof s.percentiles.p95 === 'number') ? s.percentiles.p95 : null;
+    if (p5 == null || p95 == null) return;
     var ctx = canvas.getContext('2d');
     var W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
     // Choose bin counts
     var counts = null;
-    var minV = s.percentiles.p5, maxV = s.percentiles.p95;
+    var minV = p5, maxV = p95;
     if (Array.isArray(s.histogram) && s.histogram.length) {
       counts = s.histogram;
     } else if (Array.isArray(s.samples) && s.samples.length) {
@@ -5065,7 +5114,8 @@ function _riskDrawMCHistograms(sims) {
     }
     if (!counts) return;
     var maxCount = Math.max.apply(null, counts) || 1;
-    var color = s.probabilities.exceed_high > 50 ? '#f43f5e' : s.probabilities.exceed_high > 20 ? '#f59e0b' : '#06b6d4';
+    var exH = (typeof s.probabilities.exceed_high === 'number') ? s.probabilities.exceed_high : 0;
+    var color = exH > 50 ? '#f43f5e' : exH > 20 ? '#f59e0b' : '#06b6d4';
     var bw = W / counts.length;
     // Bars
     counts.forEach(function(c, j) {
@@ -5080,10 +5130,11 @@ function _riskDrawMCHistograms(sims) {
     // P5 / Mean / P95 markers
     var range = maxV - minV || 1;
     function markX(v) { return ((v - minV) / range) * W; }
+    var meanV = (typeof s.percentiles.mean === 'number') ? s.percentiles.mean : (p5 + p95) / 2;
     var markers = [
-      { v: s.percentiles.p5, label: 'P5', color: 'rgba(255,255,255,0.30)' },
-      { v: s.percentiles.mean || ((s.percentiles.p5 + s.percentiles.p95) / 2), label: 'Mean', color: 'rgba(255,255,255,0.65)' },
-      { v: s.percentiles.p95, label: 'P95', color: 'rgba(255,255,255,0.30)' },
+      { v: p5, label: 'P5', color: 'rgba(255,255,255,0.30)' },
+      { v: meanV, label: 'Mean', color: 'rgba(255,255,255,0.65)' },
+      { v: p95, label: 'P95', color: 'rgba(255,255,255,0.30)' },
     ];
     markers.forEach(function(m) {
       var x = markX(m.v);
