@@ -497,15 +497,42 @@ def _fallback_chart_plan(profile, max_charts):
             'desc': f'Spread, median, and outliers of {numeric[0][0]}.',
         })
 
-    # 6. Geographic: any geo column with a numeric measure.
-    if geos and numeric:
+    # 6. Geographic: any geo column with a numeric measure (or fall back to
+    # a record-count map when no numeric columns exist).
+    if geos:
         geo_name, geo_info = geos[0]
         chart_type = 'usmap' if geo_info.get('geo_type') == 'us_state' else 'worldmap'
-        add({
-            'type': chart_type, 'title': f'{numeric[0][0]} by {geo_name}',
-            'xCol': geo_name, 'yCol': numeric[0][0], 'aggFn': 'sum',
-            'desc': f'{numeric[0][0]} distribution across {geo_name}.',
-        })
+        if numeric:
+            add({
+                'type': chart_type, 'title': f'{numeric[0][0]} by {geo_name}',
+                'xCol': geo_name, 'yCol': numeric[0][0], 'aggFn': 'sum',
+                'desc': f'{numeric[0][0]} distribution across {geo_name}.',
+            })
+        else:
+            add({
+                'type': chart_type, 'title': f'Record count by {geo_name}',
+                'xCol': geo_name, 'aggFn': 'count',
+                'desc': f'Records aggregated across {geo_name}.',
+            })
+
+    # 7. Last-resort safety net: if no chart was added at all, fall back to a
+    # count-of-records bar / line on whatever dimension exists. Datasets
+    # with only date / categorical / geographic columns and no numeric
+    # measure should never produce an empty plan.
+    if not plan:
+        if dates:
+            add({
+                'type': 'line', 'title': f'Record count over {dates[0][0]}',
+                'xCol': dates[0][0], 'aggFn': 'count',
+                'desc': f'How many records appear at each {dates[0][0]} value.',
+            })
+        elif cats:
+            cat_name = cats[0][0]
+            add({
+                'type': 'bar', 'title': f'Record count by {cat_name}',
+                'xCol': cat_name, 'aggFn': 'count', 'maxItems': 8,
+                'desc': f'Records grouped by {cat_name}.',
+            })
 
     return plan[:max_charts]
 

@@ -3060,8 +3060,18 @@ function escHtml(s) { const d = document.createElement('div'); d.textContent = s
 function toast(msg, type = 'info') {
   const el = document.createElement('div');
   el.className = 'toast ' + type;
-  const ic = type === 'success' ? '&#10003;' : type === 'error' ? '&#10007;' : '&#9432;';
-  el.innerHTML = `<span style="font-size:16px">${ic}</span><span>${msg}</span>`;
+  const ic = type === 'success' ? '✓' : type === 'error' ? '✗' : 'ⓘ';
+  // Build message via textContent — toast(msg) is called with strings that
+  // can include user-controlled values (e.g. uploaded CSV column names),
+  // so naive innerHTML interpolation here is an XSS sink. The icon is a
+  // single fixed glyph, set as textContent on its own span.
+  const iconSpan = document.createElement('span');
+  iconSpan.style.fontSize = '16px';
+  iconSpan.textContent = ic;
+  const textSpan = document.createElement('span');
+  textSpan.textContent = String(msg);
+  el.appendChild(iconSpan);
+  el.appendChild(textSpan);
   $('#toastContainer').appendChild(el);
   setTimeout(() => { el.style.animation = 'toastOut .3s ease forwards'; setTimeout(() => el.remove(), 300); }, 3500);
 }
@@ -15757,11 +15767,10 @@ document.addEventListener('click', function(e) {
         if (!printWin) {
           toast('PDF export blocked — please allow popups', 'error');
         } else {
-          var safeTitle = String(filename).replace(/[<>&"']/g, function(c) {
-            return ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;', "'":'&#39;' })[c];
-          });
+          // Skeleton with neutral title and empty image; we set both safely
+          // via textContent and .src below.
           printWin.document.write(
-            '<!doctype html><html><head><meta charset="utf-8"><title>' + safeTitle + '</title>' +
+            '<!doctype html><html><head><meta charset="utf-8"><title>Chart export</title>' +
             '<style>@page{size:auto;margin:12mm}html,body{margin:0;padding:0;font-family:Inter,system-ui,sans-serif}' +
             'body{display:flex;flex-direction:column;align-items:center;padding:18px}' +
             'h1{font-size:16px;font-weight:600;margin:0 0 12px}' +
@@ -15771,16 +15780,32 @@ document.addEventListener('click', function(e) {
             new Date().toLocaleDateString() + '</div></body></html>'
           );
           printWin.document.close();
-          // Set title + image safely with textContent / src setter (no innerHTML).
+          printWin.document.title = filename;
           printWin.document.querySelector('h1').textContent = filename;
-          printWin.document.querySelector('img').src = pdfUrl;
-          printWin.addEventListener('load', function() {
-            setTimeout(function() { printWin.print(); }, 200);
-          });
-          // Fallback if load already fired (data URL is synchronous).
-          setTimeout(function() {
-            try { printWin.print(); } catch (_) {}
-          }, 600);
+          var pdfImg = printWin.document.querySelector('img');
+          // One-shot print guard: window.load + img.onload + a 4s safety
+          // fallback can all race; firePrint() runs at most once.
+          var printed = false;
+          function firePrint() {
+            if (printed) return;
+            printed = true;
+            try { printWin.focus(); printWin.print(); } catch (_) {}
+          }
+          // Prefer img.decode() on browsers that support it (waits for the
+          // image to actually be decode-ready, not just network-loaded).
+          pdfImg.onload = function() {
+            if (typeof pdfImg.decode === 'function') {
+              pdfImg.decode().then(firePrint, firePrint);
+            } else {
+              firePrint();
+            }
+          };
+          pdfImg.onerror = firePrint;
+          pdfImg.src = pdfUrl;
+          // Last-resort fallback: if for some reason neither onload nor
+          // decode resolves, still trigger the dialog after 4 s. The
+          // one-shot guard ensures at most one print() call.
+          setTimeout(firePrint, 4000);
         }
       } else {
         var mime = VE.exportFmt === 'jpg' ? 'image/jpeg' : 'image/png';

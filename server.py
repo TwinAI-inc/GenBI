@@ -185,6 +185,11 @@ def create_app():
         path = request.path or ''
         if not path.startswith('/api/'):
             return None
+        # CORS preflight requests carry no Authorization header — let them
+        # through so Flask-CORS can answer them. The actual subsequent
+        # request still hits this gate.
+        if request.method == 'OPTIONS':
+            return None
         if path in _PUBLIC_API_PATHS:
             return None
         # Allow auth blueprint routes (login, signup, refresh, logout) through
