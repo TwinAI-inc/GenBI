@@ -13808,10 +13808,27 @@ function loadSampleDataset(which) {
   toast('Loaded ' + fileName + ' — ' + rows.length + ' rows, ' + Object.keys(rows[0]).length + ' columns', 'success');
 }
 
+// 50 MB hard cap on the uploaded file. SheetJS can technically parse
+// larger files but rendering tens of thousands of rows in the browser
+// kills perf and the server save endpoint caps at 8 MB anyway.
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+const ALLOWED_UPLOAD_EXTS = ['xlsx', 'xls', 'csv', 'tsv', 'txt', 'json'];
+
 function handleFiles(files) {
   Array.from(files).forEach(file => {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    // Reject before parsing: oversized files, executables, anything not in
+    // the allow-list. The toast textContent fix from earlier means a
+    // hostile filename can't inject HTML even if it slips through.
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast('File too large (' + Math.round(file.size / 1024 / 1024) + ' MB). Limit is 50 MB — try filtering before upload.', 'error');
+      return;
+    }
+    if (!ALLOWED_UPLOAD_EXTS.includes(ext) && !['pdf', 'png', 'jpg', 'jpeg'].includes(ext)) {
+      toast('File type ".' + ext + '" not supported. Allowed: ' + ALLOWED_UPLOAD_EXTS.join(', ') + '.', 'error');
+      return;
+    }
     App.uploadedFiles.push({ name: file.name, size: file.size, type: file.type });
-    const ext = file.name.split('.').pop().toLowerCase();
     if(['xlsx','xls','csv'].includes(ext)) {
       showUploadProgress(file.name);
       const reader = new FileReader();
