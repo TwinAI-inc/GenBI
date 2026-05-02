@@ -67,14 +67,17 @@ def profile_data(headers, rows, max_sample=50):
         # Geographic detection
         is_geo = _detect_geographic(h, unique[:20])
 
-        # Boolean detection — require at least one real value, otherwise an
-        # all-null column would silently match the empty-set subset rule and
-        # be reported as boolean to the LLM.
+        # Boolean detection — require at least TWO distinct values from the
+        # boolean vocabulary. A single-value column ('1' only, or 'yes' only)
+        # passing the subset check trivially is not actually boolean; it is a
+        # constant. An all-null column (empty unique set) also trivially
+        # passes the subset rule and must be excluded.
+        bool_vocab = {'true', 'false', 'yes', 'no', '1', '0', 't', 'f', 'y', 'n'}
         is_empty = len(unique) == 0
+        unique_lower = set(s.lower() for s in unique)
         is_boolean = (
-            not is_empty
-            and set(s.lower() for s in unique)
-                <= {'true', 'false', 'yes', 'no', '1', '0', 't', 'f', 'y', 'n'}
+            len(unique_lower) >= 2
+            and unique_lower <= bool_vocab
         )
 
         # ID/Index detection
