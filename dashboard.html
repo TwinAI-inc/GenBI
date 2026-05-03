@@ -4674,11 +4674,22 @@ function initRiskAnalyzer() {
   App._riskWizard.step = 1;
   App._riskWizard.factors = null;
   App._riskWizard.selected = null;
-  App._riskWizard.weights = { impact: 0.4, likelihood: 0.35, consequence: 0.25 };
+  // Criterion names match the backend TOPSIS engine end to end. The third
+  // criterion is "controllability" (a cost criterion: higher = MORE
+  // controllable = LESS risky) — using any other name silently hands the
+  // ranker an unrecognised key and breaks /rank.
+  App._riskWizard.weights = { impact: 0.4, likelihood: 0.35, controllability: 0.25 };
   App._riskWizard.iterations = 10000;
   App._riskWizard.simulations = null;
   App._riskWizard.narrative = null;
   App._riskWizard.tornado = null;
+  // Generation token: every fetch from the wizard captures the current
+  // value, and on response checks it's still current before mutating
+  // App._riskWizard. Bumping this on any state-invalidating action
+  // (toggle factor, re-rank, change iterations, mode toggle, navigate
+  // back) cancels any in-flight response that would otherwise resurrect
+  // stale state.
+  App._riskWizard.gen = (App._riskWizard.gen || 0) + 1;
   if (App._riskWizard.mode === 'quick') {
     _riskRunQuick(el);
   } else {
@@ -4726,6 +4737,9 @@ function _riskSetMode(mode) {
   if (!App._riskWizard) App._riskWizard = {};
   if (App._riskWizard.mode === mode) return;
   App._riskWizard.mode = mode;
+  // Bump the gen so any in-flight extract/rank/simulate response from the
+  // previous mode is discarded by its own gen-check on land.
+  App._riskWizard.gen = (App._riskWizard.gen || 0) + 1;
   initRiskAnalyzer();
 }
 
@@ -4776,18 +4790,23 @@ function _riskWizardStep1(useCache) {
     '<div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
     '<span style="font-size:12px;color:rgba(255,255,255,0.35);">AI is identifying risk signals from your data...</span></div>';
   const token = _getAuthToken();
+  const myGen = w.gen;
   fetch('/api/risk-v2/extract', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ headers: App.excelData.headers, rows: App.excelData.rows.slice(0, 500) })
   }).then(r => r.json()).then(data => {
+    if (App._riskWizard.gen !== myGen) return; // user navigated away or reset
     if (data.error) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
     w.domain = data.domain || 'general';
     w.factors = data.factors || [];
     // Pre-select: top 6 by composite score so user has a sane default.
     w.selected = new Set((w.factors.slice(0, 6)).map(f => f.id));
     _riskRenderStep1(body);
-  }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk extraction failed. Please try again.</div>'; });
+  }).catch(() => {
+    if (App._riskWizard.gen !== myGen) return;
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Risk extraction failed. Please try again.</div>';
+  });
 }
 function _riskRenderStep1(body) {
   const w = App._riskWizard;
@@ -4814,7 +4833,13 @@ function _riskRenderStep1(body) {
     var sel = w.selected.has(f.id);
     var srcColor = f.source === 'data' ? '#67e8f9' : f.source === 'knowledge' ? '#c4b5fd' : '#6ee7b7';
     var srcLabel = f.source === 'data' ? 'DATA' : f.source === 'knowledge' ? 'AI' : 'BOTH';
-    var compositeScore = (((f.impact || 5) + (f.likelihood || 5) + (f.consequence || 5)) / 3).toFixed(1);
+    // Risk score = impact × likelihood, adjusted for controllability
+    // (higher controllability reduces risk). Composite is a quick visual
+    // heuristic; the actual TOPSIS ranking is done in Step 2.
+    var imp = (typeof f.impact === 'number') ? f.impact : 5;
+    var lik = (typeof f.likelihood === 'number') ? f.likelihood : 5;
+    var ctl = (typeof f.controllability === 'number') ? f.controllability : 5;
+    var compositeScore = ((imp + lik + (10 - ctl)) / 3).toFixed(1);
     // f.id is escaped both for the attribute (escHtml handles &, <, >, ", ')
     // AND will be read back via dataset, where the browser unescapes it
     // safely. f.id never reaches a JS execution context.
@@ -4826,10 +4851,10 @@ function _riskRenderStep1(body) {
     html += '</div>';
     html += '<div class="risk-fdesc">' + escHtml(f.description || '') + '</div>';
     html += '<div class="risk-fmetrics">';
-    html += '<span title="Impact">I&nbsp;' + (f.impact || '—') + '</span>';
-    html += '<span title="Likelihood">L&nbsp;' + (f.likelihood || '—') + '</span>';
-    html += '<span title="Consequence">C&nbsp;' + (f.consequence || '—') + '</span>';
-    html += '<span class="risk-fcomp" title="Composite (avg)">∑&nbsp;' + compositeScore + '</span>';
+    html += '<span title="Impact (1-10): how severe if it occurs">I&nbsp;' + imp + '</span>';
+    html += '<span title="Likelihood (1-10): probability of occurring">L&nbsp;' + lik + '</span>';
+    html += '<span title="Controllability (1-10): how much you can mitigate it. Higher = LESS risky.">C&nbsp;' + ctl + '</span>';
+    html += '<span class="risk-fcomp" title="Composite risk (avg of I, L, 10 minus C)">∑&nbsp;' + compositeScore + '</span>';
     html += '</div></div>';
   });
   html += '</div>';
@@ -4857,8 +4882,11 @@ function _riskToggleFactor(id) {
   if (w.selected.has(id)) w.selected.delete(id);
   else w.selected.add(id);
   // Invalidate ALL downstream state — ranking, simulation, and narrative
-  // are all stale once the factor selection changes.
+  // are all stale once the factor selection changes. Bump the generation
+  // token so any in-flight rank/simulate response from before the toggle
+  // can't sneak its result back into the wizard.
   w.ranked = null; w.simulations = null; w.narrative = null;
+  w.gen = (w.gen || 0) + 1;
   // Also update the in-place selected count without re-rendering everything,
   // so the user gets fast feedback on click.
   const counter = document.getElementById('riskSelCount');
@@ -4880,11 +4908,16 @@ function _riskWizardStep2(useCache) {
     '<div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
     '<span style="font-size:12px;color:rgba(255,255,255,0.35);">Ranking with TOPSIS...</span></div>';
   const token = _getAuthToken();
+  // Capture the current generation; any state-invalidating action between
+  // here and the response (toggle factor, mode switch, re-rank with new
+  // weights) bumps w.gen so we ignore the stale response.
+  const myGen = w.gen;
   fetch('/api/risk-v2/rank', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ factors: subset, weights: w.weights })
   }).then(r => r.json()).then(data => {
+    if (App._riskWizard.gen !== myGen) return; // stale response
     if (data.error) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
     w.ranked = data.factors || [];
     // Re-ranking invalidates the Monte Carlo distribution and AI narrative,
@@ -4892,24 +4925,40 @@ function _riskWizardStep2(useCache) {
     // re-fire its endpoints when entered.
     w.simulations = null; w.narrative = null;
     _riskRenderStep2(body);
-  }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Ranking failed.</div>'; });
+  }).catch(() => {
+    if (App._riskWizard.gen !== myGen) return;
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Ranking failed.</div>';
+  });
 }
 function _riskRenderStep2(body) {
   const w = App._riskWizard;
   const top = w.ranked && w.ranked[0] ? w.ranked[0].name : '—';
-  const dom = ['impact','likelihood','consequence'].sort(function(a,b){ return w.weights[b] - w.weights[a]; })[0];
+  // Dominant weight insight: which of the three TOPSIS criteria the user is
+  // emphasising most. Note: controllability is a COST criterion (higher =
+  // less risky), so when it dominates the ranking favours risks that are
+  // hard to control. The insight text reflects that asymmetry.
+  const dom = ['impact','likelihood','controllability'].sort(function(a,b){ return w.weights[b] - w.weights[a]; })[0];
+  const domLabel = dom === 'controllability' ? 'controllability (cost)' : dom;
+  const domBlurb = dom === 'controllability'
+    ? 'so the top of the list will be risks that are hardest to mitigate'
+    : 'so the top of the list will be risks where ' + dom + ' is highest';
   let html = '<div class="glass-panel" style="padding:14px;margin-bottom:12px;">';
   html += '<div style="font-size:13px;font-weight:500;margin-bottom:10px;">TOPSIS Ranking</div>';
   // AI-style insight derived client-side.
   html += _riskInsightPanel('What the ranking is telling you',
-    'Current weights emphasise <b>' + dom + '</b> (' + (w.weights[dom] * 100).toFixed(0) + '%). ' +
-    'The top-ranked risk under these weights is <b>' + escHtml(top) + '</b>. Adjust weights and click Re-rank to test sensitivity to different priorities.');
-  // Weight sliders
+    'Current weights emphasise <b>' + domLabel + '</b> (' + (w.weights[dom] * 100).toFixed(0) + '%), ' +
+    domBlurb + '. The top-ranked risk under these weights is <b>' + escHtml(top) + '</b>. Adjust weights and click Re-rank to test sensitivity to different priorities.');
+  // Weight sliders. Criteria names match the engine — controllability NOT
+  // consequence, otherwise /rank gets a key it does not understand.
   html += '<div class="risk-weights">';
-  ['impact','likelihood','consequence'].forEach(function(k) {
+  [['impact','Impact','How severe if it occurs (1=low, 10=catastrophic)'],
+   ['likelihood','Likelihood','Probability the risk materialises'],
+   ['controllability','Controllability','How much you can mitigate it (cost criterion: higher = LESS risky)']
+  ].forEach(function(entry) {
+    var k = entry[0], lbl = entry[1], hint = entry[2];
     var v = w.weights[k];
-    html += '<div class="risk-wslider">' +
-      '<label>' + k.charAt(0).toUpperCase() + k.slice(1) + ' <span id="rw_' + k + '_v">' + v.toFixed(2) + '</span></label>' +
+    html += '<div class="risk-wslider" title="' + escHtml(hint) + '">' +
+      '<label>' + lbl + ' <span id="rw_' + k + '_v">' + v.toFixed(2) + '</span></label>' +
       '<input type="range" min="0" max="1" step="0.05" value="' + v + '" oninput="_riskWeightChange(\'' + k + '\', this.value)"/>' +
     '</div>';
   });
@@ -4938,6 +4987,14 @@ function _riskRenderStep2(body) {
 }
 function _riskWeightChange(key, val) {
   App._riskWizard.weights[key] = parseFloat(val);
+  // Sliders themselves don't trigger a re-rank — that requires the
+  // explicit Re-rank button — but downstream simulation/narrative still
+  // depend on the previous ranking's outputs, so flag the gen here. Any
+  // rank/simulate response that lands after a slider drag will be ignored
+  // until the user actually clicks Re-rank.
+  const w = App._riskWizard;
+  w.simulations = null; w.narrative = null;
+  w.gen = (w.gen || 0) + 1;
   const v = document.getElementById('rw_' + key + '_v');
   if (v) v.textContent = parseFloat(val).toFixed(2);
 }
@@ -4955,11 +5012,13 @@ function _riskWizardStep3(useCache) {
     '<div class="genbi-fill-bars genbi-fill-sm"><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div><div class="gfb"></div></div>' +
     '<span style="font-size:12px;color:rgba(255,255,255,0.35);">Running ' + w.iterations.toLocaleString() + ' Monte Carlo iterations...</span></div>';
   const token = _getAuthToken();
+  const myGen = w.gen;
   fetch('/api/risk-v2/simulate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ factors: w.ranked, rows: App.excelData.rows.slice(0, 500), headers: App.excelData.headers, top_n: 3, n_iterations: w.iterations })
   }).then(r => r.json()).then(data => {
+    if (App._riskWizard.gen !== myGen) return;
     if (data.error) { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">' + escHtml(data.error) + '</div>'; return; }
     w.simulations = data.simulations || [];
     // After simulation, fire the AI narrative call. This is the only LLM
@@ -4969,10 +5028,14 @@ function _riskWizardStep3(useCache) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ domain: w.domain, factors: w.ranked, simulations: w.simulations })
     }).then(r => r.json()).then(narr => {
+      if (App._riskWizard.gen !== myGen) return;
       w.narrative = narr || {};
       _riskRenderStep3(body);
     });
-  }).catch(() => { body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Simulation failed.</div>'; });
+  }).catch(() => {
+    if (App._riskWizard.gen !== myGen) return;
+    body.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Simulation failed.</div>';
+  });
 }
 // Normalise one simulation entry. Strict semantic check — a sim is only
 // kept when it has at least one finite percentile, otherwise we'd be
@@ -5033,7 +5096,7 @@ function _riskRenderStep3(body) {
   html += '<div style="display:flex;gap:4px;">';
   [1000, 5000, 10000, 50000].forEach(function(n) {
     var active = w.iterations === n;
-    html += '<button class="risk-iter-btn' + (active ? ' active' : '') + '" onclick="App._riskWizard.iterations=' + n + ';App._riskWizard.simulations=null;_riskWizardStep3()">' + (n >= 1000 ? (n / 1000) + 'K' : n) + '</button>';
+    html += '<button class="risk-iter-btn' + (active ? ' active' : '') + '" onclick="App._riskWizard.iterations=' + n + ';App._riskWizard.simulations=null;App._riskWizard.narrative=null;App._riskWizard.gen=(App._riskWizard.gen||0)+1;_riskWizardStep3()">' + (n >= 1000 ? (n / 1000) + 'K' : n) + '</button>';
   });
   html += '</div></div>';
   // AI insight derived from sim percentiles

@@ -1140,7 +1140,13 @@ Rules:
             weights = data.get('weights')
             if not factors:
                 return jsonify({'error': 'No factors provided.'}), 400
-            ranked = topsis_rank(factors, weights)
+            try:
+                ranked = topsis_rank(factors, weights)
+            except ValueError as ve:
+                # Engine raises on degenerate input (zero-sum weights etc.).
+                # Surface the message as a clean 400 so the wizard can show
+                # it to the user instead of a 500 stack trace.
+                return jsonify({'error': str(ve)}), 400
             return jsonify({'factors': ranked})
         except Exception as e:
             return _ai_error_response(e)

@@ -147,8 +147,25 @@ def topsis_rank(factors, weights=None):
     if weights is None:
         weights = {'impact': 0.4, 'likelihood': 0.35, 'controllability': 0.25}
 
-    # Normalize weights
+    # Validate that weights cover the required criteria and sum to a positive
+    # value. The wizard sliders are independent 0..1 inputs so the user can
+    # legitimately set all three to 0; without this guard, normalisation
+    # divides by zero and TOPSIS crashes — a demo-break under normal UI
+    # interaction.
+    required = {'impact', 'likelihood', 'controllability'}
+    if not required.issubset(weights.keys()):
+        # Be permissive but require ALL three keys exist; missing keys default
+        # to 0 which is still caught by the zero-sum guard below if all
+        # missing.
+        weights = {k: float(weights.get(k, 0)) for k in required}
     w_sum = sum(weights.values())
+    if w_sum <= 0:
+        # Reject obviously-degenerate weight configurations rather than
+        # producing a NaN ranking. Caller (route layer) maps ValueError to a
+        # 400 response.
+        raise ValueError(
+            'Ranking weights cannot all be zero. '
+            'Increase at least one of impact / likelihood / controllability.')
     w = {k: v / w_sum for k, v in weights.items()}
 
     n = len(factors)
@@ -243,6 +260,22 @@ def monte_carlo_simulate(factors, rows, headers, n_iterations=10000, top_n=3):
     results = []
     simulated = 0
 
+    # Helper: emit a placeholder result so the client can render an explicit
+    # "simulation unavailable" card for top factors that we couldn't simulate
+    # (no matching numeric column, fewer than 10 finite values, or
+    # zero-variance distribution). Without this, the response carries
+    # < top_n entries and the wizard renders a grid with missing cards
+    # silently — looks like analysis succeeded but cards are just gone.
+    def _unavailable(f, reason):
+        return {
+            'factor_id': f.get('id'),
+            'factor_name': f.get('name', 'Unnamed factor'),
+            'is_partial': True,
+            'unavailable_reason': reason,
+            'percentiles': None,
+            'probabilities': None,
+        }
+
     for f in factors:
         if simulated >= top_n:
             break
@@ -252,6 +285,8 @@ def monte_carlo_simulate(factors, rows, headers, n_iterations=10000, top_n=3):
             # Try to find a related numeric column
             col = _find_related_column(f, headers, rows)
             if not col:
+                results.append(_unavailable(f, 'no_numeric_column'))
+                simulated += 1
                 continue
 
         # Extract numeric values
@@ -265,6 +300,8 @@ def monte_carlo_simulate(factors, rows, headers, n_iterations=10000, top_n=3):
                 continue
 
         if len(vals) < 10:
+            results.append(_unavailable(f, 'too_few_numeric_values'))
+            simulated += 1
             continue
 
         # Compute statistics
@@ -274,6 +311,8 @@ def monte_carlo_simulate(factors, rows, headers, n_iterations=10000, top_n=3):
         max_v = max(vals)
 
         if std < 1e-9:
+            results.append(_unavailable(f, 'zero_variance'))
+            simulated += 1
             continue
 
         # Monte Carlo: sample from fitted normal distribution, clamped to valid range
