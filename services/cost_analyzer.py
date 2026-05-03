@@ -829,10 +829,16 @@ def forecast_cost_series(rows, cost_col, time_col, horizon=3):
         by_period[key] += c
         counts[key] += 1
 
-    # Sort periods. Try date-ish parsing first, fall back to string sort.
+    # Sort periods chronologically. The previous (len, str) sort was wrong
+    # for common executive inputs — '2024-2' vs '2024-10' would sort
+    # correctly only by accident, and 'Jan 2024' / 'Feb 2024' / 'Q1 2024'
+    # would silently misorder. Holt's trend is sequence-sensitive, so a
+    # bad sort produces a confidently-wrong forecast. Try a real parser;
+    # fall back to the order the periods first appeared in the dataset
+    # (which is usually already chronological in real-world exports).
     periods = list(by_period.keys())
     try:
-        periods.sort(key=lambda s: (len(s), s))
+        periods.sort(key=_period_sort_key)
     except Exception:
         pass
     series = [by_period[p] for p in periods if math.isfinite(by_period[p])]
@@ -924,6 +930,66 @@ def forecast_cost_series(rows, cost_col, time_col, horizon=3):
     }
 
 
+_MONTH_NAMES = {
+    'jan': 1, 'january': 1, 'feb': 2, 'february': 2, 'mar': 3, 'march': 3,
+    'apr': 4, 'april': 4, 'may': 5, 'jun': 6, 'june': 6,
+    'jul': 7, 'july': 7, 'aug': 8, 'august': 8,
+    'sep': 9, 'sept': 9, 'september': 9, 'oct': 10, 'october': 10,
+    'nov': 11, 'november': 11, 'dec': 12, 'december': 12,
+}
+
+
+def _period_sort_key(s):
+    """Best-effort chronological sort key for period labels.
+
+    Tries, in order:
+      1. ISO 8601 date / month / week (YYYY-MM-DD, YYYY-MM, YYYY-WNN)
+      2. Year+quarter (YYYY-Q[1-4] or Q[1-4] YYYY)
+      3. Month-name + year (Jan 2024, Feb-2024, January 2024)
+      4. Numeric MM/DD/YYYY
+      5. Plain year (YYYY)
+      6. Falls back to (year_default=0, lower-cased string) so unknown
+         labels still sort deterministically without crashing.
+    """
+    if s is None:
+        return (0, 0, '')
+    txt = str(s).strip()
+    low = txt.lower()
+    # ISO YYYY-MM-DD or YYYY-MM
+    m = re.match(r'^(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?$', txt)
+    if m:
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3) or 1)
+        return (y, mo * 100 + d, '')
+    # Year + Q[1-4] in either order
+    m = re.match(r'^(\d{4})[ \-/]?Q([1-4])$', txt, re.I)
+    if m:
+        return (int(m.group(1)), int(m.group(2)) * 300, '')
+    m = re.match(r'^Q([1-4])[ \-/]?(\d{4})$', txt, re.I)
+    if m:
+        return (int(m.group(2)), int(m.group(1)) * 300, '')
+    # Year + week
+    m = re.match(r'^(\d{4})[ \-/]?W(\d{1,2})$', txt, re.I)
+    if m:
+        return (int(m.group(1)), int(m.group(2)) * 7, '')
+    # Month name + year
+    m = re.match(r'^([A-Za-z]+)[ \-/](\d{4})$', txt)
+    if m:
+        mo_name = m.group(1).lower()
+        if mo_name in _MONTH_NAMES:
+            return (int(m.group(2)), _MONTH_NAMES[mo_name] * 100, '')
+    # MM/DD/YYYY
+    m = re.match(r'^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$', txt)
+    if m:
+        mo, d, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        if y < 100: y += 2000
+        return (y, mo * 100 + d, '')
+    # Plain year
+    if re.match(r'^\d{4}$', txt):
+        return (int(txt), 0, '')
+    # Fallback: alphabetical, but keep it stable.
+    return (0, 0, low)
+
+
 def _mape(actual, fitted):
     """Mean Absolute Percentage Error on the genuine fitted region.
 
@@ -988,13 +1054,28 @@ def tornado_cost_drivers(decomposition_by_dim, total_cost, swing_pct=20.0,
 
 def detect_cost_anomalies(rows, cost_col, time_col, z_threshold=2.5,
                           max_anomalies=20):
-    """Flag periods whose total cost deviates from the historical mean by
-    more than ``z_threshold`` standard deviations.
+    """Flag periods whose total cost is an outlier vs the historical
+    distribution.
+
+    Uses the **modified z-score** (Iglewicz & Hoaglin 1993):
+        modified_z = 0.6745 * (x - median) / MAD
+    where MAD = median(|x - median|). Threshold of 3.5 is the conventional
+    cut-off (≈ 2.5σ for normal data). MAD is robust against the candidate
+    point inflating its own dispersion — the failure mode the standard
+    z-score has on small executive-facing series like [100, 100, 100,
+    100, 1000].
+
+    Falls back to a leave-one-out z-score when MAD is exactly zero (every
+    historical point identical), so a single off-spec value can still be
+    flagged. Both metrics are reported on each anomaly so a quant can
+    inspect the calc.
 
     Hardened:
-      - Returns empty list on fewer than 5 periods (z-score on a tiny
-        sample is meaningless).
-      - Std clamped at 1e-9 to avoid divide-by-zero on flat series.
+      - Returns empty list on fewer than 5 periods.
+      - MAD clamped at >= 1e-9 only inside the calc — exact zero is
+        detected and routes to leave-one-out instead.
+      - Period totals sorted chronologically before scoring so a "spike"
+        label reflects time order, not insertion order.
     """
     if not cost_col or not time_col or not rows:
         return []
@@ -1012,27 +1093,111 @@ def detect_cost_anomalies(rows, cost_col, time_col, z_threshold=2.5,
     periods = list(by_period.keys())
     if len(periods) < 5:
         return []
-
+    try:
+        periods.sort(key=_period_sort_key)
+    except Exception:
+        pass
     vals = [by_period[p] for p in periods]
-    mean = sum(vals) / len(vals)
-    var = sum((v - mean) ** 2 for v in vals) / len(vals)
-    std = max(math.sqrt(max(var, 0.0)), 1e-9)
+    n = len(vals)
+
+    median = _median(vals)
+    abs_devs = [abs(v - median) for v in vals]
+    mad = _median(abs_devs)
+
+    # Map the modified-z threshold of 3.5 to the user's z_threshold input.
+    # If they ask for 2.5σ, modified-z threshold scales proportionally.
+    mod_z_threshold = z_threshold * (3.5 / 2.5)
 
     anomalies = []
-    for p, v in zip(periods, vals):
-        z = (v - mean) / std
-        if abs(z) >= z_threshold:
-            anomalies.append({
-                'period': p,
-                'value': round(v, 2),
-                'z_score': round(z, 2),
-                'severity': 'high' if abs(z) >= 3 else 'medium',
-                'direction': 'spike' if z > 0 else 'dip',
-                'deviation_pct': round(100.0 * (v - mean) / max(abs(mean), 1e-9), 1),
-            })
+    if mad > 0:
+        # Robust path. The candidate's own contribution to MAD is bounded
+        # so a spike inflates it minimally.
+        for p, v in zip(periods, vals):
+            mz = 0.6745 * (v - median) / mad
+            if abs(mz) >= mod_z_threshold:
+                # Compute a parallel classical z for diagnostic display
+                pop_mean = sum(vals) / n
+                pop_var = sum((x - pop_mean) ** 2 for x in vals) / n
+                pop_std = max(math.sqrt(max(pop_var, 0.0)), 1e-9)
+                z_classical = (v - pop_mean) / pop_std
+                anomalies.append({
+                    'period': p,
+                    'value': round(v, 2),
+                    'z_score': round(z_classical, 2),
+                    'modified_z': round(mz, 2),
+                    'method': 'mad',
+                    'severity': 'high' if abs(mz) >= mod_z_threshold * 1.4 else 'medium',
+                    'direction': 'spike' if v > median else 'dip',
+                    'deviation_pct': round(100.0 * (v - median) /
+                                            max(abs(median), 1e-9), 1),
+                })
+    else:
+        # MAD is exactly zero: every historical value is identical to the
+        # median. Use a leave-one-out classical z so the candidate doesn't
+        # dampen its own score. A single off-spec value can still be
+        # flagged decisively in this regime.
+        for i, (p, v) in enumerate(zip(periods, vals)):
+            others = [vals[j] for j in range(n) if j != i]
+            if not others:
+                continue
+            o_mean = sum(others) / len(others)
+            o_var = sum((x - o_mean) ** 2 for x in others) / max(1, len(others))
+            o_std = math.sqrt(max(o_var, 0.0))
+            # If the leave-one-out baseline has zero variance (every other
+            # period identical), any non-equal point is infinitely off-spec.
+            # Flag it as max-severity rather than letting a 1e-9 floor emit a
+            # cosmetically absurd z-score like 9e11 to the UI.
+            if o_std <= 0:
+                if v == o_mean:
+                    continue
+                anomalies.append({
+                    'period': p,
+                    'value': round(v, 2),
+                    'z_score': None,
+                    'modified_z': None,
+                    'method': 'loo_constant_baseline',
+                    'severity': 'high',
+                    'direction': 'spike' if v > o_mean else 'dip',
+                    'deviation_pct': round(100.0 * (v - o_mean) /
+                                            max(abs(o_mean), 1e-9), 1),
+                })
+                continue
+            z_loo = (v - o_mean) / o_std
+            if abs(z_loo) >= z_threshold:
+                anomalies.append({
+                    'period': p,
+                    'value': round(v, 2),
+                    'z_score': round(z_loo, 2),
+                    'modified_z': None,
+                    'method': 'loo',
+                    'severity': 'high' if abs(z_loo) >= z_threshold * 1.4 else 'medium',
+                    'direction': 'spike' if v > o_mean else 'dip',
+                    'deviation_pct': round(100.0 * (v - o_mean) /
+                                            max(abs(o_mean), 1e-9), 1),
+                })
 
-    anomalies.sort(key=lambda a: abs(a['z_score']), reverse=True)
+    def _sort_key(a):
+        # Sort by strongest score available; constant-baseline (z=None) gets
+        # max priority since the deviation is mathematically infinite.
+        if a.get('method') == 'loo_constant_baseline':
+            return float('inf')
+        if a.get('modified_z') is not None:
+            return abs(a['modified_z'])
+        if a.get('z_score') is not None:
+            return abs(a['z_score'])
+        return 0.0
+    anomalies.sort(key=_sort_key, reverse=True)
     return anomalies[:max_anomalies]
+
+
+def _median(vals):
+    if not vals:
+        return 0.0
+    s = sorted(vals)
+    n = len(s)
+    if n % 2 == 1:
+        return s[n // 2]
+    return (s[n // 2 - 1] + s[n // 2]) / 2.0
 
 
 # ════════════════════════════════════════════════════════════════════════════

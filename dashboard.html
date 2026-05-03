@@ -4587,9 +4587,27 @@ function initCostDrivers() {
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ headers: App.excelData.headers, rows: App.excelData.rows.slice(0, 500) })
   }).then(r => r.json()).then(data => {
+    // Top-level fetch: cache as the drill 'home' and reset any prior drill
+    // chain. This MUST happen on every successful root fetch — the
+    // previous behaviour only set App._costRoot when falsy, so a second
+    // analysis in the same session kept the prior dataset's root and
+    // would snap back to it on Reset.
+    App._costRoot = data;
+    App._costDrillStack = [];
+    _costRenderInline(data);
+  }).catch(err => {
     const el = document.getElementById('costContent');
-    if (!el) return;
-    let html = '';
+    if (el) el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Cost analysis unavailable: ' + escHtml(err.message || 'unknown') + '</div>';
+  });
+}
+
+// Renders one cost-analyzer payload into #costContent. Called from both
+// top-level fetch (root) and drill-down fetch (slice) — the data shape
+// is identical so the same render path works for both.
+function _costRenderInline(data) {
+  const el = document.getElementById('costContent');
+  if (!el) return;
+  let html = '';
 
     // Total cost card
     const fmtCost = (v) => v >= 1e9 ? '$' + (v/1e9).toFixed(1) + 'B' : v >= 1e6 ? '$' + (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? '$' + (v/1e3).toFixed(0) + 'K' : '$' + Math.round(v);
@@ -4601,10 +4619,9 @@ function initCostDrivers() {
     }
     html += '</div>';
 
-    // Cache for drill-down navigation. Stores the original (unfiltered)
-    // analyze_costs result so the user can return to the top level and
-    // the breadcrumb stack of (dimension, category) drill steps.
-    if (!App._costRoot) App._costRoot = data;
+    // Drill state is owned by the caller — initCostDrivers() sets the
+    // root, costDrillInto() pushes onto the stack, costResetDrill clears
+    // it. The renderer just reads it.
     App._costDrillStack = App._costDrillStack || [];
 
     // Drill breadcrumb (Home > Dim > Cat)
@@ -4721,15 +4738,25 @@ function initCostDrivers() {
       html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">';
       html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-amber)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 002 3h16.94a2 2 0 002-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>';
       html += '<span style="font-size:12px;font-weight:400;color:rgba(255,255,255,0.80);">Anomalies detected</span>';
-      html += '<span style="font-size:9px;color:rgba(255,255,255,0.30);">(z-score &gt; 2.5 vs historical mean)</span></div>';
+      html += '<span style="font-size:9px;color:rgba(255,255,255,0.30);">(modified z &gt; 3.5 vs robust median, MAD-based)</span></div>';
       data.anomalies.slice(0, 5).forEach(a => {
         const sigColor = a.direction === 'spike' ? 'var(--accent-rose)' : 'var(--accent-cyan)';
         const arrow = a.direction === 'spike' ? '▲' : '▼';
+        // Prefer modified_z (robust) for display; fall back to classical z;
+        // show ∞ marker for the constant-baseline degenerate case.
+        let zLabel;
+        if (a.modified_z !== null && a.modified_z !== undefined) {
+          zLabel = 'mz=' + a.modified_z.toFixed(2);
+        } else if (a.z_score !== null && a.z_score !== undefined) {
+          zLabel = 'z=' + a.z_score.toFixed(2);
+        } else {
+          zLabel = '∞';
+        }
         html += '<div style="display:grid;grid-template-columns:100px 1fr 80px 60px;gap:8px;align-items:center;font-size:11px;padding:5px 0;border-bottom:1px dashed rgba(255,255,255,0.04);">';
         html += '<div style="color:rgba(255,255,255,0.55);">' + escHtml(a.period) + '</div>';
-        html += '<div style="color:rgba(255,255,255,0.65);">' + arrow + ' ' + (a.direction === 'spike' ? 'Spike' : 'Dip') + ' — ' + (a.deviation_pct >= 0 ? '+' : '') + a.deviation_pct.toFixed(1) + '% vs mean</div>';
+        html += '<div style="color:rgba(255,255,255,0.65);">' + arrow + ' ' + (a.direction === 'spike' ? 'Spike' : 'Dip') + ' — ' + (a.deviation_pct >= 0 ? '+' : '') + a.deviation_pct.toFixed(1) + '% vs median</div>';
         html += '<div style="font-size:10px;color:' + sigColor + ';text-align:right;">' + fmtCost(a.value) + '</div>';
-        html += '<div style="font-size:10px;color:rgba(255,255,255,0.45);text-align:right;">z=' + a.z_score.toFixed(2) + '</div>';
+        html += '<div style="font-size:10px;color:rgba(255,255,255,0.45);text-align:right;">' + zLabel + '</div>';
         html += '</div>';
       });
       html += '</div>';
@@ -4795,10 +4822,6 @@ function initCostDrivers() {
     if (data.forecast && data.forecast.available) {
       requestAnimationFrame(function() { _costDrawForecast(data.forecast); });
     }
-  }).catch(err => {
-    const el = document.getElementById('costContent');
-    if (el) el.innerHTML = '<div style="padding:40px;text-align:center;color:rgba(255,255,255,0.30);">Cost analysis unavailable: ' + err.message + '</div>';
-  });
 }
 
 // ── Cost: forecast canvas (history + 80%/95% CI shaded forecast) ────────
@@ -4932,7 +4955,10 @@ async function costDrillInto(dimension, category) {
     const data = await r.json();
     if (data.error) { toast('Drill failed: ' + data.error, 'error'); return; }
     App._costDrillStack = filterChain;
-    _costRenderResult(data);
+    // Render the slice payload directly. NOT initCostDrivers() — that
+    // would re-fetch the unfiltered root and the user would see the
+    // breadcrumb advance while looking at the wrong data.
+    _costRenderInline(data);
   } catch (e) {
     toast('Drill failed: ' + e.message, 'error');
   }
@@ -4940,7 +4966,10 @@ async function costDrillInto(dimension, category) {
 
 function costResetDrill() {
   App._costDrillStack = [];
-  if (App._costRoot) _costRenderResult(App._costRoot);
+  // Prefer the cached root (avoids a fetch) but fall back to a fresh
+  // initCostDrivers if the cache is missing — which can happen when the
+  // user reloads after switching workbooks.
+  if (App._costRoot) _costRenderInline(App._costRoot);
   else initCostDrivers();
 }
 
@@ -4949,22 +4978,10 @@ function costPopDrillTo(idx) {
   App._costDrillStack = (App._costDrillStack || []).slice(0, idx + 1);
   if (App._costDrillStack.length === 0) { costResetDrill(); return; }
   const last = App._costDrillStack[App._costDrillStack.length - 1];
-  // Drop the popped step and replay drillInto so the chain re-applies.
+  // Drop the popped step and replay drillInto so the chain re-applies
+  // from the parent slice with the popped step re-drilled.
   App._costDrillStack = App._costDrillStack.slice(0, -1);
   costDrillInto(last.dimension, last.category);
-}
-
-// Re-render helper used after drill-down without re-fetching analyze_costs.
-function _costRenderResult(data) {
-  // Mimic the inline render path. Easiest is to call the original render
-  // function with a stubbed fetch — but that creates a duplicate. The
-  // pragmatic approach: just call initCostDrivers but inject the data
-  // into the cache so it short-circuits. Simpler yet: rebuild the HTML
-  // ourselves by calling the render closure. To keep this small, just
-  // re-fetch from the same drill endpoint with the current chain.
-  // For now: clear and re-init — the user already sees the drill state
-  // via App._costDrillStack and the breadcrumb will render correctly.
-  initCostDrivers();
 }
 
 // ── Cost: what-if simulator (client-side recompute) ─────────────────────
