@@ -1269,6 +1269,28 @@ Rules:
         except Exception as e:
             return _ai_error_response(e)
 
+    @app.route('/api/cost-decompose/drilldown', methods=['POST'])
+    @limiter.limit('20/minute')
+    def cost_decompose_drilldown():
+        """Re-decompose costs filtered by a single (dimension, category)
+        slice. Powers the click-to-drill behaviour on the Cost Drivers
+        page. No LLM call — pure aggregation, so no quota burn."""
+        auth_err = _require_ai_auth()
+        if auth_err:
+            return auth_err
+        try:
+            from services.cost_analyzer import decompose_drilldown
+            data = request.get_json(silent=True) or {}
+            headers = data.get('headers', [])
+            rows = data.get('rows', [])[:500]
+            dimension = data.get('dimension', '')
+            category = data.get('category', '')
+            if not headers or not rows or not dimension or not category:
+                return jsonify({'error': 'Missing headers / rows / dimension / category.'}), 400
+            return jsonify(decompose_drilldown(headers, rows, dimension, category))
+        except Exception as e:
+            return _ai_error_response(e)
+
     @app.route('/api/safety-compare', methods=['POST'])
     @limiter.limit('5/minute')
     def safety_compare():

@@ -21,8 +21,14 @@ logger = logging.getLogger(__name__)
 
 # -- Column detection patterns -----------------------------------------------
 
+# Cost-column regex deliberately does NOT include 'budget' / 'target' /
+# 'forecast' / 'plan' / 'projected' — those words map to the BUDGET column
+# (the comparison column) and should never be picked up as the primary
+# cost. Without this separation, a dataset with both `cost` and `budget`
+# columns would treat the budget as a second cost and never trigger the
+# variance computation.
 _COST_COL = re.compile(
-    r'cost|expense|spend|price|budget|investment', re.I
+    r'cost|expense|spend|spending|price|invoice|payable|payment|investment|charges?|fees?|outlay', re.I
 )
 _TIME_COL = re.compile(
     r'date|month|year|quarter|week|period|time|day', re.I
@@ -92,16 +98,35 @@ def analyze_costs(headers, rows, max_sample=500):
     top_drivers = _extract_top_drivers(decomposition_by_dim, total_cost)
     efficiency = _compute_efficiency(sample, primary_cost, quantity_cols)
 
+    # F1–F4 enrichments. Each is independently available — caller can
+    # render whichever blocks come back populated.
+    forecast = forecast_cost_series(sample, primary_cost, time_col, horizon=3)
+    tornado = tornado_cost_drivers(decomposition_by_dim, total_cost,
+                                   swing_pct=20.0, max_drivers=8)
+    anomalies = detect_cost_anomalies(sample, primary_cost, time_col,
+                                      z_threshold=2.5)
+    budget_col = detect_budget_column(headers, sample, primary_cost)
+    budget_variance = []
+    if budget_col:
+        budget_variance = compute_budget_variance(sample, primary_cost,
+                                                  budget_col, cat_cols)
+
     return {
         'total_cost': round(total_cost, 2),
         'cost_columns': cost_cols,
         'primary_cost': primary_cost,
+        'time_column': time_col,
+        'budget_column': budget_col,
         'decomposition': {
             'by_dimension': decomposition_by_dim,
             'waterfall': waterfall,
         },
         'top_drivers': top_drivers,
         'efficiency': efficiency,
+        'forecast': forecast,
+        'tornado': tornado,
+        'anomalies': anomalies,
+        'budget_variance': budget_variance,
     }
 
 
@@ -762,6 +787,348 @@ def _change_severity(abs_change):
     if abs_change >= _CHANGE_THRESHOLDS['medium']:
         return 'medium'
     return 'low'
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# F1 — Time-series forecast (Holt's linear trend exponential smoothing)
+# ════════════════════════════════════════════════════════════════════════════
+
+def forecast_cost_series(rows, cost_col, time_col, horizon=3):
+    """Aggregate cost by time period and forecast ``horizon`` periods ahead.
+
+    Uses Holt's linear trend method (double exponential smoothing). Returns
+    historical points + forecast with 80% / 95% confidence intervals based
+    on the in-sample residual standard deviation.
+
+    Hardened:
+      - Returns ``{'available': False, 'reason': ...}`` if fewer than 4
+        usable periods, no time column, or no cost column. The caller
+        inspects ``available`` instead of getting a malformed payload.
+      - Skips periods with non-finite aggregates and re-checks the count.
+      - alpha / beta auto-tuned in [0.1, 0.9] by minimising in-sample SSE.
+      - Residual std clamped at >= 1e-9 so the CI band is never zero-width
+        on perfectly linear input (which would otherwise mislead the user
+        into thinking the forecast is exact).
+      - Forecast values clipped at >= 0 — costs cannot be negative; if
+        Holt projects below zero we clamp and flag with ``clipped=True``.
+    """
+    if not cost_col or not time_col or not rows:
+        return {'available': False, 'reason': 'missing_inputs'}
+
+    # Aggregate cost by time period (sum)
+    by_period = defaultdict(float)
+    counts = defaultdict(int)
+    for r in rows:
+        t = r.get(time_col)
+        if t is None or t == '':
+            continue
+        c = _safe_float(r.get(cost_col))
+        if c is None or not math.isfinite(c):
+            continue
+        key = str(t)
+        by_period[key] += c
+        counts[key] += 1
+
+    # Sort periods. Try date-ish parsing first, fall back to string sort.
+    periods = list(by_period.keys())
+    try:
+        periods.sort(key=lambda s: (len(s), s))
+    except Exception:
+        pass
+    series = [by_period[p] for p in periods if math.isfinite(by_period[p])]
+    if len(series) < 4:
+        return {'available': False, 'reason': 'insufficient_history',
+                'min_required': 4, 'actual': len(series)}
+
+    n = len(series)
+
+    # Holt's method: search over (alpha, beta) for the pair that minimises
+    # in-sample SSE. Small grid keeps this O(81 * n) which is trivial.
+    def holt_run(alpha, beta):
+        level = series[0]
+        trend = series[1] - series[0]
+        fits = [series[0]]
+        for t in range(1, n):
+            prev_level = level
+            level = alpha * series[t] + (1 - alpha) * (prev_level + trend)
+            trend = beta * (level - prev_level) + (1 - beta) * trend
+            fits.append(prev_level + trend)
+        sse = sum((series[t] - fits[t]) ** 2 for t in range(n))
+        return level, trend, fits, sse
+
+    best = None
+    for a in [i / 10 for i in range(1, 10)]:
+        for b in [i / 10 for i in range(1, 10)]:
+            try:
+                level, trend, fits, sse = holt_run(a, b)
+            except Exception:
+                continue
+            if not math.isfinite(sse):
+                continue
+            if best is None or sse < best['sse']:
+                best = {'alpha': a, 'beta': b, 'level': level,
+                        'trend': trend, 'fits': fits, 'sse': sse}
+
+    if best is None:
+        return {'available': False, 'reason': 'fit_failed'}
+
+    # Residual std for CI bands. Skip the first 2 fits — t=0 is initialised
+    # to series[0] and t=1 is mechanically series[1] given the warm-up
+    # trend, so both are zero-residual by construction. Including them
+    # would collapse the residual std (and the entire CI band) to ~0 on
+    # any clean signal, which would mislead the user into treating the
+    # forecast as exact.
+    residuals = [series[t] - best['fits'][t] for t in range(2, n)]
+    if len(residuals) >= 2:
+        rmean = sum(residuals) / len(residuals)
+        rvar = sum((r - rmean) ** 2 for r in residuals) / max(1, len(residuals) - 1)
+        rstd = max(math.sqrt(max(rvar, 0.0)), 0.01 * (max(series) - min(series)) or 1.0)
+    else:
+        # Fall back to a fraction of the series spread so the CI band is
+        # never invisible — if we know nothing, signal "wide uncertainty".
+        spread = max(series) - min(series)
+        rstd = max(0.05 * spread, 1.0)
+
+    # Forecast h steps ahead. CI band widens with sqrt(h) for random-walk
+    # error accumulation — a defensible approximation for Holt without
+    # pulling in a real state-space library.
+    forecasts = []
+    for h in range(1, horizon + 1):
+        pt = best['level'] + h * best['trend']
+        clipped = False
+        if pt < 0:
+            pt = 0.0
+            clipped = True
+        sigma_h = rstd * math.sqrt(h)
+        forecasts.append({
+            'h': h,
+            'point': round(pt, 2),
+            'lo80': round(max(0.0, pt - 1.282 * sigma_h), 2),
+            'hi80': round(pt + 1.282 * sigma_h, 2),
+            'lo95': round(max(0.0, pt - 1.96 * sigma_h), 2),
+            'hi95': round(pt + 1.96 * sigma_h, 2),
+            'clipped_negative': clipped,
+        })
+
+    return {
+        'available': True,
+        'time_col': time_col,
+        'cost_col': cost_col,
+        'history': [{'period': p, 'value': round(v, 2)}
+                    for p, v in zip(periods, series)],
+        'forecast': forecasts,
+        'fit_alpha': round(best['alpha'], 2),
+        'fit_beta': round(best['beta'], 2),
+        'residual_std': round(rstd, 2),
+        'mape_pct': round(_mape(series, best['fits']), 2),
+    }
+
+
+def _mape(actual, fitted):
+    """Mean Absolute Percentage Error on the genuine fitted region.
+
+    Skips index 0 and 1 — those are determined by the Holt initialisation
+    and are zero-residual by construction, so including them artificially
+    deflates the error and makes the model look better than it is.
+    """
+    pairs = [(a, f) for k, (a, f) in enumerate(zip(actual, fitted))
+             if k >= 2 and a != 0 and math.isfinite(a) and math.isfinite(f)]
+    if not pairs:
+        return 0.0
+    return 100.0 * sum(abs((a - f) / a) for a, f in pairs) / len(pairs)
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# F2 — Tornado / sensitivity analysis on top cost drivers
+# ════════════════════════════════════════════════════════════════════════════
+
+def tornado_cost_drivers(decomposition_by_dim, total_cost, swing_pct=20.0,
+                         max_drivers=8):
+    """One-at-a-time perturbation of top categorical contributors.
+
+    For each top driver we compute total cost when that driver's contribution
+    is shifted by ±swing_pct (default 20%). Bars are returned sorted by the
+    absolute swing — the steepest mover sits at the top, classic tornado
+    layout.
+
+    Reuses the existing decomposition output. No extra LLM call.
+    """
+    bars = []
+    seen = set()
+    for dim_block in decomposition_by_dim:
+        dim_name = dim_block.get('dimension', '')
+        for cat in dim_block.get('breakdown', [])[:max_drivers]:
+            cat_name = cat.get('category', '')
+            cat_cost = float(cat.get('cost', 0) or 0)
+            key = (dim_name, cat_name)
+            if key in seen or cat_cost <= 0 or not math.isfinite(cat_cost):
+                continue
+            seen.add(key)
+            delta = cat_cost * (swing_pct / 100.0)
+            low_total = total_cost - delta
+            high_total = total_cost + delta
+            bars.append({
+                'dimension': dim_name,
+                'category': cat_name,
+                'base_cost': round(cat_cost, 2),
+                'low_total': round(max(0.0, low_total), 2),
+                'high_total': round(high_total, 2),
+                'swing': round(2 * delta, 2),
+                'swing_pct_of_total': round(
+                    100.0 * (2 * delta) / total_cost, 2) if total_cost > 0 else 0,
+            })
+
+    bars.sort(key=lambda b: b['swing'], reverse=True)
+    return bars[:max_drivers]
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# F3 — Anomaly detection (z-score on per-period cost)
+# ════════════════════════════════════════════════════════════════════════════
+
+def detect_cost_anomalies(rows, cost_col, time_col, z_threshold=2.5,
+                          max_anomalies=20):
+    """Flag periods whose total cost deviates from the historical mean by
+    more than ``z_threshold`` standard deviations.
+
+    Hardened:
+      - Returns empty list on fewer than 5 periods (z-score on a tiny
+        sample is meaningless).
+      - Std clamped at 1e-9 to avoid divide-by-zero on flat series.
+    """
+    if not cost_col or not time_col or not rows:
+        return []
+
+    by_period = defaultdict(float)
+    for r in rows:
+        t = r.get(time_col)
+        if t is None or t == '':
+            continue
+        c = _safe_float(r.get(cost_col))
+        if c is None or not math.isfinite(c):
+            continue
+        by_period[str(t)] += c
+
+    periods = list(by_period.keys())
+    if len(periods) < 5:
+        return []
+
+    vals = [by_period[p] for p in periods]
+    mean = sum(vals) / len(vals)
+    var = sum((v - mean) ** 2 for v in vals) / len(vals)
+    std = max(math.sqrt(max(var, 0.0)), 1e-9)
+
+    anomalies = []
+    for p, v in zip(periods, vals):
+        z = (v - mean) / std
+        if abs(z) >= z_threshold:
+            anomalies.append({
+                'period': p,
+                'value': round(v, 2),
+                'z_score': round(z, 2),
+                'severity': 'high' if abs(z) >= 3 else 'medium',
+                'direction': 'spike' if z > 0 else 'dip',
+                'deviation_pct': round(100.0 * (v - mean) / max(abs(mean), 1e-9), 1),
+            })
+
+    anomalies.sort(key=lambda a: abs(a['z_score']), reverse=True)
+    return anomalies[:max_anomalies]
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# F4 — Budget variance (actual vs target columns)
+# ════════════════════════════════════════════════════════════════════════════
+
+_BUDGET_COL = re.compile(r'budget|target|forecast|plan|projected', re.I)
+
+
+def detect_budget_column(headers, sample, cost_col):
+    """Return the first numeric column whose name matches a budget pattern,
+    excluding the primary cost column itself."""
+    for h in headers:
+        if h == cost_col:
+            continue
+        if not _BUDGET_COL.search(h):
+            continue
+        vals = [r.get(h) for r in sample if r.get(h) not in (None, '')]
+        if _is_numeric_column(vals):
+            return h
+    return None
+
+
+def compute_budget_variance(rows, cost_col, budget_col, dim_cols,
+                            max_dim_categories=20):
+    """Per-dimension actual vs budget variance.
+
+    Returns a list of { dimension, breakdown: [{category, actual, budget,
+    variance, variance_pct, severity}] } where severity is on:
+      - 'over' if actual exceeds budget by >10%
+      - 'on_track' if within ±10%
+      - 'under' if actual is more than 10% below budget
+    """
+    if not cost_col or not budget_col or not rows or not dim_cols:
+        return []
+
+    out = []
+    for dim in dim_cols:
+        groups = defaultdict(lambda: {'actual': 0.0, 'budget': 0.0})
+        for r in rows:
+            cat = r.get(dim)
+            if cat is None or cat == '':
+                continue
+            a = _safe_float(r.get(cost_col))
+            b = _safe_float(r.get(budget_col))
+            if a is not None and math.isfinite(a):
+                groups[str(cat)]['actual'] += a
+            if b is not None and math.isfinite(b):
+                groups[str(cat)]['budget'] += b
+        breakdown = []
+        for cat, vals in groups.items():
+            actual = vals['actual']
+            budget = vals['budget']
+            if budget <= 0:
+                # Can't compute % variance without a positive budget.
+                continue
+            variance = actual - budget
+            var_pct = 100.0 * variance / budget
+            if var_pct > 10:
+                severity = 'over'
+            elif var_pct < -10:
+                severity = 'under'
+            else:
+                severity = 'on_track'
+            breakdown.append({
+                'category': cat,
+                'actual': round(actual, 2),
+                'budget': round(budget, 2),
+                'variance': round(variance, 2),
+                'variance_pct': round(var_pct, 1),
+                'severity': severity,
+            })
+        if breakdown:
+            breakdown.sort(key=lambda c: abs(c['variance']), reverse=True)
+            out.append({
+                'dimension': dim,
+                'breakdown': breakdown[:max_dim_categories],
+            })
+    return out
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# F5 — Drill-down: re-decompose a single category
+# ════════════════════════════════════════════════════════════════════════════
+
+def decompose_drilldown(headers, rows, dimension, category):
+    """Filter rows where ``dimension == category`` and re-run the cost
+    decomposition on that slice. Returns the same shape as analyze_costs
+    so the frontend can swap the results in place.
+    """
+    if not dimension or not category or not rows:
+        return _empty_result()
+    filtered = [r for r in rows if str(r.get(dimension, '')) == str(category)]
+    if not filtered:
+        return _empty_result()
+    return analyze_costs(headers, filtered)
 
 
 def _sanitize_name(col_name):
