@@ -1219,7 +1219,21 @@ body.theme-genbi .anomaly-badge { background: rgba(255,107,157,0.06); border-col
 /* Step 3 iteration buttons */
 .risk-iter-btn { font-size:9px; padding:3px 9px; border-radius:5px; border:1px solid rgba(255,255,255,0.08); background:transparent; color:var(--text-tertiary); cursor:pointer; font-weight:500; font-family:'Inter',sans-serif; transition:all .15s; }
 .risk-iter-btn:hover { border-color:rgba(255,255,255,0.15); }
-.risk-iter-btn.active { background:rgba(6,182,212,0.12); border-color:rgba(6,182,212,0.30); color:#67e8f9; font-weight:600; }
+.risk-iter-btn.active { background:rgba(0,229,255,0.10); border-color:rgba(0,229,255,0.28); color:var(--accent-cyan); font-weight:600; }
+/* @RISK-style Monte Carlo card — histogram + probability gauges + stats grid */
+.risk-mc-card { background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-left:3px solid var(--accent-cyan); border-radius:10px; padding:12px 14px; }
+.risk-mc-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.risk-mc-name { font-size:12px; font-weight:500; color:var(--text-primary); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.risk-mc-tier { font-size:8px; font-weight:700; letter-spacing:0.6px; padding:2px 7px; border-radius:4px; flex-shrink:0; }
+.risk-mc-canvas { display:block; width:100%; height:110px; margin-bottom:8px; }
+.risk-mc-probs { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:6px 0; border-top:1px dashed rgba(255,255,255,0.05); border-bottom:1px dashed rgba(255,255,255,0.05); margin-bottom:8px; }
+.risk-mc-prob { display:flex; flex-direction:column; gap:1px; align-items:center; }
+.risk-mc-prob-lbl { font-size:8px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.4px; }
+.risk-mc-prob-val { font-size:13px; font-weight:600; font-family:'JetBrains Mono','Outfit',ui-monospace,monospace; }
+.risk-mc-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:6px; }
+.risk-mc-stat { display:flex; flex-direction:column; gap:1px; align-items:center; padding:4px 2px; }
+.risk-mc-stat-lbl { font-size:8px; color:var(--text-tertiary); text-transform:uppercase; letter-spacing:0.4px; font-weight:600; }
+.risk-mc-stat-val { font-size:11px; font-weight:500; color:var(--text-primary); font-family:'JetBrains Mono',ui-monospace,monospace; }
 /* GenBI-style buttons for risk */
 .risk-btn-primary { font-size:11px; background:var(--accent-cyan); color:#000; border:none; padding:7px 18px; border-radius:8px; cursor:pointer; font-weight:600; font-family:'Outfit','Inter',sans-serif; transition:all .15s; }
 .risk-btn-primary:hover { box-shadow:0 0 14px rgba(6,182,212,0.3); }
@@ -4964,11 +4978,17 @@ function _riskRenderStep2(body) {
   });
   html += '<button class="risk-btn-primary" onclick="_riskWizardStep2()">Re-rank</button>';
   html += '</div>';
-  // Ranked list
+  // Ranked list. Bar colour uses the same risk-tier system as the Monte
+  // Carlo histograms in Step 3, so the user sees a consistent visual
+  // language across all three steps. Tier thresholds are picked to align
+  // with the topsis_score 0..1 scale rather than the exceed_high 0..100
+  // scale used by the histograms.
   html += '<div class="risk-rank-list">';
   (w.ranked || []).forEach(function(f, i) {
     var pct = Math.round((f.topsis_score || 0) * 100);
-    var color = pct >= 70 ? '#f43f5e' : pct >= 45 ? '#f59e0b' : '#06b6d4';
+    // Map score -> approximate exceed_high tier so we can reuse _riskTier:
+    // 70%+ score is HIGH territory; 45..70 is MODERATE; <45 is LOW.
+    var color = _riskTier(pct >= 70 ? 60 : pct >= 45 ? 30 : 10).color;
     html += '<div class="risk-rank-row">';
     html += '<span class="risk-rank-num" style="color:' + color + '">#' + (i + 1) + '</span>';
     html += '<span class="risk-rank-name">' + escHtml(f.name) + '</span>';
@@ -5121,23 +5141,51 @@ function _riskRenderStep3(body) {
   if (partialCount > 0) {
     html += '<div style="font-size:10px;color:#fbbf24;margin-bottom:6px;">⚠ ' + partialCount + ' simulation' + (partialCount === 1 ? '' : 's') + ' unavailable — backend returned partial data for those factors.</div>';
   }
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px;">';
+  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">';
   sims.forEach(function(s, i) {
     if (s.is_partial) {
-      html += '<div class="glass-panel" style="padding:12px;border-left:3px solid rgba(251,191,36,0.55);opacity:0.65;">';
+      html += '<div class="glass-panel" style="padding:14px;border-left:3px solid var(--accent-amber);opacity:0.7;">';
       html += '<div style="font-size:11px;font-weight:500;margin-bottom:6px;">' + escHtml(s.factor_name) + '</div>';
-      html += '<div style="font-size:10px;color:var(--text-tertiary);font-style:italic;padding:14px 0;">Simulation unavailable</div>';
+      var reason = s.unavailable_reason === 'no_numeric_column' ? 'No numeric column matched this factor' :
+                   s.unavailable_reason === 'too_few_numeric_values' ? 'Fewer than 10 valid numeric values' :
+                   s.unavailable_reason === 'zero_variance' ? 'Column had no variation' :
+                   'Simulation unavailable';
+      html += '<div style="font-size:10px;color:var(--text-tertiary);font-style:italic;padding:14px 0;">' + escHtml(reason) + '</div>';
       html += '</div>';
       return;
     }
-    var color = s.probabilities.exceed_high > 50 ? '#f43f5e' : s.probabilities.exceed_high > 20 ? '#f59e0b' : '#06b6d4';
-    html += '<div class="glass-panel" style="padding:12px;border-left:3px solid ' + color + ';">';
-    html += '<div style="font-size:11px;font-weight:500;margin-bottom:6px;">' + escHtml(s.factor_name) + '</div>';
-    html += '<canvas id="riskHist' + i + '" width="260" height="80" style="display:block;width:100%;height:80px"></canvas>';
-    html += '<div style="display:flex;gap:4px;margin-top:6px;font-size:9px;color:var(--text-tertiary);">' +
-            '<span>P5: ' + s.percentiles.p5.toLocaleString() + '</span>' +
-            '<span>Mean: ' + (s.percentiles.mean || Math.round((s.percentiles.p5 + s.percentiles.p95)/2)).toLocaleString() + '</span>' +
-            '<span>P95: ' + s.percentiles.p95.toLocaleString() + '</span></div>';
+    var tier = _riskTier(s.probabilities.exceed_high);
+    var ds = s.data_stats || {};
+    var pcts = s.percentiles || {};
+    var probs = s.probabilities || {};
+    var thr = s.thresholds || {};
+    var fmt = function(n) {
+      if (typeof n !== 'number' || !isFinite(n)) return '—';
+      if (Math.abs(n) >= 1000) return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
+      return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    };
+    html += '<div class="risk-mc-card" style="border-left-color:' + tier.color + ';">';
+    // Header: factor name + risk tier badge
+    html += '<div class="risk-mc-head">';
+    html += '<span class="risk-mc-name">' + escHtml(s.factor_name) + '</span>';
+    html += '<span class="risk-mc-tier" style="background:' + tier.bgRgba + ';color:' + tier.color + ';">' + tier.label + '</span>';
+    html += '</div>';
+    // Histogram canvas (taller now — was 80, now 110)
+    html += '<canvas class="risk-mc-canvas" id="riskHist' + i + '" width="320" height="110"></canvas>';
+    // Probabilities row — three risk gauges along the threshold scale
+    html += '<div class="risk-mc-probs">';
+    html += '<div class="risk-mc-prob"><span class="risk-mc-prob-lbl">P(&gt; moderate)</span><span class="risk-mc-prob-val" style="color:var(--accent-amber);">' + (probs.exceed_moderate || 0).toFixed(1) + '%</span></div>';
+    html += '<div class="risk-mc-prob"><span class="risk-mc-prob-lbl">P(&gt; high)</span><span class="risk-mc-prob-val" style="color:var(--accent-rose);">' + (probs.exceed_high || 0).toFixed(1) + '%</span></div>';
+    html += '<div class="risk-mc-prob"><span class="risk-mc-prob-lbl">P(&lt; low)</span><span class="risk-mc-prob-val" style="color:var(--accent-cyan);">' + (probs.below_low || 0).toFixed(1) + '%</span></div>';
+    html += '</div>';
+    // Statistics block — Mean / σ / P5 / P50 / P95 in a tidy grid
+    html += '<div class="risk-mc-stats">';
+    html += '<div class="risk-mc-stat"><span class="risk-mc-stat-lbl">Mean</span><span class="risk-mc-stat-val">' + fmt(ds.mean) + '</span></div>';
+    html += '<div class="risk-mc-stat"><span class="risk-mc-stat-lbl">σ</span><span class="risk-mc-stat-val">' + fmt(ds.std) + '</span></div>';
+    html += '<div class="risk-mc-stat"><span class="risk-mc-stat-lbl">P5</span><span class="risk-mc-stat-val">' + fmt(pcts.p5) + '</span></div>';
+    html += '<div class="risk-mc-stat"><span class="risk-mc-stat-lbl">P50</span><span class="risk-mc-stat-val">' + fmt(pcts.p50) + '</span></div>';
+    html += '<div class="risk-mc-stat"><span class="risk-mc-stat-lbl">P95</span><span class="risk-mc-stat-val">' + fmt(pcts.p95) + '</span></div>';
+    html += '</div>';
     html += '</div>';
   });
   html += '</div>';
@@ -5165,6 +5213,27 @@ function _riskRenderStep3(body) {
   if (sims.length) requestAnimationFrame(function() { _riskDrawMCHistograms(sims); });
 }
 
+// ── Single source of truth for risk-tier colour. Reads from CSS vars so
+// theme switches (dark / light / pastel / genbi) inherit automatically.
+// Used everywhere a tier colour is picked: card border, histogram bars,
+// CI band, S-curve, threshold marker, badge background.
+function _riskTier(exceedHighPct) {
+  const cs = getComputedStyle(document.documentElement);
+  const cyan  = (cs.getPropertyValue('--accent-cyan')  || '#00e5ff').trim();
+  const amber = (cs.getPropertyValue('--accent-amber') || '#ffd740').trim();
+  const rose  = (cs.getPropertyValue('--accent-rose')  || '#ff6b9d').trim();
+  // Convert hex to "r,g,b" for translucent fills.
+  const toRgb = (h) => {
+    h = h.replace('#','');
+    if (h.length === 3) h = h.split('').map(c => c+c).join('');
+    return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)].join(',');
+  };
+  const v = Number(exceedHighPct) || 0;
+  if (v > 50) return { color: rose,  rgb: toRgb(rose),  bgRgba: 'rgba(' + toRgb(rose)  + ',0.10)', label: 'HIGH' };
+  if (v > 20) return { color: amber, rgb: toRgb(amber), bgRgba: 'rgba(' + toRgb(amber) + ',0.10)', label: 'MODERATE' };
+  return       { color: cyan,  rgb: toRgb(cyan),  bgRgba: 'rgba(' + toRgb(cyan)  + ',0.10)', label: 'LOW' };
+}
+
 // ── Helper: insight panel (consistent visual treatment) ──────────────────
 function _riskInsightPanel(title, htmlBody) {
   return '<div class="risk-insight">' +
@@ -5177,71 +5246,150 @@ function _riskInsightPanel(title, htmlBody) {
 // Each canvas id is `riskHist{i}`. Each sim has either `histogram` (array of
 // counts) or `samples` (raw values we bin client-side). P5/Mean/P95 markers
 // are overlaid as vertical guides.
+// @RISK-style Monte Carlo distribution: histogram with confidence-band
+// shading (P5–P95 in tier colour, tails muted), overlaid S-curve (CDF) on
+// a secondary axis, and dashed threshold-of-concern marker. Mirrors the
+// visual idiom Palisade @RISK uses so a quant audience reads it
+// immediately. Each canvas id is `riskHist{i}`.
 function _riskDrawMCHistograms(sims) {
   if (!sims || !sims.length) return;
   sims.forEach(function(s, i) {
     var canvas = document.getElementById('riskHist' + i);
     if (!canvas) return;
-    // Skip sims explicitly marked partial — the renderer already showed an
-    // "unavailable" placeholder for that slot, no canvas was emitted.
     if (s && s.is_partial) return;
-    // Guard: a partial server response may omit percentiles entirely.
-    // Skip the card silently rather than throwing on null deref — the
-    // surrounding card markup already shows the factor name.
     if (!s || !s.percentiles || !s.probabilities) return;
-    var p5 = (typeof s.percentiles.p5 === 'number') ? s.percentiles.p5 : null;
-    var p95 = (typeof s.percentiles.p95 === 'number') ? s.percentiles.p95 : null;
-    if (p5 == null || p95 == null) return;
-    var ctx = canvas.getContext('2d');
-    var W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    // Choose bin counts
-    var counts = null;
-    var minV = p5, maxV = p95;
-    if (Array.isArray(s.histogram) && s.histogram.length) {
-      counts = s.histogram;
-    } else if (Array.isArray(s.samples) && s.samples.length) {
-      var bins = 20;
-      counts = new Array(bins).fill(0);
-      var lo = Math.min.apply(null, s.samples), hi = Math.max.apply(null, s.samples);
-      var step = (hi - lo) / bins || 1;
-      s.samples.forEach(function(v) {
-        var idx = Math.min(bins - 1, Math.max(0, Math.floor((v - lo) / step)));
-        counts[idx]++;
-      });
-      minV = lo; maxV = hi;
+
+    // Sharp rendering on hi-DPI displays. Read the CSS-pixel dimensions
+    // first (canvas was sized via width/height attrs above), then scale
+    // the backing store and the context.
+    var dpr = window.devicePixelRatio || 1;
+    var cssW = canvas.width, cssH = canvas.height;
+    if (canvas.width !== cssW * dpr) {
+      canvas.width  = cssW * dpr;
+      canvas.height = cssH * dpr;
     }
-    if (!counts) return;
-    var maxCount = Math.max.apply(null, counts) || 1;
-    var exH = (typeof s.probabilities.exceed_high === 'number') ? s.probabilities.exceed_high : 0;
-    var color = exH > 50 ? '#f43f5e' : exH > 20 ? '#f59e0b' : '#06b6d4';
-    var bw = W / counts.length;
-    // Bars
-    counts.forEach(function(c, j) {
-      var h = (c / maxCount) * (H - 12);
-      var x = j * bw;
-      var y = H - h - 2;
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.25 + (c / maxCount) * 0.6;
-      ctx.fillRect(x + 1, y, bw - 2, h);
+    canvas.style.width  = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var W = cssW, H = cssH;
+    ctx.clearRect(0, 0, W, H);
+
+    // Margins for axis labels at the bottom.
+    var padL = 0, padR = 0, padT = 4, padB = 16;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    var p5  = (typeof s.percentiles.p5  === 'number') ? s.percentiles.p5  : null;
+    var p95 = (typeof s.percentiles.p95 === 'number') ? s.percentiles.p95 : null;
+    var p50 = (typeof s.percentiles.p50 === 'number') ? s.percentiles.p50 : null;
+    var meanV = (s.data_stats && typeof s.data_stats.mean === 'number') ? s.data_stats.mean : ((p5 != null && p95 != null) ? (p5 + p95) / 2 : null);
+    if (p5 == null || p95 == null) return;
+
+    // Bin source: prefer server-provided histogram (mid + count); fall back
+    // to client-side binning of raw samples.
+    var bins = null;  // { mid, count }
+    var minV, maxV;
+    if (Array.isArray(s.histogram) && s.histogram.length && typeof s.histogram[0] === 'object') {
+      bins = s.histogram.map(function(b) { return { mid: b.mid, count: b.count, lo: b.lo, hi: b.hi }; });
+      minV = bins[0].lo;
+      maxV = bins[bins.length - 1].hi;
+    } else if (Array.isArray(s.histogram) && typeof s.histogram[0] === 'number') {
+      // Legacy: array of counts only. Lay them across [p5, p95].
+      var nB = s.histogram.length;
+      bins = s.histogram.map(function(c, k) {
+        var step = (p95 - p5) / nB;
+        return { mid: p5 + (k + 0.5) * step, count: c, lo: p5 + k * step, hi: p5 + (k + 1) * step };
+      });
+      minV = p5; maxV = p95;
+    } else {
+      return;
+    }
+    var maxCount = bins.reduce(function(m, b) { return Math.max(m, b.count || 0); }, 0) || 1;
+    // Pad axis range slightly so end bars don't kiss the edges.
+    var rangeV = maxV - minV;
+    if (rangeV <= 0) return;
+    var axMin = minV - rangeV * 0.02;
+    var axMax = maxV + rangeV * 0.02;
+    var axRange = axMax - axMin;
+    function px(v) { return padL + ((v - axMin) / axRange) * plotW; }
+    function py(c) { return padT + plotH - (c / maxCount) * plotH; }
+
+    var tier = _riskTier(s.probabilities.exceed_high);
+    var col = tier.color;
+    var rgb = tier.rgb;
+
+    // Confidence-band background — soft tint between P5 and P95.
+    ctx.fillStyle = 'rgba(' + rgb + ',0.07)';
+    ctx.fillRect(px(p5), padT, px(p95) - px(p5), plotH);
+
+    // Histogram bars.
+    bins.forEach(function(b) {
+      var x0 = px(b.lo);
+      var x1 = px(b.hi);
+      var h  = (b.count / maxCount) * plotH;
+      var y  = padT + plotH - h;
+      // Inside CI = solid tier colour. Outside CI = muted.
+      var inCI = (b.mid >= p5 && b.mid <= p95);
+      ctx.fillStyle = inCI
+        ? 'rgba(' + rgb + ',0.85)'
+        : 'rgba(' + rgb + ',0.30)';
+      ctx.fillRect(x0 + 0.5, y, Math.max(1, x1 - x0 - 1), h);
     });
-    ctx.globalAlpha = 1;
-    // P5 / Mean / P95 markers
-    var range = maxV - minV || 1;
-    function markX(v) { return ((v - minV) / range) * W; }
-    var meanV = (typeof s.percentiles.mean === 'number') ? s.percentiles.mean : (p5 + p95) / 2;
-    var markers = [
-      { v: p5, label: 'P5', color: 'rgba(255,255,255,0.30)' },
-      { v: meanV, label: 'Mean', color: 'rgba(255,255,255,0.65)' },
-      { v: p95, label: 'P95', color: 'rgba(255,255,255,0.30)' },
-    ];
-    markers.forEach(function(m) {
-      var x = markX(m.v);
-      ctx.strokeStyle = m.color;
-      ctx.setLineDash(m.label === 'Mean' ? [] : [2, 3]);
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+
+    // Overlay the cumulative distribution (S-curve) on a secondary axis
+    // [0..100%] mapped into the plot area. Drawn translucent so the
+    // histogram stays the dominant element.
+    var cum = 0;
+    var totalCount = bins.reduce(function(t, b) { return t + (b.count || 0); }, 0) || 1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    bins.forEach(function(b, k) {
+      cum += (b.count || 0);
+      var pct = cum / totalCount;
+      var x = px(b.hi);
+      var y = padT + plotH - pct * plotH;
+      if (k === 0) ctx.moveTo(px(b.lo), padT + plotH); // start at baseline
+      ctx.lineTo(x, y);
     });
+    ctx.stroke();
+    ctx.lineWidth = 1;
+
+    // Vertical markers: P5 / Mean / P95 / threshold-of-concern.
+    function vline(v, color, dash, lbl) {
+      var x = px(v);
+      ctx.strokeStyle = color;
+      ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + plotH); ctx.stroke();
+      if (lbl) {
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = '9px Inter,system-ui,sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(lbl, x, H - 4);
+      }
+    }
+    vline(p5,  'rgba(255,255,255,0.45)', [2, 3], 'P5');
+    if (meanV != null) vline(meanV, 'rgba(255,255,255,0.85)', [],     'Mean');
+    vline(p95, 'rgba(255,255,255,0.45)', [2, 3], 'P95');
+
+    // Threshold-of-concern marker (`thresholds.high`). Drawn in tier
+    // colour with the exceed-probability annotation. Skipped if the
+    // threshold falls outside the plotted range.
+    if (s.thresholds && typeof s.thresholds.high === 'number') {
+      var th = s.thresholds.high;
+      if (th >= axMin && th <= axMax) {
+        ctx.strokeStyle = col;
+        ctx.setLineDash([4, 3]);
+        ctx.lineWidth = 1.5;
+        var thx = px(th);
+        ctx.beginPath(); ctx.moveTo(thx, padT); ctx.lineTo(thx, padT + plotH); ctx.stroke();
+        ctx.lineWidth = 1;
+      }
+    }
     ctx.setLineDash([]);
+    ctx.textAlign = 'left';
   });
 }
 
